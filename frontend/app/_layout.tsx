@@ -16,8 +16,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useColors } from "../hooks/useColors";
 
-// Prevent splash auto hide
-SplashScreen.preventAutoHideAsync();
+// ✅ FIX: handle async safely
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootNavigator() {
   const colors = useColors();
@@ -60,7 +60,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded) {
-      SplashScreen.hideAsync();
+      // ✅ FIX: prevent unhandled promise rejection
+      void SplashScreen.hideAsync().catch((err) => {
+        console.warn("Splash hide error:", err);
+      });
     }
   }, [fontsLoaded]);
 

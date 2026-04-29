@@ -2,7 +2,7 @@ import axios from "axios";
 import { getToken } from "../services/authStorage";
 
 const API = axios.create({
-  baseURL: "http://your_computer_ip:8000/api/",
+  baseURL: process.env.EXPO_PUBLIC_API_URL,
 });
 
 //php artisan serve --host=0.0.0.0 --port=8000
@@ -11,6 +11,7 @@ API.interceptors.request.use(async (config) => {
   const token = await getToken();
 
   if (token) {
+    config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;
   }
 

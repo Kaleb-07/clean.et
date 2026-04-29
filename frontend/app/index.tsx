@@ -10,7 +10,10 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { LinearGradient } from "expo-linear-gradient";
-import { useColors } from "../hooks/useColors"; // adjust if alias works
+import { useColors } from "../hooks/useColors";
+
+// ✅ NEW: import icon
+import { Droplet } from "lucide-react-native";
 
 export default function SplashScreen() {
   const colors = useColors();
@@ -32,7 +35,7 @@ export default function SplashScreen() {
 
     // navigate after delay
     const timer = setTimeout(() => {
-      router.replace("/(auth)/login"); // for now always go to login
+      router.replace("/(auth)/login");
     }, 1500);
 
     return () => clearTimeout(timer);
@@ -47,8 +50,10 @@ export default function SplashScreen() {
     <LinearGradient colors={["#1a1b3a", "#6d28d9"]} style={styles.container}>
       <Animated.View style={[styles.content, animatedStyle]}>
         <View style={styles.iconContainer}>
-          <Text style={{ fontSize: 48 }}>💧</Text>
+          {/* ✅ UPDATED ICON */}
+          <Droplet size={64} color="#ffffff" />
         </View>
+
         <Text style={styles.title}>CarWash</Text>
       </Animated.View>
     </LinearGradient>
@@ -72,6 +77,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
+
+    // ✅ optional polish (same as second code)
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   title: {
     fontSize: 42,

@@ -96,7 +96,7 @@ export default function HomeScreen() {
               <BlurView intensity={30} tint="dark" style={styles.card}>
                 {/* IMAGE */}
                 <Image
-                  source={require("../../assets/myimage/car2.jpeg")}
+                  source={require("../../assets/myimage/wash-premium.png")}
                   style={styles.image}
                 />
 

@@ -45,11 +45,11 @@ export default function LoginScreen() {
 
       await saveToken(token);
 
-      if (res.data.data.user.role === "admin") {
-        router.replace("/Admin");
-      } else {
-        router.replace("/(tabs)/home");
-      }
+     if (res.data.data.user.role === "admin") {
+      router.replace("/Admin/dashboard");
+     } else {
+       router.replace("/(tabs)/home");
+     }
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const errors = err.response?.data?.errors;
