@@ -55,8 +55,8 @@ export default function LoginScreen() {
         const errors = err.response?.data?.errors;
 
         if (errors) {
-          const firstError = Object.values(errors)[0]?.[0];
-          setError(firstError as string);
+          const firstError = (Object.values(errors)[0] as string[])?.[0];
+          setError(firstError || "Login failed");
         } else {
           setError(err.response?.data?.message || "Login failed");
         }
