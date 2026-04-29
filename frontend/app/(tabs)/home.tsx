@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,15 @@ import {
   Image,
   RefreshControl,
   TextInput,
+  Platform,
 } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Clock, ChevronRight, Search } from "lucide-react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 
 import API from "../../src/api/client";
 
@@ -25,9 +27,11 @@ export default function HomeScreen() {
   const [filtered, setFiltered] = useState([]);
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [user, setUser] = useState<{ name: string } | null>(null);
 
   useEffect(() => {
     loadServices();
+    loadUser();
   }, []);
 
   const loadServices = async () => {
@@ -36,7 +40,16 @@ export default function HomeScreen() {
       setServices(res.data.data);
       setFiltered(res.data.data);
     } catch (e) {
-      console.log(e);
+      console.log("Error loading services:", e);
+    }
+  };
+
+  const loadUser = async () => {
+    try {
+      const res = await API.get("/me");
+      setUser(res.data.data.user);
+    } catch (e) {
+      console.log("Error loading user:", e);
     }
   };
 
@@ -49,74 +62,95 @@ export default function HomeScreen() {
   }, [search, services]);
 
   /* REFRESH */
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     await loadServices();
     setRefreshing(false);
-  };
+  }, []);
 
   /* BOOK */
   const handleBook = (id: number) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     router.push(`/booking/${id}`);
   };
 
   return (
-    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={{ flex: 1 }}>
+    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
       <ScrollView
         contentContainerStyle={{
-          paddingTop: insets.top + 20,
-          paddingBottom: 100,
+          paddingTop: Math.max(insets.top, 60),
+          paddingBottom: insets.bottom + 100,
         }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#ffffff"
+          />
         }
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <Text style={styles.title}>Our Services</Text>
-          <Text style={styles.subtitle}>Choose your perfect wash</Text>
+          <Text style={styles.greeting}>Hello, {user?.name || "Guest"}</Text>
+          <Text style={styles.subtitle}>Select a service for your car</Text>
         </View>
 
         {/* SEARCH */}
-        <View style={styles.search}>
-          <Ionicons name="search" size={18} color="#aaa" />
+        <BlurView intensity={10} tint="dark" style={styles.searchContainer}>
+          <Search size={18} color="#a3a3a3" />
           <TextInput
             placeholder="Search services..."
-            placeholderTextColor="#aaa"
+            placeholderTextColor="#a3a3a3"
             value={search}
             onChangeText={setSearch}
-            style={{ color: "#fff", marginLeft: 8, flex: 1 }}
+            style={styles.searchInput}
           />
-        </View>
+        </BlurView>
 
         {/* SERVICES */}
-        <View style={styles.list}>
+        <View style={styles.servicesList}>
           {filtered.map((item: any, index) => (
             <Animated.View key={item.id} entering={FadeInUp.delay(index * 80)}>
-              <BlurView intensity={30} tint="dark" style={styles.card}>
+              <BlurView intensity={20} tint="dark" style={styles.card}>
                 {/* IMAGE */}
                 <Image
                   source={require("../../assets/myimage/wash-premium.png")}
-                  style={styles.image}
+                  style={styles.cardImage}
+                  resizeMode="cover"
                 />
 
                 {/* CONTENT */}
-                <View style={styles.content}>
-                  <View style={styles.row}>
-                    <Text style={styles.name}>{item.name}</Text>
-                    <Text style={styles.price}>${item.price}</Text>
+                <View style={styles.cardContent}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle}>{item.name}</Text>
+                    <Text style={styles.cardPrice}>${item.price}</Text>
                   </View>
 
-                  <Text style={styles.desc}>{item.description}</Text>
+                  <Text style={styles.cardDescription} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+
+                  <View style={styles.cardMeta}>
+                    <View style={styles.metaItem}>
+                      <Clock size={14} color="#a3a3a3" />
+                      <Text style={styles.metaText}>30-45 min</Text>
+                    </View>
+                  </View>
 
                   <Pressable
                     style={({ pressed }) => [
-                      styles.button,
-                      pressed && { opacity: 0.8 },
+                      styles.bookButton,
+                      pressed && styles.bookButtonPressed,
                     ]}
                     onPress={() => handleBook(item.id)}
                   >
-                    <Text style={styles.buttonText}>Book Now</Text>
+                    <Text style={styles.bookButtonText}>Book Now</Text>
+                    <ChevronRight size={16} color="#ffffff" />
                   </Pressable>
                 </View>
               </BlurView>
@@ -129,83 +163,112 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
+  container: {
+    flex: 1,
   },
-  title: {
-    fontSize: 28,
-    color: "#fff",
+  header: {
+    paddingHorizontal: 24,
+    marginBottom: 24,
+  },
+  greeting: {
+    fontSize: 32,
     fontWeight: "bold",
+    color: "#ffffff",
+    marginBottom: 8,
   },
   subtitle: {
-    color: "#aaa",
-    marginTop: 6,
+    fontSize: 16,
+    color: "#a3a3a3",
   },
-
-  search: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 14,
+  searchContainer: {
+    marginHorizontal: 24,
+    marginBottom: 24,
+    borderRadius: 16,
     padding: 12,
     flexDirection: "row",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
-
-  list: {
+  searchInput: {
+    color: "#ffffff",
+    marginLeft: 10,
+    flex: 1,
+    fontSize: 16,
+  },
+  servicesList: {
     paddingHorizontal: 16,
     gap: 16,
   },
-
   card: {
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    marginBottom: 16,
   },
-
-  image: {
+  cardImage: {
     width: "100%",
-    height: 140,
+    height: 160,
   },
-
-  content: {
-    padding: 16,
+  cardContent: {
+    padding: 20,
   },
-
-  row: {
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 6,
-  },
-
-  name: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-
-  price: {
-    color: "#8b5cf6",
-    fontWeight: "bold",
-  },
-
-  desc: {
-    color: "#aaa",
-    fontSize: 13,
-    marginBottom: 12,
-  },
-
-  button: {
-    backgroundColor: "#6d28d9",
-    padding: 12,
-    borderRadius: 10,
     alignItems: "center",
+    marginBottom: 8,
   },
-
-  buttonText: {
-    color: "#fff",
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#ffffff",
+  },
+  cardPrice: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#8b5cf6",
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: "#a3a3a3",
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  cardMeta: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 20,
+  },
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  metaText: {
+    fontSize: 14,
+    color: "#a3a3a3",
+    fontWeight: "500",
+  },
+  bookButton: {
+    backgroundColor: "#6d28d9",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  bookButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  bookButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
     fontWeight: "600",
   },
 });
