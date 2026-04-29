@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, Switch, ScrollView, Platform } from "react-native";
+import { View, Text, StyleSheet, Pressable, Switch, ScrollView, Platform, Alert } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -76,7 +76,10 @@ export default function NotificationsScreen() {
   return (
     <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable 
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile")} 
+          style={styles.backButton}
+        >
           <ChevronLeft color="#ffffff" size={28} />
         </Pressable>
         <Text style={styles.headerTitle}>Notifications</Text>

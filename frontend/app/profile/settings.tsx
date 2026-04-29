@@ -64,9 +64,10 @@ export default function SettingsScreen() {
   const handleClearCache = async () => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
     try {
-      // Clear all stored app data
+      // Clear all stored app data except auth_token
       const keys = await AsyncStorage.getAllKeys();
-      await AsyncStorage.multiRemove(keys as string[]);
+      const keysToRemove = keys.filter(key => key !== "auth_token");
+      await AsyncStorage.multiRemove(keysToRemove);
       // Reset local states to defaults
       setIsDarkMode(true);
       setLanguage("English");
@@ -85,7 +86,10 @@ export default function SettingsScreen() {
   return (
     <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable 
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile")} 
+          style={styles.backButton}
+        >
           <ChevronLeft color="#ffffff" size={28} />
         </Pressable>
         <Text style={styles.headerTitle}>App Settings</Text>

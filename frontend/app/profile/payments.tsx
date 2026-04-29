@@ -120,7 +120,10 @@ export default function PaymentsScreen() {
   return (
     <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable 
+          onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/profile")} 
+          style={styles.backButton}
+        >
           <ChevronLeft color="#ffffff" size={28} />
         </Pressable>
         <Text style={styles.headerTitle}>Payments</Text>

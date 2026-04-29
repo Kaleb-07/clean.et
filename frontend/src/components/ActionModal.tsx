@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { CheckCircle2, AlertTriangle, Info } from 'lucide-react-native';
 
@@ -24,7 +24,7 @@ export default function ActionModal({
   onConfirm,
   onCancel,
 }: ActionModalProps) {
-  
+
   const colors = {
     success: '#10b981',
     warning: '#f59e0b',
@@ -42,31 +42,30 @@ export default function ActionModal({
     >
       <View style={styles.overlay}>
         <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
-        
+
+        {/* Compact Card Container */}
         <View style={styles.content}>
-          <BlurView intensity={90} tint="dark" style={styles.modalBody}>
-            <View style={[styles.iconContainer, { backgroundColor: `${colors[type]}15` }]}>
-              <Icon color={colors[type]} size={24} />
-            </View>
-            
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.message}>{message}</Text>
-            
-            <View style={styles.buttonContainer}>
-              {onCancel && (
-                <Pressable style={styles.cancelBtn} onPress={onCancel}>
-                  <Text style={styles.cancelText}>{cancelText}</Text>
-                </Pressable>
-              )}
-              
-              <Pressable 
-                style={[styles.confirmBtn, { backgroundColor: colors[type] }]} 
-                onPress={onConfirm}
-              >
-                <Text style={styles.confirmBtnText}>{confirmText}</Text>
+          <View style={[styles.iconContainer, { backgroundColor: `${colors[type]}15` }]}>
+            <Icon color={colors[type]} size={22} />
+          </View>
+
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.message}>{message}</Text>
+
+          <View style={styles.buttonContainer}>
+            {onCancel && (
+              <Pressable style={styles.cancelBtn} onPress={onCancel}>
+                <Text style={styles.cancelText}>{cancelText}</Text>
               </Pressable>
-            </View>
-          </BlurView>
+            )}
+
+            <Pressable
+              style={[styles.confirmBtn, { backgroundColor: colors[type] }]}
+              onPress={onConfirm}
+            >
+              <Text style={styles.confirmBtnText}>{confirmText}</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Modal>
@@ -78,70 +77,71 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   content: {
-    width: Dimensions.get('window').width * 0.8,
-    borderRadius: 28,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  modalBody: {
-    padding: 24,
+    width: '80%',           // Use percentage instead of Dimensions
+    maxWidth: 280,          // Hard cap the size on large screens
+    backgroundColor: '#1e1e2d', // Solid background for reliable rendering
+    borderRadius: 20,
+    padding: 20,            // Padding applied directly to the container
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   iconContainer: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   title: {
     color: '#ffffff',
-    fontSize: 19,
+    fontSize: 16,           // Smaller, tighter font
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 4,
     textAlign: 'center',
   },
   message: {
     color: '#94a3b8',
-    fontSize: 14,
+    fontSize: 12,           // Smaller, tighter font
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-    paddingHorizontal: 10,
+    lineHeight: 16,
+    marginBottom: 16,
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     width: '100%',
   },
   confirmBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 10,    // Thinner button
+    borderRadius: 10,       // Tighter border radius
     alignItems: 'center',
   },
   confirmBtnText: {
     color: '#ffffff',
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: 13,           // Smaller text
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
   cancelText: {
     color: '#94a3b8',
     fontWeight: '600',
-    fontSize: 15,
+    fontSize: 13,
   },
 });

@@ -8,6 +8,7 @@ import {
   Image,
   RefreshControl,
   TextInput,
+  Platform,
 } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -63,14 +64,18 @@ export default function HomeScreen() {
   /* REFRESH */
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     await loadServices();
     setRefreshing(false);
   }, []);
 
   /* BOOK */
   const handleBook = (id: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     router.push(`/booking/${id}`);
   };
 

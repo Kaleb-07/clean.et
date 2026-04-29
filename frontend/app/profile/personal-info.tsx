@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert } from "react-native";
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, Platform } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,19 +18,29 @@ export default function PersonalInfoScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSave = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (Platform.OS !== "web") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
     setShowSuccess(true);
+  };
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)/profile");
+    }
   };
 
   const confirmSave = () => {
     setShowSuccess(false);
-    router.back();
+    handleBack();
   };
 
   return (
     <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={handleBack} style={styles.backButton}>
           <ChevronLeft color="#ffffff" size={28} />
         </Pressable>
         <Text style={styles.headerTitle}>Personal Info</Text>

@@ -32,7 +32,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         // Verify token / get user profile
         const res = await API.get("/me");
-        setUser(res.data.data.user);
+        const payload = res.data.data || res.data;
+        setUser(payload.user || payload);
       }
     } catch (e) {
       console.log("Failed to load auth state", e);
