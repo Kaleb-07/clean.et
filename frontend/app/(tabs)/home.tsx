@@ -19,9 +19,11 @@ import Animated, { FadeInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import API from "../../src/api/client";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   const [services, setServices] = useState([]);
   const [filtered, setFiltered] = useState([]);

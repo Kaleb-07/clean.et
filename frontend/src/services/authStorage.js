@@ -4,6 +4,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const TOKEN_KEY = "auth_token";
 
+// In-memory cache for the token (more secure on Web than localStorage)
+let memoryToken = null;
+
 export const saveToken = async (token) => {
   try {
     if (Platform.OS === "web") {
