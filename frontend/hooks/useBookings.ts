@@ -78,14 +78,12 @@ export function useBookings() {
         booking_time: formattedTime,
       };
 
-      console.log("[useBookings] Sending payload:", payload);
 
       const created = await apiFetch<any>("/bookings", {
         method: "POST",
         body: JSON.stringify(payload),
       });
       
-      console.log("[useBookings] Received created:", created);
 
       const mapped = mapBooking(created);
       setBookings((prev) => sortNewestFirst([mapped, ...prev]));
@@ -110,14 +108,12 @@ export function useBookings() {
         booking_time: formattedTime,
       };
 
-      console.log("[useBookings] Updating booking:", id, payload);
 
       const updated = await apiFetch<any>(`/bookings/${id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
       });
 
-      console.log("[useBookings] Received updated:", updated);
 
       const mapped = mapBooking(updated);
       setBookings((prev) => 
@@ -130,12 +126,10 @@ export function useBookings() {
 
   const deleteBooking = useCallback(
     async (id: string) => {
-      console.log("[useBookings] Deleting booking:", id);
       try {
         await apiFetch<any>(`/bookings/${id}`, {
           method: "DELETE",
         });
-        console.log("[useBookings] Delete successful");
         setBookings((prev) => prev.filter(b => b.id !== id));
       } catch (err) {
         console.error("[useBookings] Delete failed:", err);

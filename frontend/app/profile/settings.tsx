@@ -33,7 +33,11 @@ export default function SettingsScreen() {
         if (saved) {
           const parsed = JSON.parse(saved);
           setIsDarkMode(parsed.darkMode);
-          setLanguage(parsed.language);
+          // Validate language before setting it
+          const supportedLanguages: Language[] = ["English", "Amharic", "French", "Spanish"];
+          if (parsed.language && supportedLanguages.includes(parsed.language as Language)) {
+            setLanguage(parsed.language as Language);
+          }
         }
       } catch (e) {
         console.error("Failed to load settings", e);

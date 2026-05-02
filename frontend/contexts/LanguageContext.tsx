@@ -40,7 +40,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const t = (key: string): string => {
-    return translations[language][key] || translations["English"][key] || key;
+    try {
+      return translations[language]?.[key] || translations["English"]?.[key] || key;
+    } catch (e) {
+      return key;
+    }
   };
 
   return (
