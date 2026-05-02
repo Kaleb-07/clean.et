@@ -11,14 +11,8 @@ export function useServices() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const data = await apiFetch<any[]>("/services");
-      const mapped = data.map(s => ({
-        ...s,
-        id: s.id.toString(),
-        duration: s.duration || 45,
-        imageKey: s.image_key || s.imageKey || 'premium',
-      }));
-      setServices(mapped);
+      const data = await apiFetch<Service[]>("/services");
+      setServices(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load services");
     } finally {

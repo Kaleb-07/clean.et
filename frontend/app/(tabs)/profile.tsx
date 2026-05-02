@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useAuth } from "../../contexts/AuthContext";
-import { useLanguage } from "../../contexts/LanguageContext";
 import { Settings, User, Bell, CreditCard, ChevronRight, LogOut, Shield, HelpCircle } from "lucide-react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -14,7 +13,6 @@ import { Modal, TextInput } from "react-native";
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const { t } = useLanguage();
   const [modalVisible, setModalVisible] = useState(false);
   
   // Edit Profile State
@@ -53,25 +51,25 @@ export default function ProfileScreen() {
     setShowSuccess(true);
   };
 
-  const handleItemPress = (id: string, label: string) => {
-    console.log(`Menu item clicked: ${id}`);
+  const handleItemPress = (label: string) => {
+    console.log(`Menu item clicked: ${label}`);
     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     
-    if (id === "edit-profile") {
+    if (label === "Edit Profile") {
       setEditName(user?.name || "");
       setEditEmail(user?.email || "");
       setEditModalVisible(true);
-    } else if (id === "personal-info") {
+    } else if (label === "Personal Information") {
       router.push("/profile/personal-info");
-    } else if (id === "payments") {
+    } else if (label === "Payment Methods") {
       router.push("/profile/payments");
-    } else if (id === "notifications") {
+    } else if (label === "Notifications") {
       router.push("/profile/notifications");
-    } else if (id === "settings") {
+    } else if (label === "App Settings") {
       router.push("/profile/settings");
-    } else if (id === "privacy") {
+    } else if (label === "Privacy & Security") {
       router.push("/profile/privacy");
-    } else if (id === "help") {
+    } else if (label === "Help Center") {
       router.push("/profile/help");
     } else {
       const message = `${label} settings will be available in the next update.`;
@@ -95,19 +93,19 @@ export default function ProfileScreen() {
 
   const menuGroups = [
     {
-      title: t("account"),
+      title: "Account",
       items: [
-        { id: "personal-info", icon: User, label: t("personal_info"), color: "#3b82f6" },
-        { id: "payments", icon: CreditCard, label: t("payment_methods"), color: "#10b981" },
-        { id: "notifications", icon: Bell, label: t("notifications"), color: "#f59e0b" },
+        { icon: User, label: "Personal Information", color: "#3b82f6" },
+        { icon: CreditCard, label: "Payment Methods", color: "#10b981" },
+        { icon: Bell, label: "Notifications", color: "#f59e0b" },
       ]
     },
     {
-      title: t("settings_support"),
+      title: "Settings & Support",
       items: [
-        { id: "settings", icon: Settings, label: t("app_settings"), color: "#8b5cf6" },
-        { id: "privacy", icon: Shield, label: t("privacy_security"), color: "#6366f1" },
-        { id: "help", icon: HelpCircle, label: t("help_center"), color: "#ec4899" },
+        { icon: Settings, label: "App Settings", color: "#8b5cf6" },
+        { icon: Shield, label: "Privacy & Security", color: "#6366f1" },
+        { icon: HelpCircle, label: "Help Center", color: "#ec4899" },
       ]
     }
   ];
@@ -133,9 +131,9 @@ export default function ProfileScreen() {
           <Text style={styles.email}>{user?.email || "No email provided"}</Text>
           <Pressable 
             style={styles.editButton}
-            onPress={() => handleItemPress("edit-profile", t("edit_profile"))}
+            onPress={() => handleItemPress("Edit Profile")}
           >
-            <Text style={styles.editButtonText}>{t("edit_profile")}</Text>
+            <Text style={styles.editButtonText}>Edit Profile</Text>
           </Pressable>
         </View>
 
@@ -151,7 +149,7 @@ export default function ProfileScreen() {
                       styles.menuItemPressable,
                       pressed && { backgroundColor: "rgba(255,255,255,0.05)" },
                     ]}
-                    onPress={() => handleItemPress(item.id, item.label)}
+                    onPress={() => handleItemPress(item.label)}
                   >
                     <View style={styles.menuItemLeft}>
                       <View style={[styles.iconBox, { backgroundColor: `${item.color}15` }]}>

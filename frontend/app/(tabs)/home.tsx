@@ -98,15 +98,15 @@ export default function HomeScreen() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>{t("hello")}, {user?.name || t("guest")}</Text>
-          <Text style={styles.subtitle}>{t("select_service")}</Text>
+          <Text style={styles.greeting}>Hello, {user?.name || "Guest"}</Text>
+          <Text style={styles.subtitle}>Select a service for your car</Text>
         </View>
 
         {/* SEARCH */}
         <BlurView intensity={10} tint="dark" style={styles.searchContainer}>
           <Search size={18} color="#a3a3a3" />
           <TextInput
-            placeholder={t("search_services")}
+            placeholder="Search services..."
             placeholderTextColor="#a3a3a3"
             value={search}
             onChangeText={setSearch}

@@ -5,6 +5,7 @@ const API = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL,
 });
 
+console.log("API Base URL:", process.env.EXPO_PUBLIC_API_URL);
 
 // attach token automatically
 API.interceptors.request.use(async (config) => {

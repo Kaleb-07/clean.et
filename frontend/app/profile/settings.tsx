@@ -8,17 +8,15 @@ import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import ActionModal from "../../src/components/ActionModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useLanguage } from "../../contexts/LanguageContext";
-import { Language } from "../../constants/translations";
 
 const STORAGE_KEY = "@app_settings";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { language, setLanguage, t } = useLanguage();
   
   // States
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [language, setLanguage] = useState("English");
   const [showSuccess, setShowSuccess] = useState(false);
   const [showCacheSuccess, setShowCacheSuccess] = useState(false);
   const [confirmClearVisible, setConfirmClearVisible] = useState(false);
@@ -33,11 +31,7 @@ export default function SettingsScreen() {
         if (saved) {
           const parsed = JSON.parse(saved);
           setIsDarkMode(parsed.darkMode);
-          // Validate language before setting it
-          const supportedLanguages: Language[] = ["English", "Amharic", "French", "Spanish"];
-          if (parsed.language && supportedLanguages.includes(parsed.language as Language)) {
-            setLanguage(parsed.language as Language);
-          }
+          setLanguage(parsed.language);
         }
       } catch (e) {
         console.error("Failed to load settings", e);
@@ -98,12 +92,12 @@ export default function SettingsScreen() {
         >
           <ChevronLeft color="#ffffff" size={28} />
         </Pressable>
-        <Text style={styles.headerTitle}>{t("app_settings")}</Text>
+        <Text style={styles.headerTitle}>App Settings</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.sectionTitle}>{t("general")}</Text>
+        <Text style={styles.sectionTitle}>General</Text>
         <BlurView intensity={20} tint="dark" style={styles.section}>
           <Pressable style={styles.item} onPress={() => {
             triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
@@ -113,7 +107,7 @@ export default function SettingsScreen() {
               <View style={[styles.iconBox, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
                 <Globe size={20} color="#3b82f6" />
               </View>
-              <Text style={styles.label}>{t("language")}</Text>
+              <Text style={styles.label}>Language</Text>
             </View>
             <View style={styles.itemRight}>
               <Text style={styles.value}>{language}</Text>
@@ -128,7 +122,7 @@ export default function SettingsScreen() {
               <View style={[styles.iconBox, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
                 <Moon size={20} color="#8b5cf6" />
               </View>
-              <Text style={styles.label}>{t("dark_mode")}</Text>
+              <Text style={styles.label}>Dark Mode</Text>
             </View>
             <Switch 
               value={isDarkMode} 
@@ -142,7 +136,7 @@ export default function SettingsScreen() {
           </View>
         </BlurView>
 
-        <Text style={[styles.sectionTitle, { marginTop: 32 }]}>{t("system")}</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 32 }]}>System</Text>
         <BlurView intensity={20} tint="dark" style={styles.section}>
           <Pressable style={styles.item} onPress={() => {
             triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
@@ -153,8 +147,8 @@ export default function SettingsScreen() {
                 <Database size={20} color="#10b981" />
               </View>
               <View>
-                <Text style={styles.label}>{t("clear_cache")}</Text>
-                <Text style={styles.sublabel}>{t("clear_cache_msg")}</Text>
+                <Text style={styles.label}>Clear Cache</Text>
+                <Text style={styles.sublabel}>Remove all locally saved data</Text>
               </View>
             </View>
             <ChevronRight size={18} color="#475569" />
@@ -162,7 +156,7 @@ export default function SettingsScreen() {
         </BlurView>
 
         <Pressable style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>{t("save_settings")}</Text>
+          <Text style={styles.saveBtnText}>Save Settings</Text>
         </Pressable>
       </ScrollView>
 
@@ -172,14 +166,14 @@ export default function SettingsScreen() {
           <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.langContainer}>
             <BlurView intensity={90} tint="dark" style={styles.langContent}>
-              <Text style={styles.modalTitle}>{t("language")}</Text>
+              <Text style={styles.modalTitle}>Select Language</Text>
               {languages.map((lang) => (
                 <Pressable 
                   key={lang} 
                   style={styles.langOption} 
                   onPress={() => {
                     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-                    setLanguage(lang as Language);
+                    setLanguage(lang);
                     setLangModalVisible(false);
                   }}
                 >
@@ -191,7 +185,7 @@ export default function SettingsScreen() {
                 style={styles.cancelBtn} 
                 onPress={() => setLangModalVisible(false)}
               >
-                <Text style={styles.cancelBtnText}>{t("cancel")}</Text>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
               </Pressable>
             </BlurView>
           </View>

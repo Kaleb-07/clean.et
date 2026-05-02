@@ -9,11 +9,8 @@ let memoryToken = null;
 
 export const saveToken = async (token) => {
   try {
-    memoryToken = token;
     if (Platform.OS === "web") {
-      // We avoid AsyncStorage/localStorage for the token on web to prevent XSS exfiltration.
-      // If persistence across refreshes is required, httpOnly cookies should be implemented on the backend.
-      return; 
+      await AsyncStorage.setItem(TOKEN_KEY, token);
     } else {
       await SecureStore.setItemAsync(TOKEN_KEY, token);
     }
@@ -24,15 +21,10 @@ export const saveToken = async (token) => {
 
 export const getToken = async () => {
   try {
-    if (memoryToken) return memoryToken;
-
     if (Platform.OS === "web") {
-      // Token is only held in memory for Web
-      return memoryToken;
+      return await AsyncStorage.getItem(TOKEN_KEY);
     } else {
-      const token = await SecureStore.getItemAsync(TOKEN_KEY);
-      memoryToken = token;
-      return token;
+      return await SecureStore.getItemAsync(TOKEN_KEY);
     }
   } catch (error) {
     console.error("Error getting token:", error);
@@ -42,9 +34,8 @@ export const getToken = async () => {
 
 export const removeToken = async () => {
   try {
-    memoryToken = null;
     if (Platform.OS === "web") {
-      return;
+      await AsyncStorage.removeItem(TOKEN_KEY);
     } else {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
     }
