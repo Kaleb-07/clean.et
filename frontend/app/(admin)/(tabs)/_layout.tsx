@@ -1,9 +1,41 @@
 import { BlurView } from "expo-blur";
-import { Tabs } from "expo-router";
+import { Tabs, Redirect } from "expo-router";
 import { Home, Calendar, User } from "lucide-react-native";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  View,
+  useColorScheme,
+  ActivityIndicator,
+} from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { useAuth } from "@/contexts/AuthContext";
+
+export default function TabLayout() {
+  const { user, isLoading } = useAuth();
+
+  // ✅ Loading state
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center" }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  // ✅ Not logged in
+  if (!user) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  // ✅ Not admin
+  if (user.role !== "admin") {
+    return <Redirect href="/(tabs)/home" />;
+  }
+
+  return <ClassicTabLayout />;
+}
 
 function ClassicTabLayout() {
   const colors = useColors();
@@ -22,8 +54,8 @@ function ClassicTabLayout() {
           backgroundColor: isIOS ? "transparent" : colors.background,
           borderTopWidth: 0,
           elevation: 0,
-          height: Platform.OS === "ios" ? 88 : 64,
-          paddingBottom: Platform.OS === "ios" ? 28 : 12,
+          height: isIOS ? 88 : 64,
+          paddingBottom: isIOS ? 28 : 12,
         },
         tabBarBackground: () =>
           isIOS ? (
@@ -56,6 +88,7 @@ function ClassicTabLayout() {
           tabBarIcon: ({ color }) => <Calendar size={22} color={color} />,
         }}
       />
+      {/* ✅ FIX: lowercase route name */}
       <Tabs.Screen
         name="Profile"
         options={{
@@ -65,8 +98,4 @@ function ClassicTabLayout() {
       />
     </Tabs>
   );
-}
-
-export default function TabLayout() {
-  return <ClassicTabLayout />;
 }

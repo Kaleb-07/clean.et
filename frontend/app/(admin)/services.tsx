@@ -60,36 +60,42 @@ export default function AdminServices() {
   };
 
   /* ================= SAVE (ADD / UPDATE) ================= */
-  const handleSave = async () => {
-    try {
-      if (!form.name || !form.price) {
-        return Alert.alert("Error", "Name and price required");
-      }
+ const handleSave = async () => {
+   try {
+     if (!form.name) {
+       return Alert.alert("Error", "Name required");
+     }
 
-      const payload = {
-        name: form.name,
-        description: form.description,
-        price: Number(form.price),
-      };
+     const price = Number(form.price.trim());
 
-      if (editingService) {
-        await API.put(`/services/${editingService.id}`, payload);
-        setSuccessMessage("Service updated successfully!");
-      } else {
-        await API.post("/services", payload);
-        setSuccessMessage("Service added successfully!");
-      }
+     if (!Number.isFinite(price) || price < 0) {
+       return Alert.alert("Error", "Invalid price");
+     }
 
-      setModalVisible(false);
-      setEditingService(null);
-      setForm({ name: "", description: "", price: "" });
+     const payload = {
+       name: form.name,
+       description: form.description,
+       price,
+     };
 
-      loadServices();
-      setSuccessModal(true);
-    } catch (e) {
-      console.log(e);
-    }
-  };
+     if (editingService) {
+       await API.put(`/services/${editingService.id}`, payload);
+       setSuccessMessage("Service updated successfully!");
+     } else {
+       await API.post("/services", payload);
+       setSuccessMessage("Service added successfully!");
+     }
+
+     setModalVisible(false);
+     setEditingService(null);
+     setForm({ name: "", description: "", price: "" });
+
+     loadServices();
+     setSuccessModal(true);
+   } catch (e) {
+     Alert.alert("Error", "Failed to save service");
+   }
+ };
 
   /* ================= DELETE ================= */
   const confirmDelete = async () => {
@@ -199,7 +205,9 @@ export default function AdminServices() {
             <TextInput
               placeholder="Name"
               value={form.name}
-              onChangeText={(t) => setForm({ ...form, name: t })}
+              onChangeText={
+                (t) => setForm({ ...form, name: t }) 
+              }
               style={styles.input}
               placeholderTextColor="#aaa"
             />
@@ -207,7 +215,9 @@ export default function AdminServices() {
             <TextInput
               placeholder="Description"
               value={form.description}
-              onChangeText={(t) => setForm({ ...form, description: t })}
+              onChangeText={
+                (t) => setForm({ ...form, description: t }) 
+              }
               style={styles.input}
               placeholderTextColor="#aaa"
             />
@@ -216,7 +226,9 @@ export default function AdminServices() {
               placeholder="Price"
               keyboardType="numeric"
               value={form.price}
-              onChangeText={(t) => setForm({ ...form, price: t })}
+              onChangeText={(t) =>
+                setForm({ ...form, price: t.replace(/[^0-9.]/g, "") })
+              }
               style={styles.input}
               placeholderTextColor="#aaa"
             />

@@ -16,14 +16,24 @@ export default function BookingDetails() {
 
   const [booking, setBooking] = useState<any>(null);
 
-  const load = async () => {
-    try {
-      const res = await API.get(`/bookings/${id}`);
-      setBooking(res.data.data);
-    } catch (e) {
-      console.log(e);
-    }
-  };
+  const bookingId =
+    typeof id === "string" ? id : Array.isArray(id) ? id[0] : null;
+
+ const [error, setError] = useState(false);
+
+ const load = async () => {
+   if (!bookingId) {
+     setError(true);
+     return;
+   }
+
+   try {
+     const res = await API.get(`/bookings/${bookingId}`);
+     setBooking(res.data.data);
+   } catch (e) {
+     setError(true);
+   }
+ };
 
   useFocusEffect(
     useCallback(() => {
@@ -64,7 +74,7 @@ export default function BookingDetails() {
         {/* HEADER */}
         <View style={styles.header}>
           <Pressable
-            onPress={() => router.replace("/Admin/bookings")}
+            onPress={() => router.replace("/(admin)/(tabs)/bookings")}
             style={styles.backBtn}
           >
             <Ionicons name="arrow-back" size={20} color="#fff" />
@@ -75,6 +85,13 @@ export default function BookingDetails() {
             <Text style={styles.title}>#{booking.id}</Text>
           </View>
         </View>
+
+        {/* ERROR */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Failed to load booking details.</Text>
+          </View>
+        )}
 
         {/* CARD */}
         <BlurView intensity={40} tint="dark" style={styles.card}>
@@ -197,6 +214,20 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)",
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  errorContainer: {
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+    marginTop: 20,
+  },
+
+  errorText: {
+    color: "#ef4444",
+    textAlign: "center",
   },
 
   eyebrow: {

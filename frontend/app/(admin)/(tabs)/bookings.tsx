@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -58,6 +59,8 @@ export default function AdminBookings() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("all");
   const [deleteId, setDeleteId] = useState<number | null>(null);
+   const [deleting, setDeleting] = useState(false);
+
 
   useEffect(() => {
     loadBookings();
@@ -84,12 +87,23 @@ export default function AdminBookings() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deleteId) return;
-    await API.delete(`/bookings/${deleteId}`);
-    setDeleteId(null);
-    loadBookings();
-  };
+
+ const confirmDelete = async () => {
+   if (!deleteId) return;
+
+   try {
+     setDeleting(true);
+
+     await API.delete(`/bookings/${deleteId}`);
+
+     setDeleteId(null);
+     await loadBookings();
+   } catch (e) {
+    Alert.alert("Error", "Failed to delete booking. Please try again.");
+   } finally {
+     setDeleting(false);
+   }
+ };
 
   const filtered = useMemo(() => {
     if (filter === "all") return bookings;
@@ -206,7 +220,7 @@ export default function AdminBookings() {
                   style={styles.viewBtn}
                   onPress={() =>
                     router.push({
-                      pathname: "/Admin/booking-details",
+                      pathname: "/(admin)/booking-details",
                       params: { id: b.id },
                     })
                   }
@@ -218,6 +232,7 @@ export default function AdminBookings() {
                 <Pressable
                   onPress={() => setDeleteId(b.id)}
                   style={styles.deleteButton}
+                  disabled={deleting}
                 >
                   <Trash2 size={16} color="#ef4444" />
                   <Text style={styles.deleteText}>Delete</Text>

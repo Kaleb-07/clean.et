@@ -186,7 +186,7 @@ export default function AdminDashboard() {
             subtitle="Add & manage services"
             icon="construct-outline"
             colors={["#7c3aed", "#4c1d95"]}
-            route="/Admin/services"
+            route="/(admin)/services"
           />
 
           <ActionCard
@@ -194,7 +194,7 @@ export default function AdminDashboard() {
             subtitle="Track all bookings"
             icon="calendar-outline"
             colors={["#2563eb", "#1e3a8a"]}
-            route="/Admin/bookings"
+            route="/(admin)/(tabs)/bookings"
           />
 
           <ActionCard
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
             subtitle="View customers"
             icon="people-outline"
             colors={["#059669", "#064e3b"]}
-            route="/Admin/customers"
+            route="/(admin)/customers"
           />
         </View>
       </ScrollView>
