@@ -50,7 +50,7 @@ export default function LoginScreen() {
       await login(token, user);
 
      if (user.role === "admin") {
-      router.replace("/Admin/dashboard");
+      router.replace("/(admin)/(tabs)/dashboard");
      } else {
        router.replace("/(tabs)/home");
      }
