@@ -19,10 +19,11 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 import axios from "axios";
 import API from "../../src/api/client";
-import { saveToken } from "../../src/services/authStorage";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,11 +42,14 @@ export default function LoginScreen() {
         password,
       });
 
-      const token = res.data.data.token;
+      console.log("Login response:", JSON.stringify(res.data));
+      const payload = res.data.data || res.data;
+      const token = payload.token;
+      const user = payload.user;
 
-      await saveToken(token);
+      await login(token, user);
 
-     if (res.data.data.user.role === "admin") {
+     if (user.role === "admin") {
       router.replace("/Admin/dashboard");
      } else {
        router.replace("/(tabs)/home");
@@ -55,8 +59,8 @@ export default function LoginScreen() {
         const errors = err.response?.data?.errors;
 
         if (errors) {
-          const firstError = Object.values(errors)[0]?.[0];
-          setError(firstError as string);
+          const firstError = (Object.values(errors)[0] as string[])?.[0];
+          setError(firstError || "Login failed");
         } else {
           setError(err.response?.data?.message || "Login failed");
         }
