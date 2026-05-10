@@ -6,10 +6,10 @@ use App\Models\Service;
 
 class ServiceService
 {
-    public function getAll()
-    {
-        return Service::latest()->get();
-    }
+   public function getAll()
+{
+    return Service::latest()->paginate(10);
+}
 
     public function getById($id)
     {
