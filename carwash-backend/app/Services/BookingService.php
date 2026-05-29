@@ -62,12 +62,22 @@ class BookingService
         return $booking;
       }
 
-    public function delete($id)
-    {
-        $booking = Booking::findOrFail($id);
-        $booking->delete();
+   public function delete($id)
+{
+    $booking = Booking::findOrFail($id);
+    $user = auth()->user();
+
+    if (
+        $user->role !== 'admin' &&
+        $booking->user_id !== $user->id
+    ) {
+        abort(403, 'Unauthorized');
     }
 
+    $booking->delete();
+
+    return true;
+}
     public function updateStatus($id, $status)
     {
         $booking = Booking::findOrFail($id);
