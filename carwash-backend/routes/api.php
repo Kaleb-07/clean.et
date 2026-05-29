@@ -39,12 +39,14 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('/customers', [CustomerController::class, 'index']);
 });
 
-// ================= BOOKINGS =================
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
     Route::post('/bookings', [BookingController::class, 'store']);
-    Route::delete ('/bookings/{id}', [BookingController::class, 'destroy']);
+});
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::delete('/bookings/{id}', [BookingController::class, 'destroy']);
 });
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
