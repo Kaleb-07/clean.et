@@ -42,11 +42,14 @@ class BookingController extends Controller
         return new BookingResource($booking);
     }
     // DELETE /bookings/{id} (Admin)
-    public function destroy($id)
-    {
-        $this->bookingService->delete($id);
-        return response()->json(['message' => 'Booking deleted successfully']);
-    }
+   public function destroy($id)
+{
+    $this->bookingService->delete($id, auth()->user());
+
+    return response()->json([
+        'message' => 'Booking deleted successfully'
+    ]);
+}
     // PUT /bookings/{id} (Admin)
     public function update(BookingRequest $request, $id)
     {
