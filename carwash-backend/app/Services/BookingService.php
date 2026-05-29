@@ -61,17 +61,14 @@ class BookingService
 
         return $booking;
       }
-
-public function delete($id)
+public function delete($id, $actor)
 {
     $booking = Booking::findOrFail($id);
-    $user = auth()->user();
 
-    // allow admin OR booking owner
-    if (
-        $user->role !== 'admin' &&
-        $booking->user_id != $user->id
-    ) {
+    $isAdmin = $actor->role === 'admin';
+    $isOwner = $booking->user_id === $actor->id;
+
+    if (!$isAdmin && !$isOwner) {
         abort(403, 'Unauthorized');
     }
 
