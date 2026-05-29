@@ -7,14 +7,15 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthService
 {
-    public function register($data)
-    {
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => bcrypt($data['password']),
-            'role' => 'customer',
-        ]);
+ public function register($data)
+{
+    return User::create([
+        'name' => $data['name'],
+        'email' => $data['email'],
+        'password' => bcrypt($data['password']),
+        'role' => 'customer', // fixed role
+    ]);
+}
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
