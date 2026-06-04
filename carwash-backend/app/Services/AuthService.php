@@ -7,24 +7,36 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthService
 {
- public function rules()
-{
-    return [
-        'name' => 'required|string|max:255',
-        'email' => 'required|email|unique:users,email',
-        'password' => 'required|min:8|confirmed',
-    ];
-}
-}
+    /**
+     * Register a new user.
+     * Role is forced to 'customer' for public self-registration.
+     *
+     * @param array $data
+     * @return \App\Models\User
+     */
+    public function register(array $data): User
+    {
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+            'role' => 'customer', // ✅ forced to customer – ignores any client input
+        ]);
 
+        // Create a Sanctum token for the new user
         $token = $user->createToken('auth_token')->plainTextToken;
-
         $user->token = $token;
 
         return $user;
     }
 
-    public function login($data)
+    /**
+     * Attempt to log in a user.
+     *
+     * @param array $data
+     * @return \App\Models\User|null
+     */
+    public function login(array $data): ?User
     {
         $user = User::where('email', $data['email'])->first();
 
@@ -32,6 +44,7 @@ class AuthService
             return null;
         }
 
+        // Create a new token for the logged-in user
         $token = $user->createToken('auth_token')->plainTextToken;
         $user->token = $token;
 
