@@ -17,7 +17,7 @@ class RegisterRequest extends FormRequest
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6|confirmed',
-            'role' => 'sometimes|in:admin,customer',
+            // 'role' field completely removed – clients cannot supply role
         ];
     }
 }
