@@ -27,6 +27,17 @@ import { useBookings } from "../../../hooks/useBookings";
 import { useServices } from "../../../hooks/useServices";
 import { useLanguage } from "../../../contexts/LanguageContext";
 
+function to12h(time24: string): string {
+  if (!time24) return "";
+  const parts = time24.split(":");
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1] || "00";
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  return `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
+}
+
 export default function BookingStatusScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const insets = useSafeAreaInsets();
@@ -36,7 +47,7 @@ export default function BookingStatusScreen() {
 
   const booking = useMemo(() => getBooking(bookingId!), [bookingId, getBooking]);
   const service = useMemo(() => 
-    booking ? services.find(s => s.id === booking.serviceId) : null,
+    booking ? services.find(s => String(s.id) === String(booking.service?.id)) : null,
     [services, booking]
   );
 
@@ -87,7 +98,7 @@ export default function BookingStatusScreen() {
           <BlurView intensity={20} tint="dark" style={styles.statusCard}>
             <View style={styles.serviceInfo}>
               <Text style={styles.serviceName}>{service.name}</Text>
-              <Text style={styles.bookingId}>ID: #{booking.id.substring(0, 8)}</Text>
+              <Text style={styles.bookingId}>ID: #{booking.id}</Text>
             </View>
 
             {isCancelled ? (
@@ -147,7 +158,7 @@ export default function BookingStatusScreen() {
               <Calendar size={20} color="#8b5cf6" />
               <View>
                 <Text style={styles.detailLabel}>{t("date") || "Date"}</Text>
-                <Text style={styles.detailValue}>{new Date(booking.date).toLocaleDateString()}</Text>
+                <Text style={styles.detailValue}>{new Date(booking.booking_date).toLocaleDateString()}</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -155,7 +166,7 @@ export default function BookingStatusScreen() {
               <Clock size={20} color="#8b5cf6" />
               <View>
                 <Text style={styles.detailLabel}>{t("time") || "Time"}</Text>
-                <Text style={styles.detailValue}>{booking.timeSlot}</Text>
+                <Text style={styles.detailValue}>{to12h(booking.booking_time)}</Text>
               </View>
             </View>
             <View style={styles.divider} />

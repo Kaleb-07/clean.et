@@ -17,6 +17,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
+    Route::put('/me', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 
@@ -39,17 +40,23 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('/customers', [CustomerController::class, 'index']);
 });
 
+// ================= BOOKINGS =================
+
 Route::middleware('auth:sanctum')->group(function () {
+    // Customer: view their bookings
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::get('/bookings/{id}', [BookingController::class, 'show']);
+    // Customer: create a booking
     Route::post('/bookings', [BookingController::class, 'store']);
-});
-
-Route::middleware(['auth:sanctum'])->group(function () {
+    // Customer: cancel their own booking
+    Route::patch('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
+    // Customer or admin: delete a booking
     Route::delete('/bookings/{id}', [BookingController::class, 'destroy']);
+    // Customer or admin: reschedule/edit a booking
+    Route::put('/bookings/{id}', [BookingController::class, 'update']);
 });
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-    Route::put('/bookings/{id}', [BookingController::class, 'update']);
     Route::patch('/bookings/{id}/status', [BookingController::class, 'updateStatus']);
 });
+

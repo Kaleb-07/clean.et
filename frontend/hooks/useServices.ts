@@ -38,7 +38,7 @@ export function useServices() {
 
   const updateService = useCallback(
     async (id: string, data: Partial<Omit<Service, "id">>) => {
-      const current = services.find((s) => s.id === id);
+      const current = services.find((s) => String(s.id) === String(id));
       if (!current) return;
       const merged = { ...current, ...data };
       const updated = await apiFetch<Service>(`/services/${id}`, {
@@ -51,21 +51,14 @@ export function useServices() {
           imageKey: merged.imageKey,
         }),
       });
-      setServices((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      setServices((prev) => prev.map((s) => (String(s.id) === String(id) ? updated : s)));
     },
     [services],
   );
 
   const deleteService = useCallback(async (id: string) => {
-    await apiFetch<{ ok: true }>(`/services/${id}`, { method: "DELETE" });
-    setServices((prev) => prev.filter((s) => s.id !== id));
-  }, []);
-
-  const resetServices = useCallback(async () => {
-    const data = await apiFetch<Service[]>("/services/reset", {
-      method: "POST",
-    });
-    setServices(data);
+    await apiFetch<{ message: string }>(`/services/${id}`, { method: "DELETE" });
+    setServices((prev) => prev.filter((s) => String(s.id) !== String(id)));
   }, []);
 
   return {
@@ -76,6 +69,5 @@ export function useServices() {
     addService,
     updateService,
     deleteService,
-    resetServices,
   };
 }

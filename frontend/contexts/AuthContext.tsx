@@ -14,6 +14,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (data: { name: string; email: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,7 +31,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await authStorage.getToken();
       if (token) {
-        // Verify token / get user profile
         const res = await API.get("/me");
         const payload = res.data.data || res.data;
         setUser(payload.user || payload);
@@ -53,8 +53,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const updateUser = async (data: { name: string; email: string }) => {
+    const res = await API.put("/me", data);
+    const payload = res.data.data || res.data;
+    setUser(payload.user || payload);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

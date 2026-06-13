@@ -48,7 +48,7 @@ export default function BookingDetailsScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const service = useMemo(() => 
-    services.find(s => s.id === serviceId),
+    services.find(s => String(s.id) === String(serviceId)),
     [services, serviceId]
   );
 

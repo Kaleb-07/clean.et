@@ -23,8 +23,12 @@ class BookingResource extends JsonResource
                 'price' => $this->service->price,
             ],
 
-            'booking_date' => $this->booking_date,
-            'booking_time' => $this->booking_time,
+            'booking_date' => $this->booking_date
+                ? (is_string($this->booking_date)
+                    ? $this->booking_date
+                    : $this->booking_date->format('Y-m-d'))
+                : null,
+            'booking_time' => substr($this->getRawOriginal('booking_time') ?? '', 0, 5),
 
             'status' => $this->status,
 

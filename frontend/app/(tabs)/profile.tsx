@@ -1,10 +1,29 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Alert,
+  Platform,
+  ActivityIndicator,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useAuth } from "../../contexts/AuthContext";
-import { Settings, User, Bell, CreditCard, ChevronRight, LogOut, Shield, HelpCircle } from "lucide-react-native";
+import {
+  Settings,
+  User,
+  Bell,
+  CreditCard,
+  ChevronRight,
+  LogOut,
+  Shield,
+  HelpCircle,
+  Pencil,
+} from "lucide-react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import ActionModal from "../../src/components/ActionModal";
@@ -12,13 +31,15 @@ import { Modal, TextInput } from "react-native";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
-  
+
   // Edit Profile State
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState(user?.name || "");
   const [editEmail, setEditEmail] = useState(user?.email || "");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
@@ -43,12 +64,26 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleUpdateProfile = () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
-    // Simulating API call
-    console.log("Updating profile:", { editName, editEmail });
-    setEditModalVisible(false);
-    setShowSuccess(true);
+  const handleUpdateProfile = async () => {
+    if (!editName.trim() || !editEmail.trim()) {
+      setEditError("Name and email are required.");
+      return;
+    }
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    setEditLoading(true);
+    setEditError("");
+    try {
+      await updateUser({ name: editName.trim(), email: editEmail.trim() });
+      setEditModalVisible(false);
+      setShowSuccess(true);
+    } catch (e: any) {
+      const msg =
+        e?.response?.data?.message ||
+        (e instanceof Error ? e.message : "Failed to update profile.");
+      setEditError(msg);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const handleItemPress = (label: string) => {
@@ -196,21 +231,23 @@ export default function ProfileScreen() {
         visible={editModalVisible}
         transparent
         animationType="slide"
+        onRequestClose={() => !editLoading && setEditModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.editModalContainer}>
             <BlurView intensity={90} tint="dark" style={styles.editModalContent}>
               <Text style={styles.editModalTitle}>Edit Profile</Text>
-              
+
               <View style={styles.inputWrapper}>
                 <Text style={styles.inputLabel}>Full Name</Text>
                 <TextInput
                   style={styles.textInput}
                   value={editName}
-                  onChangeText={setEditName}
+                  onChangeText={(t) => { setEditName(t); setEditError(""); }}
                   placeholder="Your Name"
                   placeholderTextColor="#475569"
+                  editable={!editLoading}
                 />
               </View>
 
@@ -219,32 +256,44 @@ export default function ProfileScreen() {
                 <TextInput
                   style={styles.textInput}
                   value={editEmail}
-                  onChangeText={setEditEmail}
+                  onChangeText={(t) => { setEditEmail(t); setEditError(""); }}
                   placeholder="Your Email"
                   placeholderTextColor="#475569"
                   keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!editLoading}
                 />
               </View>
 
+              {editError ? (
+                <Text style={styles.editError}>{editError}</Text>
+              ) : null}
+
               <View style={styles.modalActions}>
-                <Pressable 
-                  style={styles.cancelActionBtn} 
-                  onPress={() => setEditModalVisible(false)}
+                <Pressable
+                  style={[styles.cancelActionBtn, editLoading && { opacity: 0.5 }]}
+                  onPress={() => { if (!editLoading) setEditModalVisible(false); }}
                 >
                   <Text style={styles.cancelActionText}>Cancel</Text>
                 </Pressable>
-                
-                <Pressable 
-                  style={styles.updateActionBtn} 
+
+                <Pressable
+                  style={[styles.updateActionBtn, editLoading && { opacity: 0.7 }]}
                   onPress={handleUpdateProfile}
+                  disabled={editLoading}
                 >
-                  <Text style={styles.updateActionText}>Update</Text>
+                  {editLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.updateActionText}>Update</Text>
+                  )}
                 </Pressable>
               </View>
             </BlurView>
           </View>
         </View>
       </Modal>
+
 
       {/* Success Modal */}
       <ActionModal
@@ -422,6 +471,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 16,
     marginTop: 16,
+  },
+  editError: {
+    color: "#f87171",
+    fontSize: 13,
+    marginBottom: 8,
+    marginLeft: 4,
+    fontWeight: "500",
   },
   cancelActionBtn: {
     flex: 1,

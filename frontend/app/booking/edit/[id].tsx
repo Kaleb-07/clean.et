@@ -29,6 +29,17 @@ import { useServices } from "../../../hooks/useServices";
 import { useBookings } from "../../../hooks/useBookings";
 import { useLanguage } from "../../../contexts/LanguageContext";
 
+function to12h(time24: string): string {
+  if (!time24) return "";
+  const parts = time24.split(":");
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1] || "00";
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  return `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
+}
+
 const TIME_SLOTS = [
   "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
   "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM",
@@ -49,14 +60,14 @@ export default function EditBookingScreen() {
 
   const booking = useMemo(() => getBooking(id!), [id, getBooking]);
   const service = useMemo(() => 
-    booking ? services.find(s => s.id === booking.serviceId) : null,
+    booking ? services.find(s => String(s.id) === String(booking.service?.id)) : null,
     [services, booking]
   );
 
   useEffect(() => {
     if (booking) {
-      setSelectedDate(new Date(booking.date));
-      setSelectedTime(booking.timeSlot);
+      setSelectedDate(new Date(booking.booking_date));
+      setSelectedTime(to12h(booking.booking_time));
     }
   }, [booking]);
 
