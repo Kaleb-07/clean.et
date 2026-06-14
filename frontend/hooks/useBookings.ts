@@ -3,20 +3,48 @@ import API, { apiFetch } from "../src/api/client";
 
 export type BookingStatus =
   | "pending"
-  | "confirmed" | "in_progress"
+  | "confirmed"
+  | "in_progress"
   | "completed"
   | "cancelled";
 
+/**
+ * Shape of a booking as returned by the API (snake_case from Laravel).
+ */
 export interface Booking {
   id: string;
-  userId: string | null;
-  serviceId: string;
-  date: string;
-  timeSlot: string;
+  customer: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  service: {
+    id: string;
+    name: string;
+    price: number;
+  };
+  booking_date: string;   // "YYYY-MM-DD"
+  booking_time: string;   // "HH:MM" 24h
   status: BookingStatus;
-  createdAt: string;
-  userName?: string | null;
-  userEmail?: string | null;
+  created_at: string;
+}
+
+/**
+ * Convert "09:00 AM" / "01:30 PM" → "09:00" / "13:30"  (H:i, 24-hour)
+ * so Laravel's date_format:H:i validation passes.
+ */
+function to24h(time12: string): string {
+  const [timePart, modifier] = time12.split(" ");
+  let [hours, minutes] = timePart.split(":");
+  let h = parseInt(hours, 10);
+
+  if (modifier === "AM") {
+    if (h === 12) h = 0;                  // 12:xx AM → 00:xx
+  } else {
+    if (h !== 12) h += 12;               // x PM (not noon) → x+12
+  }
+
+  return `${String(h).padStart(2, "0")}:${minutes}`;
 }
 
 export function useBookings() {
@@ -27,7 +55,7 @@ export function useBookings() {
   const sortNewestFirst = (list: Booking[]) =>
     [...list].sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
 
   const loadBookings = useCallback(async () => {
@@ -48,41 +76,84 @@ export function useBookings() {
     loadBookings();
   }, [loadBookings]);
 
+  /**
+   * Create a new booking.
+   * Accepts the fields the UI works with and maps them to backend field names.
+   * `timeSlot` should be "09:00 AM" format — it will be converted to 24h automatically.
+   */
   const addBooking = useCallback(
-    async (data: Omit<Booking, "id" | "createdAt" | "status" | "userId">) => {
+    async (data: {
+      serviceId: string;
+      date: string;        // "YYYY-MM-DD"
+      timeSlot: string;    // "09:00 AM" format
+    }) => {
       const created = await apiFetch<Booking>("/bookings", {
         method: "POST",
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          service_id:   data.serviceId,
+          booking_date: data.date,
+          booking_time: to24h(data.timeSlot),
+        }),
       });
       setBookings((prev) => sortNewestFirst([created, ...prev]));
       return created;
     },
     [],
   );
+  /**
+   * Cancel a booking (customer action) — uses PATCH /bookings/{id}/cancel.
+   */
+  const cancelBooking = useCallback(async (id: string) => {
+    const updated = await apiFetch<Booking>(`/bookings/${id}/cancel`, {
+      method: "PATCH",
+    });
+    setBookings((prev) => prev.map((b) => (String(b.id) === String(id) ? updated : b)));
+    return updated;
+  }, []);
 
+  /**
+   * Update booking (Customer reschedule action) — uses PUT /bookings/{id}.
+   */
+  const updateBooking = useCallback(
+    async (id: string, data: {
+      date: string;
+      timeSlot: string;
+    }) => {
+      const updated = await apiFetch<Booking>(`/bookings/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          booking_date: data.date,
+          booking_time: to24h(data.timeSlot),
+        }),
+      });
+      setBookings((prev) => prev.map((b) => (String(b.id) === String(id) ? updated : b)));
+      return updated;
+    },
+    [],
+  );
+
+  /**
+   * Update booking status (admin action) — uses PATCH /bookings/{id}/status.
+   */
   const updateBookingStatus = useCallback(
     async (id: string, status: BookingStatus) => {
-      const updated = await apiFetch<Booking>(`/bookings/${id}`, {
+      const updated = await apiFetch<Booking>(`/bookings/${id}/status`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
       });
-      setBookings((prev) => prev.map((b) => (b.id === id ? updated : b)));
+      setBookings((prev) => prev.map((b) => (String(b.id) === String(id) ? updated : b)));
+      return updated;
     },
     [],
   );
 
   const deleteBooking = useCallback(async (id: string) => {
-    await apiFetch<{ ok: true }>(`/bookings/${id}`, { method: "DELETE" });
-    setBookings((prev) => prev.filter((b) => b.id !== id));
-  }, []);
-
-  const clearAllBookings = useCallback(async () => {
-    await apiFetch<{ ok: true }>("/bookings", { method: "DELETE" });
-    setBookings([]);
+    await apiFetch<{ message: string }>(`/bookings/${id}`, { method: "DELETE" });
+    setBookings((prev) => prev.filter((b) => String(b.id) !== String(id)));
   }, []);
 
   const getBooking = useCallback(
-    (id: string) => bookings.find((b) => b.id === id),
+    (id: string) => bookings.find((b) => String(b.id) === String(id)),
     [bookings],
   );
 
@@ -91,9 +162,10 @@ export function useBookings() {
     isLoading,
     error,
     addBooking,
+    cancelBooking,
+    updateBooking,
     updateBookingStatus,
     deleteBooking,
-    clearAllBookings,
     getBooking,
     reload: loadBookings,
   };

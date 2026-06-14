@@ -1,59 +1,152 @@
-import React from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, Alert } from "react-native";
+import React, { useState, useRef } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  Alert,
+  Animated,
+  Platform,
+} from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
-import { Calendar, ChevronRight, Clock, Info, X } from "lucide-react-native";
+import {
+  Calendar,
+  ChevronRight,
+  Clock,
+  Info,
+  X,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react-native";
 import { useBookings, Booking } from "../../hooks/useBookings";
-import { useServices } from "../../hooks/useServices";
+
+// ─── In-app Toast ────────────────────────────────────────────────────────────
+
+type ToastType = "success" | "error";
+
+interface ToastState {
+  visible: boolean;
+  message: string;
+  type: ToastType;
+}
+
+function useToast() {
+  const [toast, setToast] = useState<ToastState>({
+    visible: false,
+    message: "",
+    type: "success",
+  });
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const show = (message: string, type: ToastType = "success") => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setToast({ visible: true, message, type });
+    Animated.parallel([
+      Animated.spring(opacity, { toValue: 1, useNativeDriver: true }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 14,
+      }),
+    ]).start();
+    timerRef.current = setTimeout(() => hide(), 3500);
+  };
+
+  const hide = () => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 20,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setToast((t) => ({ ...t, visible: false })));
+  };
+
+  return { toast, show, hide, opacity, translateY };
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
-  const { bookings, isLoading, reload, updateBookingStatus } = useBookings();
-  const { services } = useServices();
-
-  const getService = (id: string) => services.find((s) => s.id === id);
+  const { bookings, isLoading, reload, cancelBooking } = useBookings();
+  const { toast, show: showToast, opacity, translateY } = useToast();
 
   const handleCancel = (booking: Booking) => {
     Alert.alert(
-      "Cancel booking?",
-      "This will cancel your scheduled wash. You can always book another time.",
+      "Cancel Booking?",
+      "This will cancel your scheduled wash. This action cannot be undone.",
       [
         { text: "Keep it", style: "cancel" },
         {
-          text: "Cancel booking",
+          text: "Yes, Cancel",
           style: "destructive",
           onPress: async () => {
             try {
-              await updateBookingStatus(booking.id, "cancelled");
+              await cancelBooking(booking.id);
+              showToast("Booking cancelled successfully", "success");
             } catch (e) {
               const message =
                 e instanceof Error ? e.message : "Could not cancel booking.";
-              Alert.alert("Cancel failed", message);
+              showToast(message, "error");
             }
           },
         },
-      ],
+      ]
     );
   };
 
   const renderItem = ({ item }: { item: Booking }) => {
-    const service = getService(item.serviceId);
+    const service = item.service;
     if (!service) return null;
 
-    const formattedDate = new Date(item.date).toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
+    const formattedDate = new Date(item.booking_date + "T00:00:00").toLocaleDateString(
+      "en-US",
+      {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }
+    );
 
-    const statusColors: Record<string, string> = {
-      pending: "#f59e0b",
-      confirmed: "#3b82f6",
-      in_progress: "#8b5cf6",
-      completed: "#10b981",
-      cancelled: "#ef4444",
+    const statusConfig: Record<
+      string,
+      { color: string; bg: string; label: string }
+    > = {
+      pending: { color: "#f59e0b", bg: "rgba(245,158,11,0.15)", label: "Pending" },
+      confirmed: { color: "#3b82f6", bg: "rgba(59,130,246,0.15)", label: "Confirmed" },
+      in_progress: {
+        color: "#8b5cf6",
+        bg: "rgba(139,92,246,0.15)",
+        label: "In Progress",
+      },
+      completed: {
+        color: "#10b981",
+        bg: "rgba(16,185,129,0.15)",
+        label: "Completed",
+      },
+      cancelled: {
+        color: "#ef4444",
+        bg: "rgba(239,68,68,0.15)",
+        label: "Cancelled",
+      },
+    };
+
+    const sc = statusConfig[item.status] ?? {
+      color: "#a3a3a3",
+      bg: "rgba(163,163,163,0.15)",
+      label: item.status,
     };
 
     const canCancel =
@@ -67,29 +160,42 @@ export default function BookingsScreen() {
         style={({ pressed }) => [pressed && { opacity: 0.8 }]}
       >
         <BlurView intensity={20} tint="dark" style={styles.card}>
+          {/* ── Card Header ── */}
           <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.serviceName}>{service.name}</Text>
+            {/* Left: service name + date/time */}
+            <View style={styles.cardLeft}>
+              <Text style={styles.serviceName} numberOfLines={1}>
+                {service.name}
+              </Text>
               <View style={styles.dateContainer}>
-                <Calendar size={14} color="#a3a3a3" />
+                <Calendar size={13} color="#a3a3a3" />
                 <Text style={styles.dateText}>{formattedDate}</Text>
-                <Clock size={14} color="#a3a3a3" style={{ marginLeft: 8 }} />
-                <Text style={styles.dateText}>{item.timeSlot}</Text>
+                <Clock
+                  size={13}
+                  color="#a3a3a3"
+                  style={{ marginLeft: 6 }}
+                />
+                <Text style={styles.dateText}>{item.booking_time}</Text>
               </View>
             </View>
+
+            {/* Right: status badge — fixed size, doesn't grow */}
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: `${statusColors[item.status]}20` },
+                { backgroundColor: sc.bg, borderColor: sc.color },
               ]}
             >
-              <Text style={[styles.statusText, { color: statusColors[item.status] }]}>
-                {item.status.replace("_", " ").toUpperCase()}
+              <Text style={[styles.statusText, { color: sc.color }]}>
+                {sc.label}
               </Text>
             </View>
           </View>
+
+          {/* ── Card Footer ── */}
           <View style={styles.cardFooter}>
             <Text style={styles.price}>${service.price}</Text>
+
             {canCancel ? (
               <Pressable
                 onPress={(e) => {
@@ -98,10 +204,10 @@ export default function BookingsScreen() {
                 }}
                 style={({ pressed }) => [
                   styles.cancelBtn,
-                  pressed && { opacity: 0.7 },
+                  pressed && { opacity: 0.65 },
                 ]}
               >
-                <X size={14} color="#fca5a5" />
+                <X size={13} color="#fca5a5" />
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </Pressable>
             ) : (
@@ -122,7 +228,7 @@ export default function BookingsScreen() {
       <FlatList
         data={bookings}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: insets.bottom + 100 },
@@ -149,6 +255,31 @@ export default function BookingsScreen() {
           ) : null
         }
       />
+
+      {/* ── Toast Notification ── */}
+      {toast.visible && (
+        <Animated.View
+          style={[
+            styles.toast,
+            {
+              bottom: insets.bottom + 24,
+              opacity,
+              transform: [{ translateY }],
+              backgroundColor:
+                toast.type === "success"
+                  ? "rgba(16,185,129,0.95)"
+                  : "rgba(239,68,68,0.95)",
+            },
+          ]}
+        >
+          {toast.type === "success" ? (
+            <CheckCircle size={18} color="#fff" />
+          ) : (
+            <AlertCircle size={18} color="#fff" />
+          )}
+          <Text style={styles.toastText}>{toast.message}</Text>
+        </Animated.View>
+      )}
     </LinearGradient>
   );
 }
@@ -168,52 +299,67 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    gap: 16,
+    gap: 14,
   },
+
+  // ── Card ─────────────────────────────────
   card: {
     borderRadius: 20,
-    padding: 20,
+    padding: 18,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    overflow: "hidden",
   },
   cardHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 16,
+    marginBottom: 14,
+    gap: 10,
+  },
+  cardLeft: {
+    flex: 1, // takes all available space; badge stays on the right
   },
   serviceName: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 17,
+    fontWeight: "700",
     color: "#ffffff",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   dateContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
+    flexWrap: "wrap",
   },
   dateText: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#a3a3a3",
   },
+
+  // ── Status Badge ─────────────────────────
   statusBadge: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignSelf: "flex-start",
+    flexShrink: 0, // never shrinks — always shows fully
   },
   statusText: {
-    fontSize: 10,
-    fontWeight: "bold",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
+
+  // ── Footer ───────────────────────────────
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-    paddingTop: 16,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
+    paddingTop: 14,
   },
   price: {
     fontSize: 18,
@@ -224,18 +370,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    borderRadius: 12,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderColor: "rgba(239, 68, 68, 0.35)",
   },
   cancelBtnText: {
     color: "#fca5a5",
     fontSize: 13,
     fontWeight: "600",
   },
+
+  // ── Empty State ──────────────────────────
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -257,15 +405,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#a3a3a3",
     textAlign: "center",
     marginBottom: 32,
     paddingHorizontal: 32,
+    lineHeight: 22,
   },
   emptyButton: {
     backgroundColor: "#6d28d9",
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     paddingVertical: 14,
     borderRadius: 12,
   },
@@ -273,5 +422,30 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+
+  // ── Toast ────────────────────────────────
+  toast: {
+    position: "absolute",
+    left: 20,
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  toastText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "600",
+    flex: 1,
+    lineHeight: 20,
   },
 });

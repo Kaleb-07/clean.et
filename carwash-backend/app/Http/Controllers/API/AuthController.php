@@ -41,6 +41,19 @@ class AuthController extends Controller
         return new AuthResource($request->user());
     }
 
+    public function updateProfile(Request $request)
+    {
+        $request->validate([
+            'name'  => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|unique:users,email,' . $request->user()->id,
+        ]);
+
+        $user = $request->user();
+        $user->update($request->only('name', 'email'));
+
+        return new AuthResource($user);
+    }
+
     public function logout(Request $request)
     {
         $request->user()->tokens()->delete();

@@ -18,8 +18,7 @@ class Booking extends Model
     ];
 
     protected $casts = [
-        'booking_date' => 'date',
-        'booking_time' => 'datetime:H:i',
+        'booking_date' => 'date:Y-m-d',
     ];
     // ================= CONSTANTS =================
     const STATUS_PENDING = 'pending';

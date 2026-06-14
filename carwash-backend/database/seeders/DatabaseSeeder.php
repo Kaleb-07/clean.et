@@ -15,11 +15,18 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Only seed the database in local or testing environments
+        if (!app()->environment('local', 'testing')) {
+            return;
+        }
 
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
+        ]);
+
+        $this->call([
+            AdminSeeder::class,
         ]);
     }
 }

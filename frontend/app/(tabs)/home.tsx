@@ -49,7 +49,9 @@ export default function HomeScreen() {
   const loadUser = async () => {
     try {
       const res = await API.get("/me");
-      setUser(res.data.data.user);
+      // AuthResource wraps as { data: { user: {...}, token: null } }
+      const payload = res.data.data || res.data;
+      setUser(payload.user || payload);
     } catch (e) {
       console.log("Error loading user:", e);
     }
