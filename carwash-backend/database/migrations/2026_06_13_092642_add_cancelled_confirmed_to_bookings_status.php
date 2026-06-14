@@ -22,7 +22,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert — note: any rows with 'confirmed' or 'cancelled' will be truncated
+        // Migrate existing confirmed and cancelled bookings to pending before reverting the ENUM
+        DB::table('bookings')
+            ->whereIn('status', ['confirmed', 'cancelled'])
+            ->update(['status' => 'pending']);
+
         DB::statement("ALTER TABLE bookings MODIFY COLUMN status ENUM('pending', 'in_progress', 'completed') NOT NULL DEFAULT 'pending'");
     }
 };

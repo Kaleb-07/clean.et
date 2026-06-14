@@ -66,7 +66,7 @@ export default function EditBookingScreen() {
 
   useEffect(() => {
     if (booking) {
-      setSelectedDate(new Date(booking.booking_date));
+      setSelectedDate(new Date(booking.booking_date + "T00:00:00"));
       setSelectedTime(to12h(booking.booking_time));
     }
   }, [booking]);

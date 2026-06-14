@@ -158,7 +158,7 @@ export default function BookingStatusScreen() {
               <Calendar size={20} color="#8b5cf6" />
               <View>
                 <Text style={styles.detailLabel}>{t("date") || "Date"}</Text>
-                <Text style={styles.detailValue}>{new Date(booking.booking_date).toLocaleDateString()}</Text>
+                <Text style={styles.detailValue}>{new Date(booking.booking_date + "T00:00:00").toLocaleDateString()}</Text>
               </View>
             </View>
             <View style={styles.divider} />
