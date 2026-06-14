@@ -13,17 +13,13 @@ class AdminSeeder extends Seeder
      */
     public function run(): void
     {
-        $email = env('ADMIN_EMAIL', 'admin@example.com');
-        $password = env('ADMIN_PASSWORD');
-
-        if (app()->environment('production') && empty($password)) {
-            // Do not seed default admin in production without a password configured
+        // Only seed default admin in local or testing environments
+        if (!app()->environment('local', 'testing')) {
             return;
         }
 
-        if (empty($password)) {
-            $password = 'admin123'; // Safe fallback for local/dev environments
-        }
+        $email = env('ADMIN_EMAIL', 'admin@example.com');
+        $password = env('ADMIN_PASSWORD', 'admin123');
 
         // Check if admin already exists to avoid duplicates
         if (!User::where('email', $email)->exists()) {
