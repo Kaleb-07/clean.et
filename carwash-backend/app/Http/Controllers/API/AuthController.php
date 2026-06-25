@@ -44,12 +44,14 @@ class AuthController extends Controller
     public function updateProfile(Request $request)
     {
         $request->validate([
-            'name'  => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|email|unique:users,email,' . $request->user()->id,
+            'name'     => 'sometimes|required|string|max:255',
+            'email'    => 'sometimes|nullable|email|unique:users,email,' . $request->user()->id,
+            'phone'    => 'sometimes|required|string|max:20|unique:users,phone,' . $request->user()->id,
+            'language' => 'sometimes|required|string|in:en,am,om,ti',
         ]);
 
         $user = $request->user();
-        $user->update($request->only('name', 'email'));
+        $user->update($request->only('name', 'email', 'phone', 'language'));
 
         return new AuthResource($user);
     }

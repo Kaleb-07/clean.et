@@ -52,6 +52,12 @@ export interface Booking {
   booking_time: string;   // "HH:MM" 24h
   status: BookingStatus;
   created_at: string;
+  staff: {
+    id: number;
+    role_title: string;
+    name: string;
+    phone: string | null;
+  } | null;
 }
 
 

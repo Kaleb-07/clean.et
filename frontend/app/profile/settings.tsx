@@ -27,8 +27,16 @@ import ActionModal from "../../src/components/ActionModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 const LANGUAGES = ["English", "Amharic", "French", "Spanish"];
+
+const LANGUAGE_CODE_MAP: Record<string, string> = {
+  English: "en",
+  Amharic: "am",
+  French: "en",
+  Spanish: "en",
+};
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -36,6 +44,7 @@ export default function SettingsScreen() {
   // ─── Real contexts ────────────────────────────────────────────────────────
   const { isDark, toggleDark } = useTheme();
   const { language, setLanguage } = useLanguage();
+  const { user, updateUser } = useAuth();
 
   // ─── Local UI state ───────────────────────────────────────────────────────
   const [langModalVisible, setLangModalVisible] = useState(false);
@@ -60,6 +69,16 @@ export default function SettingsScreen() {
   const handleSelectLanguage = async (lang: string) => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     await setLanguage(lang as any);
+
+    if (user && updateUser) {
+      try {
+        const code = LANGUAGE_CODE_MAP[lang] || "en";
+        await updateUser({ language: code as any });
+      } catch (err) {
+        console.log("Failed to sync language setting with backend", err);
+      }
+    }
+
     setLangModalVisible(false);
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 2000);

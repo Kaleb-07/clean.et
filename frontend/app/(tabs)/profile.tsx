@@ -23,11 +23,29 @@ import {
   Shield,
   HelpCircle,
   Pencil,
+  Car,
+  Building,
+  Receipt,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import ActionModal from "../../src/components/ActionModal";
 import { Modal, TextInput } from "react-native";
+
+// ─── Ethiopian Phone Formatter ────────────────────────────────────────────────
+function formatEthiopianPhone(input: string): string {
+  let cleaned = input.trim().replace(/\s+/g, "");
+  if (cleaned.startsWith("+251")) {
+    return cleaned;
+  }
+  if (cleaned.startsWith("0")) {
+    cleaned = cleaned.substring(1);
+  }
+  if (cleaned.startsWith("251")) {
+    return "+" + cleaned;
+  }
+  return "+251" + cleaned;
+}
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -38,12 +56,13 @@ export default function ProfileScreen() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState(user?.name || "");
   const [editEmail, setEditEmail] = useState(user?.email || "");
+  const [editPhone, setEditPhone] = useState(user?.phone || "");
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
 
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
-    if (Platform.OS !== 'web') {
+    if (Platform.OS !== "web") {
       Haptics.impactAsync(style).catch(() => {});
     }
   };
@@ -65,15 +84,20 @@ export default function ProfileScreen() {
   };
 
   const handleUpdateProfile = async () => {
-    if (!editName.trim() || !editEmail.trim()) {
-      setEditError("Name and email are required.");
+    if (!editName.trim() || !editPhone.trim()) {
+      setEditError("Name and phone number are required.");
       return;
     }
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     setEditLoading(true);
     setEditError("");
     try {
-      await updateUser({ name: editName.trim(), email: editEmail.trim() });
+      const formattedPhone = formatEthiopianPhone(editPhone);
+      await updateUser({
+        name: editName.trim(),
+        email: editEmail.trim() || null,
+        phone: formattedPhone,
+      });
       setEditModalVisible(false);
       setShowSuccess(true);
     } catch (e: any) {
@@ -89,15 +113,22 @@ export default function ProfileScreen() {
   const handleItemPress = (label: string) => {
     console.log(`Menu item clicked: ${label}`);
     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-    
+
     if (label === "Edit Profile") {
       setEditName(user?.name || "");
       setEditEmail(user?.email || "");
+      setEditPhone(user?.phone || "");
       setEditModalVisible(true);
     } else if (label === "Personal Information") {
       router.push("/profile/personal-info");
     } else if (label === "Payment Methods") {
       router.push("/profile/payments");
+    } else if (label === "My Vehicles") {
+      router.push("/vehicles" as any);
+    } else if (label === "My Building Profiles") {
+      router.push("/building-profiles" as any);
+    } else if (label === "My Invoices") {
+      router.push("/invoices" as any);
     } else if (label === "Notifications") {
       router.push("/profile/notifications");
     } else if (label === "App Settings") {
@@ -108,7 +139,7 @@ export default function ProfileScreen() {
       router.push("/profile/help");
     } else {
       const message = `${label} settings will be available in the next update.`;
-      if (Platform.OS === 'web') {
+      if (Platform.OS === "web") {
         window.alert(message);
       } else {
         Alert.alert(label, message);
@@ -128,21 +159,23 @@ export default function ProfileScreen() {
 
   const menuGroups = [
     {
-      title: "Account",
+      title: "Account & Assets",
       items: [
         { icon: User, label: "Personal Information", color: "#3b82f6" },
-        { icon: CreditCard, label: "Payment Methods", color: "#10b981" },
+        { icon: Car, label: "My Vehicles", color: "#6366f1" },
+        { icon: Building, label: "My Building Profiles", color: "#ec4899" },
+        { icon: Receipt, label: "My Invoices", color: "#10b981" },
         { icon: Bell, label: "Notifications", color: "#f59e0b" },
-      ]
+      ],
     },
     {
       title: "Settings & Support",
       items: [
         { icon: Settings, label: "App Settings", color: "#8b5cf6" },
-        { icon: Shield, label: "Privacy & Security", color: "#6366f1" },
-        { icon: HelpCircle, label: "Help Center", color: "#ec4899" },
-      ]
-    }
+        { icon: Shield, label: "Privacy & Security", color: "#06b6d4" },
+        { icon: HelpCircle, label: "Help Center", color: "#14b8a6" },
+      ],
+    },
   ];
 
   return (
@@ -163,8 +196,12 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>{getInitials(user?.name || "Guest")}</Text>
           </LinearGradient>
           <Text style={styles.name}>{user?.name || "Guest User"}</Text>
-          <Text style={styles.email}>{user?.email || "No email provided"}</Text>
-          <Pressable 
+          <Text style={styles.email}>
+            {user?.phone ? `${user.phone}` : ""}
+            {user?.email && user?.phone ? "  ·  " : ""}
+            {user?.email ?? ""}
+          </Text>
+          <Pressable
             style={styles.editButton}
             onPress={() => handleItemPress("Edit Profile")}
           >
@@ -212,7 +249,7 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Log Out</Text>
         </Pressable>
 
-        <Text style={styles.version}>Version 1.0.2 (Build 45)</Text>
+        <Text style={styles.version}>Version 1.0.3 (Build 46)</Text>
       </ScrollView>
 
       {/* Logout Modal */}
@@ -247,6 +284,19 @@ export default function ProfileScreen() {
                   onChangeText={(t) => { setEditName(t); setEditError(""); }}
                   placeholder="Your Name"
                   placeholderTextColor="#475569"
+                  editable={!editLoading}
+                />
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editPhone}
+                  onChangeText={(t) => { setEditPhone(t); setEditError(""); }}
+                  placeholder="9XX XXX XXXX"
+                  placeholderTextColor="#475569"
+                  keyboardType="phone-pad"
                   editable={!editLoading}
                 />
               </View>
@@ -294,7 +344,6 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-
       {/* Success Modal */}
       <ActionModal
         visible={showSuccess}
@@ -339,9 +388,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   email: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#94a3b8",
     marginBottom: 20,
+    textAlign: "center",
   },
   editButton: {
     backgroundColor: "rgba(255, 255, 255, 0.08)",

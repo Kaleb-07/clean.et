@@ -28,7 +28,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (data: Partial<Pick<User, "name" | "email" | "phone">>) => Promise<void>;
+  updateUser: (data: Partial<Pick<User, "name" | "email" | "phone" | "language">>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const updateUser = async (data: Partial<Pick<User, "name" | "email" | "phone">>) => {
+  const updateUser = async (data: Partial<Pick<User, "name" | "email" | "phone" | "language">>) => {
     const res = await API.put("/me", data);
     const payload = res.data.data || res.data;
     setUser(payload.user || payload);

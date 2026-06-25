@@ -292,4 +292,42 @@ class CleanEtApiTest extends TestCase
             ->assertJsonFragment(['status' => 'pending'])
             ->assertJsonFragment(['price' => '550.00']); // small_car + premium = 550
     }
+
+    /**
+     * Test user profile updates for phone and language.
+     */
+    public function test_user_profile_update_fields(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Original Name',
+            'phone' => '+251955555555',
+            'email' => 'original@example.com',
+            'language' => 'en',
+            'role' => 'customer',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->putJson('/api/me', [
+                'name' => 'Updated Name',
+                'phone' => '+251966666666',
+                'email' => 'updated@example.com',
+                'language' => 'am',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonFragment([
+                'name' => 'Updated Name',
+                'phone' => '+251966666666',
+                'email' => 'updated@example.com',
+                'language' => 'am',
+            ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'name' => 'Updated Name',
+            'phone' => '+251966666666',
+            'email' => 'updated@example.com',
+            'language' => 'am',
+        ]);
+    }
 }

@@ -54,6 +54,13 @@ class BookingResource extends JsonResource
 
             'status' => $this->status,
 
+            'staff' => $this->staff ? [
+                'id' => $this->staff->id,
+                'role_title' => $this->staff->role_title,
+                'name' => $this->staff->user?->name,
+                'phone' => $this->staff->user?->phone,
+            ] : null,
+
             // Associated customer profiles/vehicles if present
             'vehicle_id'          => $this->vehicle_id,
             'building_profile_id' => $this->building_profile_id,

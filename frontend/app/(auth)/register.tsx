@@ -20,10 +20,26 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import axios from "axios";
 import API from "../../src/api/client";
 
+// ─── Ethiopian Phone Formatter ────────────────────────────────────────────────
+function formatEthiopianPhone(input: string): string {
+  let cleaned = input.trim().replace(/\s+/g, "");
+  if (cleaned.startsWith("+251")) {
+    return cleaned;
+  }
+  if (cleaned.startsWith("0")) {
+    cleaned = cleaned.substring(1);
+  }
+  if (cleaned.startsWith("251")) {
+    return "+" + cleaned;
+  }
+  return "+251" + cleaned;
+}
+
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
 
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -35,18 +51,32 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setError(null);
 
-    // simple validation
+    // simple validations
+    if (!name.trim()) {
+      setError("Full name is required");
+      return;
+    }
+    if (!phone.trim()) {
+      setError("Phone number is required");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
 
     setLoading(true);
+    const formattedPhone = formatEthiopianPhone(phone);
 
     try {
       await API.post("/register", {
-        name,
-        email,
+        name: name.trim(),
+        phone: formattedPhone,
+        email: email.trim() || undefined,
         password,
         password_confirmation: confirmPassword,
       });
@@ -72,7 +102,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <LinearGradient colors={["#1a1b3a", "#4c1d95"]} style={{ flex: 1 }}>
+    <LinearGradient colors={["#0a0a18", "#1f1145", "#4c1d95"]} style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -85,13 +115,16 @@ export default function RegisterScreen() {
             paddingTop: insets.top + 40,
             paddingBottom: insets.bottom + 40,
           }}
+          showsVerticalScrollIndicator={false}
         >
           {/* HEADER */}
           <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
-            <Text style={styles.logo}>💧</Text>
+            <View style={styles.logoContainer}>
+              <Text style={styles.logoEmoji}>✨</Text>
+            </View>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>
-              Join us and book your first wash
+              Clean.et — Professional Cleaning Services
             </Text>
           </Animated.View>
 
@@ -110,9 +143,27 @@ export default function RegisterScreen() {
                 />
               </View>
 
+              {/* PHONE INPUT */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Phone Number</Text>
+                <View style={styles.phoneInputRow}>
+                  <View style={styles.countryCode}>
+                    <Text style={styles.countryCodeText}>🇪🇹 +251</Text>
+                  </View>
+                  <TextInput
+                    value={phone}
+                    onChangeText={setPhone}
+                    placeholder="9XX XXX XXXX"
+                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    keyboardType="phone-pad"
+                    style={[styles.input, styles.phoneInput]}
+                  />
+                </View>
+              </View>
+
               {/* EMAIL */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
+                <Text style={styles.label}>Email (Optional)</Text>
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
@@ -163,7 +214,12 @@ export default function RegisterScreen() {
               </View>
 
               {/* ERROR */}
-              {error && <Text style={styles.errorText}>{error}</Text>}
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle" size={16} color="#ef4444" />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
 
               {/* BUTTON */}
               <Pressable
@@ -185,7 +241,6 @@ export default function RegisterScreen() {
               {/* FOOTER */}
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Already have an account?</Text>
-
                 <Link href="/(auth)/login" asChild>
                   <Pressable>
                     <Text style={styles.link}> Login</Text>
@@ -203,16 +258,26 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   header: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 32,
   },
-  logo: {
-    fontSize: 48,
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    marginBottom: 16,
+  },
+  logoEmoji: {
+    fontSize: 36,
   },
   title: {
     fontSize: 32,
     fontWeight: "bold",
     color: "#fff",
-    marginTop: 16,
   },
   subtitle: {
     color: "rgba(255,255,255,0.7)",
@@ -231,12 +296,36 @@ const styles = StyleSheet.create({
   label: {
     color: "#fff",
     marginBottom: 8,
+    fontSize: 14,
+    fontWeight: "600",
   },
   input: {
     backgroundColor: "rgba(0,0,0,0.2)",
     borderRadius: 12,
     padding: 16,
     color: "#fff",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  phoneInputRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  countryCode: {
+    backgroundColor: "rgba(0,0,0,0.2)",
+    borderRadius: 12,
+    padding: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  countryCodeText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  phoneInput: {
+    flex: 1,
   },
   passwordContainer: {
     position: "relative",
@@ -249,9 +338,22 @@ const styles = StyleSheet.create({
     right: 16,
     top: 16,
   },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.2)",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
   errorText: {
     color: "#ef4444",
-    marginBottom: 10,
+    fontSize: 14,
+    fontWeight: "500",
+    flex: 1,
   },
   button: {
     backgroundColor: "#8b5cf6",
@@ -263,17 +365,19 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "600",
+    fontSize: 16,
   },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
     marginTop: 20,
+    gap: 4,
   },
   footerText: {
     color: "rgba(255,255,255,0.7)",
   },
   link: {
-    color: "#8b5cf6",
+    color: "#a78bfa",
     fontWeight: "600",
   },
 });
