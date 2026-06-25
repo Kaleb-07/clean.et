@@ -13,6 +13,11 @@ class Vehicle extends Model
         'customer_id',
         'vehicle_class',
         'fleet_account_id',
+        'plate_number',
+        'color',
+        'make',
+        'model',
+        'year',
     ];
 
     // ================= RELATIONSHIPS =================

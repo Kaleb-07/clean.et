@@ -14,7 +14,9 @@ return new class extends Migration
     public function up(): void
     {
         // MySQL requires re-declaring the full ENUM column to change its values
-        DB::statement("ALTER TABLE bookings MODIFY COLUMN status ENUM('pending', 'confirmed', 'in_progress', 'completed', 'cancelled') NOT NULL DEFAULT 'pending'");
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE bookings MODIFY COLUMN status ENUM('pending', 'confirmed', 'in_progress', 'completed', 'cancelled') NOT NULL DEFAULT 'pending'");
+        }
     }
 
     /**
@@ -27,6 +29,8 @@ return new class extends Migration
             ->whereIn('status', ['confirmed', 'cancelled'])
             ->update(['status' => 'pending']);
 
-        DB::statement("ALTER TABLE bookings MODIFY COLUMN status ENUM('pending', 'in_progress', 'completed') NOT NULL DEFAULT 'pending'");
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE bookings MODIFY COLUMN status ENUM('pending', 'in_progress', 'completed') NOT NULL DEFAULT 'pending'");
+        }
     }
 };

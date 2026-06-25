@@ -15,6 +15,7 @@ class Payment extends Model
         'status',
         'amount',
         'provider_reference',
+        'checkout_url',
     ];
 
     protected $casts = [
@@ -26,5 +27,20 @@ class Payment extends Model
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    /**
+     * Convenience accessor: reach the booking via the invoice.
+     */
+    public function booking()
+    {
+        return $this->hasOneThrough(
+            Booking::class,
+            Invoice::class,
+            'id',          // FK on invoices
+            'id',          // FK on bookings
+            'invoice_id',  // local key on payments
+            'booking_id'   // local key on invoices
+        );
     }
 }

@@ -108,39 +108,34 @@ export default function BookingsScreen() {
   };
 
   const renderItem = ({ item }: { item: Booking }) => {
-    const service = item.service;
-    if (!service) return null;
+    // Determine display name: sector-based takes priority, fall back to legacy service
+    const displayName =
+      item.sector?.name ?? item.service?.name ?? "Cleaning Service";
+    const categoryName = item.sector?.category_name ?? null;
+    // Price: estimated_price from sector pricing, or legacy service price
+    const displayPrice =
+      item.estimated_price ?? item.service?.price ?? null;
 
-    const formattedDate = new Date(item.booking_date + "T00:00:00").toLocaleDateString(
-      "en-US",
-      {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      }
-    );
+    const formattedDate = new Date(
+      item.booking_date + "T00:00:00"
+    ).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
 
     const statusConfig: Record<
       string,
       { color: string; bg: string; label: string }
     > = {
-      pending: { color: "#f59e0b", bg: "rgba(245,158,11,0.15)", label: "Pending" },
-      confirmed: { color: "#3b82f6", bg: "rgba(59,130,246,0.15)", label: "Confirmed" },
-      in_progress: {
-        color: "#8b5cf6",
-        bg: "rgba(139,92,246,0.15)",
-        label: "In Progress",
-      },
-      completed: {
-        color: "#10b981",
-        bg: "rgba(16,185,129,0.15)",
-        label: "Completed",
-      },
-      cancelled: {
-        color: "#ef4444",
-        bg: "rgba(239,68,68,0.15)",
-        label: "Cancelled",
-      },
+      pending:         { color: "#f59e0b", bg: "rgba(245,158,11,0.15)",   label: "Pending" },
+      confirmed:       { color: "#3b82f6", bg: "rgba(59,130,246,0.15)",   label: "Confirmed" },
+      driver_assigned: { color: "#06b6d4", bg: "rgba(6,182,212,0.15)",    label: "Driver Assigned" },
+      picked_up:       { color: "#8b5cf6", bg: "rgba(139,92,246,0.15)",   label: "Picked Up" },
+      in_progress:     { color: "#a855f7", bg: "rgba(168,85,247,0.15)",   label: "In Progress" },
+      invoiced:        { color: "#f97316", bg: "rgba(249,115,22,0.15)",   label: "Invoiced" },
+      completed:       { color: "#10b981", bg: "rgba(16,185,129,0.15)",   label: "Completed" },
+      cancelled:       { color: "#ef4444", bg: "rgba(239,68,68,0.15)",    label: "Cancelled" },
     };
 
     const sc = statusConfig[item.status] ?? {
@@ -149,10 +144,24 @@ export default function BookingsScreen() {
       label: item.status,
     };
 
-    const canCancel =
-      item.status !== "completed" &&
-      item.status !== "cancelled" &&
-      item.status !== "in_progress";
+    // Cancellable only if the job hasn't started or been settled
+    const canCancel = [
+      "pending",
+      "confirmed",
+    ].includes(item.status);
+
+    // Sub-info line: vehicle or building profile
+    const subInfo = item.vehicle
+      ? [
+          item.vehicle.make,
+          item.vehicle.model,
+          item.vehicle.plate_number,
+        ]
+          .filter(Boolean)
+          .join(" ") || item.vehicle.vehicle_class
+      : item.building_profile
+      ? `${item.building_profile.name} · ${item.building_profile.floor_count}F`
+      : null;
 
     return (
       <Pressable
@@ -162,24 +171,26 @@ export default function BookingsScreen() {
         <BlurView intensity={20} tint="dark" style={styles.card}>
           {/* ── Card Header ── */}
           <View style={styles.cardHeader}>
-            {/* Left: service name + date/time */}
             <View style={styles.cardLeft}>
+              {categoryName ? (
+                <Text style={styles.categoryPill}>{categoryName}</Text>
+              ) : null}
               <Text style={styles.serviceName} numberOfLines={1}>
-                {service.name}
+                {displayName}
               </Text>
               <View style={styles.dateContainer}>
                 <Calendar size={13} color="#a3a3a3" />
                 <Text style={styles.dateText}>{formattedDate}</Text>
-                <Clock
-                  size={13}
-                  color="#a3a3a3"
-                  style={{ marginLeft: 6 }}
-                />
+                <Clock size={13} color="#a3a3a3" style={{ marginLeft: 6 }} />
                 <Text style={styles.dateText}>{item.booking_time}</Text>
               </View>
+              {subInfo ? (
+                <Text style={styles.subInfo} numberOfLines={1}>
+                  {subInfo}
+                </Text>
+              ) : null}
             </View>
 
-            {/* Right: status badge — fixed size, doesn't grow */}
             <View
               style={[
                 styles.statusBadge,
@@ -194,7 +205,15 @@ export default function BookingsScreen() {
 
           {/* ── Card Footer ── */}
           <View style={styles.cardFooter}>
-            <Text style={styles.price}>${service.price}</Text>
+            {displayPrice != null ? (
+              <Text style={styles.price}>
+                ETB {Number(displayPrice).toLocaleString("en-ET", {
+                  minimumFractionDigits: 2,
+                })}
+              </Text>
+            ) : (
+              <Text style={styles.priceUnknown}>Price TBD</Text>
+            )}
 
             {canCancel ? (
               <Pressable
@@ -243,13 +262,13 @@ export default function BookingsScreen() {
               </View>
               <Text style={styles.emptyTitle}>No Bookings Yet</Text>
               <Text style={styles.emptyText}>
-                Your upcoming car wash appointments will appear here.
+                Your upcoming cleaning appointments will appear here.
               </Text>
               <Pressable
                 style={styles.emptyButton}
                 onPress={() => router.push("/home")}
               >
-                <Text style={styles.emptyButtonText}>Book a Wash</Text>
+                <Text style={styles.emptyButtonText}>Book a Service</Text>
               </Pressable>
             </View>
           ) : null
@@ -318,7 +337,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   cardLeft: {
-    flex: 1, // takes all available space; badge stays on the right
+    flex: 1,
+  },
+  categoryPill: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6366f1",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
   serviceName: {
     fontSize: 17,
@@ -335,6 +362,11 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 13,
     color: "#a3a3a3",
+  },
+  subInfo: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 4,
   },
 
   // ── Status Badge ─────────────────────────
@@ -365,6 +397,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#ffffff",
+  },
+  priceUnknown: {
+    fontSize: 14,
+    color: "#6b7280",
+    fontStyle: "italic",
   },
   cancelBtn: {
     flexDirection: "row",

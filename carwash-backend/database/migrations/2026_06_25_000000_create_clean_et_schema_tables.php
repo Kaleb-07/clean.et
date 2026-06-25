@@ -56,6 +56,7 @@ return new class extends Migration
             if (!Schema::hasColumn('users', 'language')) {
                 $table->enum('language', ['en', 'am', 'om', 'ti'])->default('en');
             }
+            $table->string('email')->nullable()->change();
         });
 
         // Change users.role enum with a 3-step approach for MySQL strict mode:
@@ -121,7 +122,12 @@ return new class extends Migration
             Schema::create('vehicles', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
-                $table->enum('vehicle_class', ['small_car', 'suv_pickup', 'minibus_van', 'light_medium_truck', 'big_truck_cargo', 'large_bus']);
+                $table->enum('vehicle_class', ['sedan', 'suv', 'van', 'truck', 'bus', 'motorcycle', 'other']);
+                $table->string('plate_number', 20)->nullable();
+                $table->string('color', 50)->nullable();
+                $table->string('make', 80)->nullable();
+                $table->string('model', 80)->nullable();
+                $table->integer('year')->nullable();
                 $table->foreignId('fleet_account_id')->nullable()->constrained()->nullOnDelete();
                 $table->timestamps();
             });
@@ -222,6 +228,7 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
                 $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
+                $table->foreignId('booking_id')->nullable()->constrained()->nullOnDelete();
                 $table->decimal('amount', 10, 2);
                 $table->string('currency', 3)->default('ETB');
                 $table->string('period', 7);
@@ -596,6 +603,8 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
+
         Schema::dropIfExists('payments');
         Schema::dropIfExists('invoices');
         Schema::dropIfExists('subscriptions');
@@ -630,5 +639,7 @@ return new class extends Migration
         Schema::dropIfExists('sectors');
         Schema::dropIfExists('categories');
         Schema::dropIfExists('tenants');
+
+        Schema::enableForeignKeyConstraints();
     }
 };

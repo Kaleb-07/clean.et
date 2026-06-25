@@ -49,7 +49,17 @@ class User extends Authenticatable
         return $this->hasOne(StaffProfile::class);
     }
 
+    public function staff()
+    {
+        return $this->hasOne(StaffProfile::class);
+    }
+
     public function customerProfile()
+    {
+        return $this->hasOne(Customer::class);
+    }
+
+    public function customer()
     {
         return $this->hasOne(Customer::class);
     }

@@ -14,6 +14,7 @@ class Invoice extends Model
     protected $fillable = [
         'tenant_id',
         'customer_id',
+        'booking_id',
         'amount',
         'currency',
         'period',
@@ -36,6 +37,11 @@ class Invoice extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function booking()
+    {
+        return $this->belongsTo(Booking::class);
     }
 
     public function payments()

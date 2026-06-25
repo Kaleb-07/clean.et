@@ -4,7 +4,10 @@ import API, { apiFetch } from "../src/api/client";
 export type BookingStatus =
   | "pending"
   | "confirmed"
+  | "driver_assigned"
+  | "picked_up"
   | "in_progress"
+  | "invoiced"
   | "completed"
   | "cancelled";
 
@@ -18,16 +21,39 @@ export interface Booking {
     name: string;
     email: string;
   } | null;
+  /** Legacy service (may be null for sector-based bookings) */
   service: {
     id: string;
     name: string;
     price: number;
-  };
+  } | null;
+  /** New: sector-based bookings */
+  sector: {
+    id: number;
+    name: string;
+    category_name: string;
+  } | null;
+  vehicle: {
+    id: number;
+    vehicle_class: string;
+    plate_number: string | null;
+    make: string | null;
+    model: string | null;
+  } | null;
+  building_profile: {
+    id: number;
+    name: string;
+    floor_count: number;
+    area_sqm: number;
+  } | null;
+  requirement_data: Record<string, any> | null;
+  estimated_price: number | null;
   booking_date: string;   // "YYYY-MM-DD"
   booking_time: string;   // "HH:MM" 24h
   status: BookingStatus;
   created_at: string;
 }
+
 
 /**
  * Convert "09:00 AM" / "01:30 PM" → "09:00" / "13:30"  (H:i, 24-hour)
