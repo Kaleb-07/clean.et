@@ -69,9 +69,17 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
 // ─── STAFF (admin only) ───────────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-    Route::get('/staff',     [StaffController::class, 'index']);
-    Route::post('/staff',    [StaffController::class, 'store']);
+    Route::get('/staff',          [StaffController::class, 'index']);
+    Route::get('/staff/{id}',     [StaffController::class, 'show']);
+    Route::post('/staff',         [StaffController::class, 'store']);
+    Route::delete('/staff/{id}',  [StaffController::class, 'destroy']);
 });
+
+// ─── SUPER ADMIN ONLY (future: tenant management, platform config) ────────
+// Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
+//     Route::get('/tenants',    [TenantController::class, 'index']);
+//     Route::post('/tenants',   [TenantController::class, 'store']);
+// });
 
 // ─── VEHICLES (customer-owned) ────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {

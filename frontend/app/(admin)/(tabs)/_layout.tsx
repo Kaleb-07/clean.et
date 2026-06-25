@@ -29,8 +29,9 @@ export default function TabLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  // ✅ Not admin
-  if (user.role !== "admin") {
+  // ✅ Restrict to super_admin and tenant_admin roles only
+  const adminRoles = ["super_admin", "tenant_admin"];
+  if (!adminRoles.includes(user.role)) {
     return <Redirect href="/(tabs)/home" />;
   }
 

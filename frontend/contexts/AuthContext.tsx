@@ -2,19 +2,33 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import * as authStorage from "../src/services/authStorage";
 import API from "../src/api/client";
 
-interface User {
+// ─── User type matching AuthResource response ──────────────────────────────
+export interface User {
   id: string;
+  tenant_id: string | null;
   name: string;
-  email: string;
-  role: string;
+  phone: string | null;
+  email: string | null;
+  role: "super_admin" | "tenant_admin" | "staff" | "customer";
+  language: string;
 }
 
+// ─── Helpers to check roles without scattering string comparisons ──────────
+export function isAdminRole(role: string): boolean {
+  return role === "super_admin" || role === "tenant_admin";
+}
+
+export function isStaffRole(role: string): boolean {
+  return role === "staff";
+}
+
+// ─── Context type ──────────────────────────────────────────────────────────
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (data: { name: string; email: string }) => Promise<void>;
+  updateUser: (data: Partial<Pick<User, "name" | "email" | "phone">>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,11 +63,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    try {
+      await API.post("/logout");
+    } catch {
+      // Token may already be invalid — ignore
+    }
     await authStorage.removeToken();
     setUser(null);
   };
 
-  const updateUser = async (data: { name: string; email: string }) => {
+  const updateUser = async (data: Partial<Pick<User, "name" | "email" | "phone">>) => {
     const res = await API.put("/me", data);
     const payload = res.data.data || res.data;
     setUser(payload.user || payload);

@@ -76,4 +76,28 @@ class StaffController extends Controller
 
         return new BookingResource($booking->load(['sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service']));
     }
+
+    // GET /api/staff/{id}
+    public function show($id)
+    {
+        $staff = StaffProfile::with(['user', 'certifications'])->findOrFail($id);
+        return response()->json($staff);
+    }
+
+    // DELETE /api/staff/{id}
+    public function destroy($id)
+    {
+        $staffProfile = StaffProfile::with('user')->findOrFail($id);
+
+        DB::transaction(function () use ($staffProfile) {
+            // Delete the associated user account (cascades to tokens, etc.)
+            if ($staffProfile->user) {
+                $staffProfile->user->tokens()->delete();
+                $staffProfile->user->delete();
+            }
+            $staffProfile->delete();
+        });
+
+        return response()->json(['message' => 'Staff member removed successfully.']);
+    }
 }

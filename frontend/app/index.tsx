@@ -54,7 +54,8 @@ export default function SplashScreen() {
           <Droplet size={64} color="#ffffff" />
         </View>
 
-        <Text style={styles.title}>CarWash</Text>
+        <Text style={styles.title}>Clean.et</Text>
+        <Text style={styles.tagline}>Professional Cleaning Services</Text>
       </Animated.View>
     </LinearGradient>
   );
@@ -87,5 +88,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#fff",
     letterSpacing: 1.5,
+  },
+  tagline: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.6)",
+    marginTop: 6,
+    letterSpacing: 0.5,
   },
 });

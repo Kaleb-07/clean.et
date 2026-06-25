@@ -12,46 +12,86 @@ import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 
 import API from "../../../src/api/client";
 import { useAuth } from "../../../contexts/AuthContext";
 import ActionModal from "../../../src/components/ActionModal";
 
-/* ---------- STAT CARD ---------- */
-function StatCard({ icon, label, value, color }: any) {
+/* ─── TYPES ─────────────────────────────────────────────────────────────── */
+interface Booking {
+  id: number;
+  status: string;
+  price: number;
+}
+
+interface Stat {
+  icon: string;
+  label: string;
+  value: string | number;
+  color: string;
+  sub?: string;
+}
+
+interface ActionItem {
+  title: string;
+  subtitle: string;
+  icon: string;
+  colors: [string, string];
+  route: string;
+}
+
+/* ─── STAT CARD ──────────────────────────────────────────────────────────── */
+function StatCard({ icon, label, value, color, sub }: Stat) {
   return (
-    <BlurView intensity={30} tint="dark" style={styles.card}>
-      <View style={[styles.iconWrap, { backgroundColor: `${color}20` }]}>
-        <Ionicons name={icon} size={20} color={color} />
-      </View>
-      <Text style={styles.value}>{value}</Text>
-      <Text style={styles.label}>{label}</Text>
-    </BlurView>
+    <Animated.View entering={FadeInDown.delay(100)} style={{ width: "48%" }}>
+      <BlurView intensity={30} tint="dark" style={styles.card}>
+        <View style={[styles.iconWrap, { backgroundColor: `${color}22` }]}>
+          <Ionicons name={icon as any} size={18} color={color} />
+        </View>
+        <Text style={styles.value}>{value}</Text>
+        <Text style={styles.label}>{label}</Text>
+        {sub && <Text style={styles.sub}>{sub}</Text>}
+      </BlurView>
+    </Animated.View>
   );
 }
 
-/* ---------- ACTION CARD ---------- */
-function ActionCard({ title, subtitle, icon, colors, route }: any) {
+/* ─── ACTION CARD ────────────────────────────────────────────────────────── */
+function ActionCard({ title, subtitle, icon, colors, route }: ActionItem) {
   return (
-    <Pressable onPress={() => router.push(route)}>
-      <LinearGradient colors={colors} style={styles.actionCard}>
-        <View style={styles.actionIcon}>
-          <Ionicons name={icon} size={22} color="#fff" />
-        </View>
-        <Text style={styles.actionTitle}>{title}</Text>
-        <Text style={styles.actionSubtitle}>{subtitle}</Text>
-      </LinearGradient>
+    <Pressable onPress={() => router.push(route as any)} style={{ flex: 1 }}>
+      {({ pressed }) => (
+        <LinearGradient
+          colors={colors}
+          style={[styles.actionCard, pressed && { opacity: 0.85 }]}
+        >
+          <View style={styles.actionIcon}>
+            <Ionicons name={icon as any} size={22} color="#fff" />
+          </View>
+          <Text style={styles.actionTitle}>{title}</Text>
+          <Text style={styles.actionSubtitle}>{subtitle}</Text>
+          <Ionicons
+            name="arrow-forward"
+            size={14}
+            color="rgba(255,255,255,0.6)"
+            style={{ marginTop: 12 }}
+          />
+        </LinearGradient>
+      )}
     </Pressable>
   );
 }
 
+/* ─── MAIN COMPONENT ─────────────────────────────────────────────────────── */
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
-  const [services, setServices] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [customers, setCustomers] = useState([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [sectors, setSectors] = useState<any[]>([]);
+  const [staff, setStaff] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [logoutModal, setLogoutModal] = useState(false);
 
@@ -61,17 +101,24 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      const [s, b, c] = await Promise.all([
-        API.get("/services"),
+      const [bRes, cRes, catRes, stRes] = await Promise.allSettled([
         API.get("/bookings"),
         API.get("/customers"),
+        API.get("/categories"),
+        API.get("/staff"),
       ]);
 
-      setServices(s.data.data);
-      setBookings(b.data.data);
-      setCustomers(c.data.data);
+      if (bRes.status === "fulfilled") setBookings(bRes.value.data.data ?? []);
+      if (cRes.status === "fulfilled") setCustomers(cRes.value.data.data ?? []);
+      if (catRes.status === "fulfilled") {
+        // Flatten sectors from all categories
+        const cats = catRes.value.data.data ?? [];
+        const allSectors = cats.flatMap((c: any) => c.sectors ?? []);
+        setSectors(allSectors);
+      }
+      if (stRes.status === "fulfilled") setStaff(stRes.value.data ?? []);
     } catch (e) {
-      console.log(e);
+      console.log("Dashboard load error:", e);
     }
   };
 
@@ -83,59 +130,74 @@ export default function AdminDashboard() {
 
   const stats = useMemo(() => {
     const revenue = bookings.reduce(
-      (sum: number, b: any) => sum + (b.service?.price || 0),
-      0,
+      (sum, b) => sum + (Number(b.price) || 0),
+      0
     );
-
     return {
-      services: services.length,
       bookings: bookings.length,
       customers: customers.length,
-      revenue,
-      pending: bookings.filter((b: any) => b.status === "pending").length,
-      completed: bookings.filter((b: any) => b.status === "completed").length,
+      sectors: sectors.length,
+      staff: staff.length,
+      revenue: revenue.toLocaleString("en-ET"),
+      pending: bookings.filter((b) => b.status === "pending").length,
+      confirmed: bookings.filter((b) => b.status === "confirmed").length,
+      completed: bookings.filter((b) => b.status === "completed").length,
+      inProgress: bookings.filter((b) => b.status === "in_progress").length,
     };
-  }, [services, bookings, customers]);
+  }, [bookings, customers, sectors, staff]);
 
   const confirmLogout = async () => {
     await logout();
     router.replace("/");
   };
 
+  const tenantLabel = user?.role === "super_admin" ? "Super Admin" : "Tenant Admin";
+  const greeting = user?.name ? `Hello, ${user.name.split(" ")[0]}` : "Dashboard";
+
   return (
-    <LinearGradient colors={["#0a0a18", "#1f1f3d"]} style={{ flex: 1 }}>
-      {/* 🔒 FIXED TOP SECTION */}
-      <View
-        style={{
-          paddingTop: insets.top + 20,
-          paddingHorizontal: 16,
-        }}
-      >
-        {/* HEADER */}
-        <View style={styles.header}>
+    <LinearGradient colors={["#07070f", "#0f1028", "#1a1445"]} style={{ flex: 1 }}>
+      {/* ── FIXED HEADER ── */}
+      <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20 }}>
+        <Animated.View entering={FadeInDown.delay(50)} style={styles.topRow}>
           <View>
-            <Text style={styles.title}>Admin Dashboard</Text>
-            <Text style={styles.subtitle}>Manage your system</Text>
+            <Text style={styles.greeting}>{greeting} 👋</Text>
+            <View style={styles.rolePill}>
+              <View style={styles.roleDot} />
+              <Text style={styles.roleText}>{tenantLabel} · Clean.et</Text>
+            </View>
           </View>
-
-          <Pressable onPress={() => setLogoutModal(true)}>
-            <Ionicons name="log-out-outline" size={24} color="#f70505" />
+          <Pressable onPress={() => setLogoutModal(true)} style={styles.logoutBtn}>
+            <Ionicons name="log-out-outline" size={22} color="#ef4444" />
           </Pressable>
-        </View>
+        </Animated.View>
 
-        {/* STATS */}
+        {/* ── REVENUE HERO ── */}
+        <Animated.View entering={FadeInDown.delay(100)}>
+          <LinearGradient
+            colors={["#7c3aed", "#4c1d95"]}
+            style={styles.revenueCard}
+          >
+            <View>
+              <Text style={styles.revenueLabel}>Total Revenue (ETB)</Text>
+              <Text style={styles.revenueValue}>ETB {stats.revenue}</Text>
+              <Text style={styles.revenueSub}>
+                {stats.bookings} total · {stats.completed} completed
+              </Text>
+            </View>
+            <View style={styles.revenueIcon}>
+              <Ionicons name="analytics-outline" size={32} color="rgba(255,255,255,0.8)" />
+            </View>
+          </LinearGradient>
+        </Animated.View>
+
+        {/* ── STATS GRID ── */}
         <View style={styles.grid}>
-          <StatCard
-            icon="construct-outline"
-            label="Services"
-            value={stats.services}
-            color="#8b5cf6"
-          />
           <StatCard
             icon="calendar-outline"
             label="Bookings"
             value={stats.bookings}
             color="#3b82f6"
+            sub={`${stats.pending} pending`}
           />
           <StatCard
             icon="people-outline"
@@ -144,65 +206,90 @@ export default function AdminDashboard() {
             color="#10b981"
           />
           <StatCard
-            icon="cash-outline"
-            label="Revenue"
-            value={`$${stats.revenue}`}
+            icon="layers-outline"
+            label="Sectors"
+            value={stats.sectors}
             color="#f59e0b"
+          />
+          <StatCard
+            icon="person-outline"
+            label="Staff"
+            value={stats.staff}
+            color="#8b5cf6"
           />
         </View>
 
-        <View style={styles.grid}>
-          <StatCard
-            icon="time-outline"
-            label="Pending"
-            value={stats.pending}
-            color="#f59e0b"
-          />
-          <StatCard
-            icon="checkmark-done-outline"
-            label="Completed"
-            value={stats.completed}
-            color="#22c55e"
-          />
-        </View>
+        {/* ── BOOKING STATUS ROW ── */}
+        <Animated.View entering={FadeInRight.delay(150)} style={styles.statusRow}>
+          {[
+            { label: "Pending", value: stats.pending, color: "#f59e0b" },
+            { label: "In Progress", value: stats.inProgress, color: "#3b82f6" },
+            { label: "Confirmed", value: stats.confirmed, color: "#22c55e" },
+            { label: "Completed", value: stats.completed, color: "#10b981" },
+          ].map((s) => (
+            <View key={s.label} style={styles.statusItem}>
+              <Text style={[styles.statusValue, { color: s.color }]}>{s.value}</Text>
+              <Text style={styles.statusLabel}>{s.label}</Text>
+            </View>
+          ))}
+        </Animated.View>
       </View>
 
-      {/* 🔥 SCROLLABLE BOTTOM */}
+      {/* ── SCROLLABLE SECTION ── */}
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 120,
-        }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#8b5cf6"
+          />
         }
       >
-        <Text style={styles.section}>Manage</Text>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
 
-        <View style={styles.actionGrid}>
-          <ActionCard
-            title="Services"
-            subtitle="Add & manage services"
-            icon="construct-outline"
-            colors={["#7c3aed", "#4c1d95"]}
-            route="/(admin)/services"
-          />
-
+        <View style={styles.actionRow}>
           <ActionCard
             title="Bookings"
-            subtitle="Track all bookings"
+            subtitle="Track & manage all bookings"
             icon="calendar-outline"
             colors={["#2563eb", "#1e3a8a"]}
             route="/(admin)/(tabs)/bookings"
           />
-
           <ActionCard
             title="Customers"
-            subtitle="View customers"
+            subtitle="View customer profiles"
             icon="people-outline"
             colors={["#059669", "#064e3b"]}
             route="/(admin)/customers"
+          />
+        </View>
+
+        <View style={styles.actionRow}>
+          <ActionCard
+            title="Staff"
+            subtitle="Manage your team"
+            icon="person-add-outline"
+            colors={["#7c3aed", "#4c1d95"]}
+            route="/(admin)/staff"
+          />
+          <ActionCard
+            title="Invoices"
+            subtitle="Billing & payments"
+            icon="receipt-outline"
+            colors={["#d97706", "#92400e"]}
+            route="/(admin)/invoices"
+          />
+        </View>
+
+        <View style={styles.actionRow}>
+          <ActionCard
+            title="Services"
+            subtitle="Legacy service catalog"
+            icon="construct-outline"
+            colors={["#475569", "#1e293b"]}
+            route="/(admin)/services"
           />
         </View>
       </ScrollView>
@@ -212,7 +299,7 @@ export default function AdminDashboard() {
         visible={logoutModal}
         type="danger"
         title="Logout?"
-        message="Are you sure you want to logout?"
+        message="Are you sure you want to logout of Clean.et?"
         confirmText="Logout"
         onConfirm={confirmLogout}
         onCancel={() => setLogoutModal(false)}
@@ -221,96 +308,176 @@ export default function AdminDashboard() {
   );
 }
 
+/* ─── STYLES ─────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  header: {
+  topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 20,
+  },
+
+  greeting: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+
+  rolePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  roleDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#22c55e",
+  },
+  roleText: {
+    color: "#94a3b8",
+    fontSize: 12,
+  },
+
+  logoutBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(239,68,68,0.1)",
+    justifyContent: "center",
     alignItems: "center",
   },
 
-  title: {
+  revenueCard: {
+    borderRadius: 20,
+    padding: 20,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  revenueLabel: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  revenueValue: {
     color: "#fff",
     fontSize: 26,
     fontWeight: "bold",
   },
-
-  subtitle: {
-    color: "#94a3b8",
-    fontSize: 13,
-    marginTop: 2,
+  revenueSub: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 12,
+    marginTop: 4,
+  },
+  revenueIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 16,
   },
 
   card: {
-    width: "48%",
-    padding: 10,
+    padding: 14,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderColor: "rgba(255,255,255,0.08)",
+    overflow: "hidden",
   },
-
   iconWrap: {
-    width: 38,
-    height: 25,
-    borderRadius: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 8,
   },
-
   value: {
     color: "#fff",
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
   },
-
   label: {
     color: "#94a3b8",
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 2,
+  },
+  sub: {
+    color: "#64748b",
+    fontSize: 11,
+    marginTop: 2,
   },
 
-  section: {
+  statusRow: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+  },
+  statusItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statusValue: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  statusLabel: {
+    color: "#64748b",
+    fontSize: 10,
+    marginTop: 2,
+    textAlign: "center",
+  },
+
+  sectionTitle: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 17,
+    fontWeight: "700",
     marginTop: 20,
-    marginBottom: 12,
+    marginBottom: 14,
   },
 
-  actionGrid: {
-    gap: 14,
+  actionRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
   },
 
   actionCard: {
     borderRadius: 20,
     padding: 18,
   },
-
   actionIcon: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.18)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
-
   actionTitle: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
   },
-
   actionSubtitle: {
-    color: "#e2e8f0",
-    fontSize: 12,
-    marginTop: 4,
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 11,
+    marginTop: 3,
   },
 });
