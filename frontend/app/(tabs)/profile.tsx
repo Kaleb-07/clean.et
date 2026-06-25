@@ -63,7 +63,7 @@ export default function ProfileScreen() {
 
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
     if (Platform.OS !== "web") {
-      Haptics.impactAsync(style).catch(() => {});
+      Haptics.impactAsync(style).catch(() => { });
     }
   };
 
@@ -124,11 +124,11 @@ export default function ProfileScreen() {
     } else if (label === "Payment Methods") {
       router.push("/profile/payments");
     } else if (label === "My Vehicles") {
-      router.push("/vehicles" as any);
+      router.push("/vehicles");
     } else if (label === "My Building Profiles") {
-      router.push("/building-profiles" as any);
+      router.push("/building-profiles");
     } else if (label === "My Invoices") {
-      router.push("/invoices" as any);
+      router.push("/invoices");
     } else if (label === "Notifications") {
       router.push("/profile/notifications");
     } else if (label === "App Settings") {
