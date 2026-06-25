@@ -224,7 +224,7 @@ export default function StaffScreen() {
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
-        Object.values(err?.response?.data?.errors ?? {})?.[0]?.[0] ||
+        Object.values(err?.response?.data?.errors as Record<string, string[]> ?? {})?.[0]?.[0] ||
         "Failed to create staff";
       setFormError(msg);
     } finally {
