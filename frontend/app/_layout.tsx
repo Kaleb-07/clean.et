@@ -43,7 +43,7 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
 
         {/* Booking */}
-        <Stack.Screen name="booking/[serviceId]" />
+        <Stack.Screen name="booking/[sectorId]" />
         <Stack.Screen name="booking/status/[bookingId]" />
 
         {/* Admin */}

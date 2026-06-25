@@ -83,17 +83,33 @@ export function useBookings() {
    */
   const addBooking = useCallback(
     async (data: {
-      serviceId: string;
-      date: string;        // "YYYY-MM-DD"
-      timeSlot: string;    // "09:00 AM" format
+      serviceId?: string;
+      sectorId?: number | string;
+      date?: string;        // "YYYY-MM-DD"
+      timeSlot?: string;    // "09:00 AM" format
+      scheduledAt?: string; // ISO string
+      requirementData?: Record<string, any>;
+      vehicleId?: number | string;
+      buildingProfileId?: number | string;
+      recurring?: boolean;
+      recurrenceRule?: string;
     }) => {
+      const payload: Record<string, any> = {
+        service_id:          data.serviceId,
+        sector_id:           data.sectorId,
+        booking_date:        data.date,
+        booking_time:        data.timeSlot ? to24h(data.timeSlot) : undefined,
+        scheduled_at:        data.scheduledAt,
+        requirement_data:    data.requirementData,
+        vehicle_id:          data.vehicleId,
+        building_profile_id: data.buildingProfileId,
+        recurring:           data.recurring,
+        recurrence_rule:     data.recurrenceRule,
+      };
+
       const created = await apiFetch<Booking>("/bookings", {
         method: "POST",
-        body: JSON.stringify({
-          service_id:   data.serviceId,
-          booking_date: data.date,
-          booking_time: to24h(data.timeSlot),
-        }),
+        body: JSON.stringify(payload),
       });
       setBookings((prev) => sortNewestFirst([created, ...prev]));
       return created;

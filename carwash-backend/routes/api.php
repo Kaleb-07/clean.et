@@ -7,6 +7,11 @@ use App\Http\Controllers\API\CustomerController;
 use App\Http\Controllers\API\BookingController;
 
 
+use App\Http\Controllers\API\CategoryController;
+use App\Http\Controllers\API\SectorController;
+use App\Http\Controllers\API\StaffController;
+
+
 // Health check
 Route::get('/test', fn () => response()->json(['message' => 'API is running']));
 
@@ -20,6 +25,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/me', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
+
+
+// ================= CATEGORIES & SECTORS =================
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/categories/{id}/sectors', [CategoryController::class, 'sectors']);
+Route::get('/sectors/{id}/schema', [SectorController::class, 'schema']);
+Route::post('/sectors/{id}/price', [SectorController::class, 'price']);
 
 
 // ================= SERVICES =================
@@ -58,5 +70,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::patch('/bookings/{id}/status', [BookingController::class, 'updateStatus']);
+    Route::get('/staff', [StaffController::class, 'index']);
+    Route::post('/staff', [StaffController::class, 'store']);
+    Route::post('/bookings/{id}/assign', [StaffController::class, 'assign']);
 });
 

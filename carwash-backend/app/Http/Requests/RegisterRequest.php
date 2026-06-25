@@ -14,10 +14,12 @@ class RegisterRequest extends FormRequest
     public function rules()
     {
         return [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6|confirmed',
-            // 'role' field completely removed – clients cannot supply role
+            'name'      => 'required|string|max:255',
+            'phone'     => 'required|string|max:20|unique:users,phone',
+            'email'     => 'nullable|email|unique:users,email',
+            'password'  => 'required|min:6|confirmed',
+            'language'  => 'nullable|string|in:en,am,om,ti',
+            'tenant_id' => 'nullable|exists:tenants,id',
         ];
     }
 }

@@ -17,10 +17,18 @@ class AuthService
     public function register(array $data): User
     {
         $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'role' => 'customer', // ✅ forced to customer – ignores any client input
+            'name'      => $data['name'],
+            'phone'     => $data['phone'] ?? null,
+            'email'     => $data['email'] ?? null,
+            'language'  => $data['language'] ?? 'en',
+            'tenant_id' => $data['tenant_id'] ?? null,
+            'password'  => Hash::make($data['password']),
+            'role'      => 'customer', // forced to customer for public registration
+        ]);
+
+        // Automatically create a Customer profile for the registered user
+        $user->customerProfile()->create([
+            'subscription_tier' => 'none',
         ]);
 
         // Create a Sanctum token for the new user
@@ -38,7 +46,14 @@ class AuthService
      */
     public function login(array $data): ?User
     {
-        $user = User::where('email', $data['email'])->first();
+        $identifier = $data['phone'] ?? $data['email'] ?? null;
+        if (!$identifier) {
+            return null;
+        }
+
+        $user = User::where('phone', $identifier)
+            ->orWhere('email', $identifier)
+            ->first();
 
         if (!$user || !Hash::check($data['password'], $user->password)) {
             return null;

@@ -3,129 +3,176 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\Customer;
+use App\Models\Sector;
 use App\Models\User;
 use App\Notifications\BookingNotification;
 
 class BookingService
 {
-    public function getAll($user)
-    {
-        // Admin sees all bookings
-        if ($user->isAdmin()) {
-            return Booking::with(['user', 'service'])->latest()->get();
-        }
+    public function __construct(
+        protected PricingService          $pricing,
+        protected SchemaValidationService $schemaValidator,
+    ) {}
 
-        // Customer sees only their bookings – eager load both relationships to prevent N+1
-        return Booking::with(['service', 'user'])
-            ->where('user_id', $user->id)
-            ->latest()
-            ->get();
+    public function getAll(User $user): \Illuminate\Database\Eloquent\Collection
+    {
+        $query = Booking::with(['sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service']);
+
+        if ($user->isCustomer()) {
+            // Customer sees only their own bookings
+            $customer = $user->customerProfile;
+            $query->where('customer_id', $customer?->id)
+                  ->orWhere('user_id', $user->id);
+        } elseif ($user->isTenantAdmin() && $user->tenant_id) {
+            // Tenant admin sees all bookings for their tenant
+            $query->where('tenant_id', $user->tenant_id);
+        } elseif ($user->isStaff()) {
+            // Staff sees only assigned jobs
+            $profile = $user->staffProfile;
+            $query->where('staff_id', $profile?->id);
+        }
+        // Super admin sees all
+
+        return $query->latest()->get();
     }
 
-    public function getById($id, $user)
+    public function getById(int $id, User $user): Booking
     {
-        $booking = Booking::with(['user', 'service'])->findOrFail($id);
+        $booking = Booking::with(['sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service'])
+            ->findOrFail($id);
 
-        // Security check
-        if (!$user->isAdmin() && $booking->user_id !== $user->id) {
-            abort(403, 'Unauthorized');
-        }
+        $this->authorizeView($booking, $user);
 
         return $booking;
     }
 
-    public function create($data, $user)
+    public function create(array $data, User $user): Booking
     {
+        // Resolve sector — either direct sector_id or from legacy service_id
+        $sector = null;
+        if (!empty($data['sector_id'])) {
+            $sector = Sector::with('category')->findOrFail($data['sector_id']);
+        } elseif (!empty($data['service_id'])) {
+            $service = \App\Models\Service::findOrFail($data['service_id']);
+            $sector  = $service->sector()->with('category')->first();
+        }
+
+        // Validate dynamic requirements if sector found
+        $requirementData = $data['requirement_data'] ?? [];
+        if ($sector) {
+            $this->schemaValidator->validate($sector, $requirementData);
+        }
+
+        // Compute price
+        $price = ($sector) ? $this->pricing->calculate($sector, $requirementData) : 0.0;
+
+        // Resolve customer profile
+        $customer = $user->customerProfile;
+
+        // Scheduled time
+        $scheduledAt = $data['scheduled_at']
+            ?? (isset($data['booking_date'], $data['booking_time'])
+                ? ($data['booking_date'] . ' ' . $data['booking_time'])
+                : now());
+
         $booking = Booking::create([
-            'user_id'      => $user->id,
-            'service_id'   => $data['service_id'],
-            'booking_date' => $data['booking_date'],
-            'booking_time' => $data['booking_time'],
-            'status'       => Booking::STATUS_PENDING,
+            'tenant_id'           => $user->tenant_id ?? ($sector?->category?->tenant_id ?? null),
+            'sector_id'           => $sector?->id,
+            'service_id'          => $data['service_id'] ?? null,
+            'user_id'             => $user->id,
+            'customer_id'         => $customer?->id,
+            'vehicle_id'          => $data['vehicle_id'] ?? null,
+            'building_profile_id' => $data['building_profile_id'] ?? null,
+            'requirement_data'    => $requirementData,
+            'price'               => $price,
+            'currency'            => 'ETB',
+            'scheduled_at'        => $scheduledAt,
+            'booking_date'        => $data['booking_date'] ?? null,
+            'booking_time'        => $data['booking_time'] ?? null,
+            'status'              => Booking::STATUS_PENDING,
+            'recurring'           => $data['recurring'] ?? false,
+            'recurrence_rule'     => $data['recurrence_rule'] ?? null,
         ]);
 
-        // Notify admin
-        $admins = User::where('role', 'admin')->get();
+        // Notify all tenant admins
+        User::where('tenant_id', $booking->tenant_id)
+            ->where('role', 'tenant_admin')
+            ->get()
+            ->each(fn(User $admin) => $admin->notify(new BookingNotification("New booking #{$booking->id} created")));
 
-        foreach ($admins as $admin) {
-            $admin->notify(new BookingNotification("New booking created"));
-        }
-
-        return $booking->load(['user', 'service']);
+        return $booking->load(['sector.category', 'customer.user', 'vehicle', 'building', 'service']);
     }
 
-    public function update($id, $data, $user)
+    public function update(int $id, array $data, User $user): Booking
     {
         $booking = Booking::findOrFail($id);
-
-        // Only the owner or an admin can update/reschedule the booking
-        if (!$user->isAdmin() && $booking->user_id !== $user->id) {
-            abort(403, 'Unauthorized');
-        }
+        $this->authorizeModify($booking, $user);
 
         $booking->update($data);
 
-        return $booking->load(['user', 'service']);
+        return $booking->load(['sector.category', 'customer.user', 'vehicle', 'building', 'service']);
     }
 
-    public function delete($id, $actor)
+    public function cancel(int $id, User $user): Booking
     {
         $booking = Booking::findOrFail($id);
+        $this->authorizeModify($booking, $user);
 
-        $isAdmin = $actor->role === 'admin';
-        $isOwner = $booking->user_id === $actor->id;
-
-        if (!$isAdmin && !$isOwner) {
-            abort(403, 'Unauthorized');
+        if (!$booking->isCancellable()) {
+            abort(400, 'Booking cannot be cancelled at this stage.');
         }
 
-        $booking->delete();
+        $booking->update(['status' => Booking::STATUS_CANCELLED]);
 
-        return true;
+        // Notify customer
+        if ($booking->user) {
+            $booking->user->notify(new BookingNotification("Booking #{$booking->id} has been cancelled."));
+        }
+
+        return $booking->load(['sector.category', 'customer.user', 'vehicle', 'service']);
     }
 
-    public function cancel($id, $user)
+    public function updateStatus(int $id, string $status): Booking
     {
-        $booking = Booking::findOrFail($id);
-
-        // Only the owner or admin can cancel
-        if (!$user->isAdmin() && $booking->user_id !== $user->id) {
-            abort(403, 'Unauthorized');
+        if (!in_array($status, Booking::VALID_STATUSES, true)) {
+            abort(422, "Invalid status '{$status}'.");
         }
 
-        // Cannot cancel completed or already cancelled bookings
-        if (in_array($booking->status, [Booking::STATUS_COMPLETED, 'cancelled'])) {
-            abort(400, 'Cannot cancel a booking that is already completed or cancelled.');
-        }
-
-        $booking->update(['status' => 'cancelled']);
-
-        return $booking->load(['user', 'service']);
-    }
-
-    public function updateStatus($id, $status)
-    {
-        // Eager load user to prevent N+1 when notifying
         $booking = Booking::with('user')->findOrFail($id);
-
-        $validStatuses = [
-            Booking::STATUS_PENDING,
-            Booking::STATUS_IN_PROGRESS,
-            Booking::STATUS_COMPLETED,
-            'confirmed',
-            'cancelled',
-        ];
-
-        if (!in_array($status, $validStatuses)) {
-            abort(400, 'Invalid status');
-        }
-
         $booking->update(['status' => $status]);
 
-        $booking->user->notify(
-            new BookingNotification("Your booking status is now: " . $status)
-        );
+        // Notify customer
+        if ($booking->user) {
+            $booking->user->notify(new BookingNotification("Your booking #{$booking->id} is now: {$status}"));
+        }
 
-        return $booking->load(['user', 'service']);
+        return $booking->load(['sector.category', 'customer.user', 'vehicle', 'service']);
+    }
+
+    public function delete(int $id, User $user): void
+    {
+        $booking = Booking::findOrFail($id);
+        $this->authorizeModify($booking, $user);
+        $booking->delete();
+    }
+
+    // ─── Authorization Guards ─────────────────────────────────────────────────
+
+    private function authorizeView(Booking $booking, User $user): void
+    {
+        if ($user->isSuperAdmin()) return;
+        if ($user->isAdmin() && $booking->tenant_id === $user->tenant_id) return;
+        if ($user->isStaff() && $booking->staff_id === $user->staffProfile?->id) return;
+        if ($user->isCustomer() && ($booking->user_id === $user->id || $booking->customer_id === $user->customerProfile?->id)) return;
+        abort(403, 'Unauthorized');
+    }
+
+    private function authorizeModify(Booking $booking, User $user): void
+    {
+        if ($user->isSuperAdmin()) return;
+        if ($user->isAdmin() && $booking->tenant_id === $user->tenant_id) return;
+        if ($user->isCustomer() && ($booking->user_id === $user->id || $booking->customer_id === $user->customerProfile?->id)) return;
+        abort(403, 'Unauthorized');
     }
 }

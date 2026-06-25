@@ -7,15 +7,20 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+use App\Models\Traits\BelongsToTenant;
+
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, BelongsToTenant;
 
     protected $fillable = [
+        'tenant_id',
         'name',
+        'phone',
         'email',
         'password',
         'role',
+        'language',
     ];
 
     protected $hidden = [
@@ -29,15 +34,50 @@ class User extends Authenticatable
 
     // ================= RELATIONSHIPS =================
 
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
     public function bookings()
     {
         return $this->hasMany(Booking::class);
     }
 
+    public function staffProfile()
+    {
+        return $this->hasOne(StaffProfile::class);
+    }
+
+    public function customerProfile()
+    {
+        return $this->hasOne(Customer::class);
+    }
+
     // ================= HELPERS =================
 
-    public function isAdmin()
+    public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return in_array($this->role, ['super_admin', 'tenant_admin']);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    public function isTenantAdmin(): bool
+    {
+        return $this->role === 'tenant_admin';
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
+
+    public function isCustomer(): bool
+    {
+        return $this->role === 'customer';
     }
 }

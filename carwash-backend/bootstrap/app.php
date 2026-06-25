@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Enable CORS for all requests
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+        $middleware->append(\App\Http\Middleware\ResolveTenant::class);
 
         // Register route middleware
         $middleware->alias([
