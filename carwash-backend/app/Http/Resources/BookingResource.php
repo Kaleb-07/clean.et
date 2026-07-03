@@ -67,6 +67,17 @@ class BookingResource extends JsonResource
             'recurring'           => $this->recurring,
             'recurrence_rule'     => $this->recurrence_rule,
 
+            'invoice_id'          => $this->invoice?->id,
+
+            'completion_proofs'   => $this->whenLoaded('completionProofs', fn () =>
+                $this->completionProofs->map(fn ($proof) => [
+                    'id'             => $proof->id,
+                    'photo_url'      => $proof->photo_url,
+                    'checklist_item' => $proof->checklist_item,
+                    'created_at'     => $proof->created_at?->toISOString(),
+                ])->values()
+            ),
+
             'created_at' => $this->created_at,
         ];
     }

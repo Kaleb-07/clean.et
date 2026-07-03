@@ -29,11 +29,12 @@ import { useTheme } from "../../contexts/ThemeContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
 
-const LANGUAGES = ["English", "Amharic", "French", "Spanish"];
+const LANGUAGES = ["English", "Amharic", "Oromo", "French", "Spanish"];
 
 const LANGUAGE_CODE_MAP: Record<string, string> = {
   English: "en",
   Amharic: "am",
+  Oromo: "om",
   French: "en",
   Spanish: "en",
 };

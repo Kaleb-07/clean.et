@@ -12,6 +12,11 @@ use App\Http\Controllers\API\VehicleController;
 use App\Http\Controllers\API\BuildingProfileController;
 use App\Http\Controllers\API\InvoiceController;
 use App\Http\Controllers\API\PaymentController;
+use App\Http\Controllers\API\AdminInvoiceController;
+use App\Http\Controllers\API\SubscriptionController;
+use App\Http\Controllers\API\BookingProofController;
+use App\Http\Controllers\API\FleetAccountController;
+use App\Http\Controllers\API\TenantController;
 
 // ─── Health Check ──────────────────────────────────────────────────────────────
 Route::get('/test', fn () => response()->json([
@@ -67,6 +72,11 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('/bookings/{id}/assign',  [StaffController::class,   'assign']);
 });
 
+// ─── BOOKING COMPLETION PROOFS (staff or admin) ───────────────────────────────
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/bookings/{id}/proof', [BookingProofController::class, 'store']);
+});
+
 // ─── STAFF (admin only) ───────────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('/staff',          [StaffController::class, 'index']);
@@ -75,11 +85,14 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('/staff/{id}',  [StaffController::class, 'destroy']);
 });
 
-// ─── SUPER ADMIN ONLY (future: tenant management, platform config) ────────
-// Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
-//     Route::get('/tenants',    [TenantController::class, 'index']);
-//     Route::post('/tenants',   [TenantController::class, 'store']);
-// });
+// ─── SUPER ADMIN ONLY (tenant management, platform config) ──────────────────
+Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
+    Route::get('/tenants',             [TenantController::class, 'index']);
+    Route::post('/tenants',            [TenantController::class, 'store']);
+    Route::get('/tenants/{id}',        [TenantController::class, 'show']);
+    Route::put('/tenants/{id}',        [TenantController::class, 'update']);
+    Route::patch('/tenants/{id}/status', [TenantController::class, 'updateStatus']);
+});
 
 // ─── VEHICLES (customer-owned) ────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
@@ -111,3 +124,26 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payments/{payment}',           [PaymentController::class, 'show']);
     Route::post('/payments/{payment}/verify',   [PaymentController::class, 'verify']);
 });
+
+// ─── SUBSCRIPTIONS ───────────────────────────────────────────────────────────
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/subscriptions/plans',     [SubscriptionController::class, 'plans']);
+    Route::post('/subscriptions/subscribe', [SubscriptionController::class, 'subscribe']);
+});
+
+// ─── FLEET ACCOUNTS ───────────────────────────────────────────────────────────
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/fleet-accounts',                           [FleetAccountController::class, 'index']);
+    Route::post('/fleet-accounts',                          [FleetAccountController::class, 'store']);
+    Route::get('/fleet-accounts/{id}',                      [FleetAccountController::class, 'show']);
+    Route::put('/fleet-accounts/{id}',                      [FleetAccountController::class, 'update']);
+    Route::delete('/fleet-accounts/{id}',                   [FleetAccountController::class, 'destroy']);
+    Route::post('/fleet-accounts/{id}/vehicles',            [FleetAccountController::class, 'addVehicles']);
+    Route::delete('/fleet-accounts/{id}/vehicles/{vehicleId}', [FleetAccountController::class, 'removeVehicle']);
+});
+
+// ─── ADMIN INVOICE MANAGEMENT ────────────────────────────────────────────────
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::post('/admin/invoices/generate/{bookingId}', [AdminInvoiceController::class, 'generate']);
+});
+

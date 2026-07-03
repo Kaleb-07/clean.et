@@ -110,6 +110,11 @@ class Booking extends Model
         return $this->hasMany(BookingCompletionProof::class);
     }
 
+    public function invoice()
+    {
+        return $this->hasOne(Invoice::class);
+    }
+
     // ================= SCOPES =================
 
     public function scopePending($query)

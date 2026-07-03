@@ -14,6 +14,8 @@ use App\Models\BuildingProfile;
 use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Subscription;
+use App\Models\FleetAccount;
 use Illuminate\Support\Carbon;
 
 class CleanEtApiTest extends TestCase
@@ -280,7 +282,7 @@ class CleanEtApiTest extends TestCase
             ->postJson('/api/bookings', [
                 'sector_id' => $this->bayWashSector->id,
                 'vehicle_id' => $vehicle->id,
-                'booking_date' => '2026-06-30',
+                'booking_date' => now()->addDays(2)->toDateString(),
                 'booking_time' => '10:00',
                 'requirement_data' => [
                     'vehicle_class' => 'small_car',
@@ -330,4 +332,336 @@ class CleanEtApiTest extends TestCase
             'language' => 'am',
         ]);
     }
+
+    /**
+     * Test admin can generate an invoice for a completed booking.
+     */
+    public function test_admin_can_generate_invoice_for_completed_booking(): void
+    {
+        $admin = User::factory()->create([
+            'phone' => '+251911111111',
+            'role' => 'tenant_admin',
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        $user = User::factory()->create([
+            'phone' => '+251933445566',
+            'role' => 'customer',
+            'tenant_id' => $this->tenant->id
+        ]);
+        $customer = Customer::create(['user_id' => $user->id]);
+
+        $booking = Booking::create([
+            'tenant_id' => $this->tenant->id,
+            'sector_id' => $this->bayWashSector->id,
+            'user_id' => $user->id,
+            'customer_id' => $customer->id,
+            'price' => 500.00,
+            'currency' => 'ETB',
+            'scheduled_at' => now(),
+            'booking_date' => now()->toDateString(),
+            'booking_time' => '12:00',
+            'status' => 'completed',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->postJson("/api/admin/invoices/generate/{$booking->id}");
+
+        $response->assertStatus(201)
+            ->assertJsonFragment(['amount' => 500]);
+
+        $this->assertDatabaseHas('invoices', [
+            'booking_id' => $booking->id,
+            'amount' => 500.00,
+            'status' => 'sent',
+        ]);
+
+        $this->assertEquals('invoiced', $booking->fresh()->status);
+    }
+
+    /**
+     * Test status update to invoiced automatically creates an invoice.
+     */
+    public function test_status_update_creates_invoice_on_invoiced(): void
+    {
+        $admin = User::factory()->create([
+            'phone' => '+251911111111',
+            'role' => 'tenant_admin',
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        $user = User::factory()->create([
+            'phone' => '+251933445566',
+            'role' => 'customer',
+            'tenant_id' => $this->tenant->id
+        ]);
+        $customer = Customer::create(['user_id' => $user->id]);
+
+        $booking = Booking::create([
+            'tenant_id' => $this->tenant->id,
+            'sector_id' => $this->bayWashSector->id,
+            'user_id' => $user->id,
+            'customer_id' => $customer->id,
+            'price' => 750.00,
+            'currency' => 'ETB',
+            'scheduled_at' => now(),
+            'booking_date' => now()->toDateString(),
+            'booking_time' => '12:00',
+            'status' => 'completed',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->patchJson("/api/bookings/{$booking->id}/status", [
+                'status' => 'invoiced',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonFragment(['status' => 'invoiced']);
+
+        $this->assertDatabaseHas('invoices', [
+            'booking_id' => $booking->id,
+            'amount' => 750.00,
+            'status' => 'sent',
+        ]);
+    }
+
+    /**
+     * Test subscription plans listing and subscribing.
+     */
+    public function test_can_list_plans_and_subscribe(): void
+    {
+        $user = User::factory()->create([
+            'phone' => '+251933445566',
+            'role' => 'customer',
+            'tenant_id' => $this->tenant->id
+        ]);
+        $customer = Customer::create(['user_id' => $user->id]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/subscriptions/plans');
+
+        $response->assertStatus(200)
+            ->assertJsonFragment(['id' => 'plus'])
+            ->assertJsonFragment(['id' => 'premium']);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/subscriptions/subscribe', [
+                'plan' => 'plus',
+                'billing_cycle' => 'monthly',
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonFragment(['amount' => '1500.00']);
+
+        $this->assertDatabaseHas('subscriptions', [
+            'owner_id' => $customer->id,
+            'plan' => 'plus',
+            'status' => 'cancelled',
+        ]);
+
+        $this->assertDatabaseHas('invoices', [
+            'customer_id' => $customer->id,
+            'booking_id' => null,
+            'amount' => 1500.00,
+        ]);
+    }
+
+    /**
+     * Test payment verification activates subscription and updates tier.
+     */
+    public function test_payment_verification_activates_subscription(): void
+    {
+        $admin = User::factory()->create([
+            'phone' => '+251911111111',
+            'role' => 'tenant_admin',
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        $user = User::factory()->create([
+            'phone' => '+251933445566',
+            'role' => 'customer',
+            'tenant_id' => $this->tenant->id
+        ]);
+        $customer = Customer::create(['user_id' => $user->id]);
+
+        // Initiate subscription
+        $this->actingAs($user)
+            ->postJson('/api/subscriptions/subscribe', [
+                'plan' => 'plus',
+                'billing_cycle' => 'monthly',
+            ]);
+
+        $invoice = Invoice::where('customer_id', $customer->id)->whereNull('booking_id')->first();
+        $payment = Payment::create([
+            'invoice_id' => $invoice->id,
+            'provider' => 'telebirr',
+            'status' => 'pending',
+            'amount' => $invoice->amount,
+        ]);
+
+        // Verify payment
+        $response = $this->actingAs($admin)
+            ->postJson("/api/payments/{$payment->id}/verify");
+
+        $response->assertStatus(200);
+
+        $this->assertEquals('active', Subscription::where('owner_id', $customer->id)->first()->status);
+        $this->assertEquals('plus', $customer->fresh()->subscription_tier);
+    }
+
+    /**
+     * Test Fleet Accounts CRUD lifecycle and vehicle linking.
+     */
+    public function test_fleet_account_lifecycle(): void
+    {
+        $user = User::factory()->create([
+            'phone' => '+251955667788',
+            'role' => 'customer',
+            'tenant_id' => $this->tenant->id
+        ]);
+        $customer = Customer::create(['user_id' => $user->id]);
+
+        // 1. Create Fleet Account
+        $response = $this->actingAs($user)
+            ->postJson('/api/fleet-accounts', [
+                'company_name' => 'Acme Cleaning Corp',
+                'billing_contact_email' => 'billing@acme.com'
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.company_name', 'Acme Cleaning Corp');
+
+        $fleetId = $response->json('data.id');
+
+        // 2. List Fleet Accounts
+        $response = $this->actingAs($user)
+            ->getJson('/api/fleet-accounts');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.company_name', 'Acme Cleaning Corp');
+
+        // 3. Add Vehicle to Fleet
+        $vehicle = Vehicle::create([
+            'customer_id' => $customer->id,
+            'vehicle_class' => 'sedan',
+            'plate_number' => 'AA-3-B78945',
+            'color' => 'Silver',
+            'make' => 'Toyota',
+            'model' => 'Corolla',
+            'year' => 2022
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson("/api/fleet-accounts/{$fleetId}/vehicles", [
+                'vehicle_ids' => [$vehicle->id]
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data.vehicles')
+            ->assertJsonPath('data.vehicles.0.id', $vehicle->id);
+
+        $this->assertEquals($fleetId, $vehicle->fresh()->fleet_account_id);
+
+        // 4. Remove Vehicle from Fleet
+        $response = $this->actingAs($user)
+            ->deleteJson("/api/fleet-accounts/{$fleetId}/vehicles/{$vehicle->id}");
+
+        $response->assertStatus(200)
+            ->assertJsonCount(0, 'data.vehicles');
+
+        $this->assertNull($vehicle->fresh()->fleet_account_id);
+
+        // 5. Update Fleet Account
+        $response = $this->actingAs($user)
+            ->putJson("/api/fleet-accounts/{$fleetId}", [
+                'company_name' => 'Acme Cleaning Corp Updated',
+                'billing_contact_email' => 'billing@acme.com'
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.company_name', 'Acme Cleaning Corp Updated');
+
+        // 6. Delete Fleet Account
+        $response = $this->actingAs($user)
+            ->deleteJson("/api/fleet-accounts/{$fleetId}");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('fleet_accounts', ['id' => $fleetId]);
+    }
+
+    /**
+     * Test Super Admin Tenant management API actions and access rules.
+     */
+    public function test_super_admin_tenant_management_lifecycle(): void
+    {
+        $superAdmin = User::factory()->create([
+            'phone' => '+251999888777',
+            'role' => 'super_admin',
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        $customer = User::factory()->create([
+            'phone' => '+251944556677',
+            'role' => 'customer',
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        // 1. Create a new Tenant
+        $response = $this->actingAs($superAdmin)
+            ->postJson('/api/tenants', [
+                'business_name' => 'Elite Wash Addis',
+                'plan' => 'growth',
+                'categories_enabled' => ['car-washing']
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.business_name', 'Elite Wash Addis')
+            ->assertJsonPath('data.plan', 'growth');
+
+        $tenantId = $response->json('data.id');
+
+        // 2. List all Tenants
+        $response = $this->actingAs($superAdmin)
+            ->getJson('/api/tenants');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(2, 'data'); // default seeded tenant + new one
+
+        // 3. View detail of Tenant
+        $response = $this->actingAs($superAdmin)
+            ->getJson("/api/tenants/{$tenantId}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.business_name', 'Elite Wash Addis');
+
+        // 4. Update Tenant Settings
+        $response = $this->actingAs($superAdmin)
+            ->putJson("/api/tenants/{$tenantId}", [
+                'business_name' => 'Elite Wash Addis Updated',
+                'plan' => 'enterprise',
+                'categories_enabled' => ['car-washing', 'building-cleaning']
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.business_name', 'Elite Wash Addis Updated')
+            ->assertJsonPath('data.plan', 'enterprise');
+
+        // 5. Suspend Tenant status
+        $response = $this->actingAs($superAdmin)
+            ->patchJson("/api/tenants/{$tenantId}/status", [
+                'status' => 'suspended'
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.status', 'suspended');
+
+        // 6. Access Control: Customer must be blocked
+        $response = $this->actingAs($customer)
+            ->getJson('/api/tenants');
+
+        $response->assertStatus(403);
+    }
 }
+
+

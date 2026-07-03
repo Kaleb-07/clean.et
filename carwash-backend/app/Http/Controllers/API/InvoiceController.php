@@ -24,7 +24,7 @@ class InvoiceController extends Controller
     {
         $user = $request->user();
 
-        $query = Invoice::with(['payments'])
+        $query = Invoice::with(['payments', 'booking.sector', 'booking.customer.user'])
             ->latest();
 
         // Admins see everything; customers see only their own invoices

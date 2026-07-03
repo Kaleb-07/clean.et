@@ -11,6 +11,7 @@ export interface User {
   email: string | null;
   role: "super_admin" | "tenant_admin" | "staff" | "customer";
   language: string;
+  push_token?: string | null;
 }
 
 // ─── Helpers to check roles without scattering string comparisons ──────────
@@ -28,7 +29,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (data: Partial<Pick<User, "name" | "email" | "phone" | "language">>) => Promise<void>;
+  updateUser: (data: Partial<Pick<User, "name" | "email" | "phone" | "language" | "push_token">>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +42,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadStoredData();
   }, []);
 
+  const syncPushToken = async () => {
+    try {
+      const { registerForPushNotificationsAsync } = require("../src/utils/notifications");
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        await API.put("/me", { push_token: token });
+      }
+    } catch (e) {
+      console.log("Could not register push token:", e);
+    }
+  };
+
   async function loadStoredData() {
     try {
       const token = await authStorage.getToken();
@@ -48,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const res = await API.get("/me");
         const payload = res.data.data || res.data;
         setUser(payload.user || payload);
+        syncPushToken();
       }
     } catch (e) {
       console.log("Failed to load auth state", e);
@@ -60,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (token: string, userData: User) => {
     await authStorage.saveToken(token);
     setUser(userData);
+    syncPushToken();
   };
 
   const logout = async () => {
@@ -72,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const updateUser = async (data: Partial<Pick<User, "name" | "email" | "phone" | "language">>) => {
+  const updateUser = async (data: Partial<Pick<User, "name" | "email" | "phone" | "language" | "push_token">>) => {
     const res = await API.put("/me", data);
     const payload = res.data.data || res.data;
     setUser(payload.user || payload);

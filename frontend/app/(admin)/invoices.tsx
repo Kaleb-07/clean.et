@@ -41,7 +41,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 /* ─── INVOICE CARD ───────────────────────────────────────────────────────── */
-function InvoiceCard({ invoice }: { invoice: Invoice }) {
+function InvoiceCard({ invoice, onPress }: { invoice: Invoice; onPress: () => void }) {
   const color = STATUS_COLORS[invoice.status] ?? "#64748b";
   const formattedDate = invoice.issued_at
     ? new Date(invoice.issued_at).toLocaleDateString("en-ET", {
@@ -53,42 +53,44 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
 
   return (
     <Animated.View entering={FadeInDown}>
-      <BlurView intensity={30} tint="dark" style={styles.card}>
-        <View style={styles.cardTop}>
-          <View>
-            <Text style={styles.invoiceNum}>INV-{String(invoice.id).padStart(4, "0")}</Text>
-            {invoice.booking?.sector && (
-              <Text style={styles.sectorText}>{invoice.booking.sector.name}</Text>
-            )}
-            {invoice.booking?.customer?.user && (
-              <Text style={styles.customerText}>
-                {invoice.booking.customer.user.name}
-              </Text>
-            )}
-          </View>
-          <View style={{ alignItems: "flex-end", gap: 6 }}>
-            <View style={[styles.statusPill, { borderColor: `${color}55` }]}>
-              <View style={[styles.statusDot, { backgroundColor: color }]} />
-              <Text style={[styles.statusText, { color }]}>
-                {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+      <Pressable onPress={onPress}>
+        <BlurView intensity={30} tint="dark" style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={styles.invoiceNum}>INV-{String(invoice.id).padStart(4, "0")}</Text>
+              {invoice.booking?.sector && (
+                <Text style={styles.sectorText}>{invoice.booking.sector.name}</Text>
+              )}
+              {invoice.booking?.customer && (
+                <Text style={styles.customerText}>
+                  {invoice.booking.customer.name}
+                </Text>
+              )}
+            </View>
+            <View style={{ alignItems: "flex-end", gap: 6 }}>
+              <View style={[styles.statusPill, { borderColor: `${color}55` }]}>
+                <View style={[styles.statusDot, { backgroundColor: color }]} />
+                <Text style={[styles.statusText, { color }]}>
+                  {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                </Text>
+              </View>
+              <Text style={styles.amountText}>
+                {invoice.currency} {Number(invoice.amount).toLocaleString()}
               </Text>
             </View>
-            <Text style={styles.amountText}>
-              {invoice.currency} {Number(invoice.amount).toLocaleString()}
-            </Text>
           </View>
-        </View>
 
-        <View style={styles.dateRow}>
-          <Ionicons name="calendar-outline" size={12} color="#475569" />
-          <Text style={styles.dateText}>Issued: {formattedDate}</Text>
-          {invoice.due_at && (
-            <Text style={styles.dateText}>
-              · Due: {new Date(invoice.due_at).toLocaleDateString("en-ET")}
-            </Text>
-          )}
-        </View>
-      </BlurView>
+          <View style={styles.dateRow}>
+            <Ionicons name="calendar-outline" size={12} color="#475569" />
+            <Text style={styles.dateText}>Issued: {formattedDate}</Text>
+            {invoice.due_at && (
+              <Text style={styles.dateText}>
+                · Due: {new Date(invoice.due_at).toLocaleDateString("en-ET")}
+              </Text>
+            )}
+          </View>
+        </BlurView>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -211,7 +213,11 @@ export default function AdminInvoices() {
         )}
 
         {filtered.map((inv) => (
-          <InvoiceCard key={inv.id} invoice={inv} />
+          <InvoiceCard
+            key={inv.id}
+            invoice={inv}
+            onPress={() => router.push({ pathname: "/(admin)/invoice-details", params: { id: inv.id } })}
+          />
         ))}
       </ScrollView>
     </LinearGradient>

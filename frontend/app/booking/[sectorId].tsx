@@ -26,6 +26,7 @@ import {
   MapPin,
   HelpCircle,
   TrendingUp,
+  RefreshCw,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeInRight, FadeIn, ZoomIn } from "react-native-reanimated";
@@ -57,6 +58,10 @@ export default function DynamicBookingScreen() {
   // Price calculation state
   const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
   const [estimatingPrice, setEstimatingPrice] = useState(false);
+
+  // Recurring Bookings state
+  const [recurring, setRecurring] = useState(false);
+  const [recurrenceRule, setRecurrenceRule] = useState("weekly");
 
   // Find active sector in the category tree
   const sector = useMemo(() => {
@@ -169,6 +174,8 @@ export default function DynamicBookingScreen() {
         date: dateStr,
         timeSlot: selectedTime,
         requirementData: requirementData,
+        recurring: recurring,
+        recurrenceRule: recurring ? recurrenceRule : undefined,
       });
 
       setShowSuccess(true);
@@ -399,6 +406,64 @@ export default function DynamicBookingScreen() {
           </View>
         </View>
 
+        {/* RECURRING BOOKING OPTIONS */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <RefreshCw size={18} color="#8b5cf6" />
+            <Text style={styles.sectionTitle}>Recurring Booking</Text>
+          </View>
+          <BlurView intensity={15} tint="dark" style={styles.formCard}>
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={styles.switchLabel}>Repeat booking automatically</Text>
+                <Text style={styles.recurHelpText}>Schedule future bookings on the same cycle</Text>
+              </View>
+              <Switch
+                value={recurring}
+                onValueChange={(checked) => {
+                  setRecurring(checked);
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }}
+                trackColor={{ false: "#1f2041", true: "#8b5cf6" }}
+                thumbColor={recurring ? "#ffffff" : "#a3a3a3"}
+              />
+            </View>
+
+            {recurring && (
+              <Animated.View entering={FadeInDown.duration(300)} style={{ marginTop: 16 }}>
+                <Text style={styles.fieldLabel}>Select Recurrence Cycle</Text>
+                <View style={styles.selectGrid}>
+                  {[
+                    { key: "weekly", label: "Every Week" },
+                    { key: "biweekly", label: "Every 2 Weeks" },
+                    { key: "monthly", label: "Every Month" }
+                  ].map((rule) => {
+                    const isSelectedRule = recurrenceRule === rule.key;
+                    return (
+                      <Pressable
+                        key={rule.key}
+                        onPress={() => {
+                          setRecurrenceRule(rule.key);
+                          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }}
+                        style={[
+                          styles.selectChip,
+                          isSelectedRule && styles.selectChipActive
+                        ]}
+                      >
+                        <Text style={[styles.selectChipText, isSelectedRule && styles.textActive]}>
+                          {rule.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </Animated.View>
+            )}
+          </BlurView>
+        </View>
+
+
         {/* SUMMARY & SUBMIT */}
         <View style={styles.footer}>
           {selectedTime && (
@@ -611,6 +676,11 @@ const styles = StyleSheet.create({
   switchLabel: {
     color: "#a3a3a3",
     fontSize: 14,
+  },
+  recurHelpText: {
+    color: "#5a5b7c",
+    fontSize: 11,
+    marginTop: 2,
   },
   inputWrapper: {
     flexDirection: "row",

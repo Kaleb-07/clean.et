@@ -39,6 +39,7 @@ interface Booking {
   sector?: { name: string; category?: { name: string } };
   customer?: { user?: { name: string; phone: string } };
   staff?: { user?: { name: string } };
+  invoice_id?: number | null;
 }
 
 interface StaffMember {
@@ -93,11 +94,13 @@ function BookingCard({
   onStatusChange,
   onDelete,
   onAssignStaff,
+  onIssueInvoice,
 }: {
   booking: Booking;
   onStatusChange: (status: BookingStatus) => void;
   onDelete: () => void;
   onAssignStaff: () => void;
+  onIssueInvoice: () => void;
 }) {
   const meta = STATUS_META[booking.status] ?? STATUS_META.pending;
   const next = nextStatus(booking.status);
@@ -199,10 +202,17 @@ function BookingCard({
           </Pressable>
         )}
 
-        {next && (
-          <Pressable onPress={() => onStatusChange(next)} style={styles.nextBtn}>
-            <Text style={styles.nextText}>→ {STATUS_META[next].label}</Text>
+        {booking.status === "completed" && !booking.invoice_id ? (
+          <Pressable onPress={onIssueInvoice} style={styles.issueInvoiceBtn}>
+            <Ionicons name="receipt-outline" size={14} color="#fff" style={{ marginRight: 6 }} />
+            <Text style={styles.issueInvoiceText}>Issue Invoice</Text>
           </Pressable>
+        ) : (
+          next && (
+            <Pressable onPress={() => onStatusChange(next)} style={styles.nextBtn}>
+              <Text style={styles.nextText}>→ {STATUS_META[next].label}</Text>
+            </Pressable>
+          )
         )}
 
         <Pressable onPress={onDelete} style={styles.deleteBtn}>
@@ -288,6 +298,26 @@ export default function AdminBookings() {
     }
   };
 
+  const handleIssueInvoice = async (id: number) => {
+    try {
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      const res = await API.post(`/admin/invoices/generate/${id}`);
+      const invoice = res.data.data || res.data;
+      Alert.alert(
+        "Invoice Generated",
+        `Invoice successfully generated for ETB ${Number(invoice.amount).toLocaleString()}.`
+      );
+      await loadData();
+    } catch (err: any) {
+      Alert.alert(
+        "Error",
+        err?.response?.data?.message ?? "Could not generate invoice."
+      );
+    }
+  };
+
   const filtered = useMemo(() => {
     if (filter === "all") return bookings;
     return bookings.filter((b) => b.status === filter);
@@ -350,6 +380,7 @@ export default function AdminBookings() {
             onStatusChange={(status) => updateStatus(b.id, status)}
             onDelete={() => setDeleteId(b.id)}
             onAssignStaff={() => setAssignBookingId(b.id)}
+            onIssueInvoice={() => handleIssueInvoice(b.id)}
           />
         ))}
 
@@ -626,4 +657,14 @@ const styles = StyleSheet.create({
   staffOptionAvatarText: { color: "#a78bfa", fontWeight: "bold" },
   staffOptionName: { color: "#fff", fontWeight: "600" },
   staffOptionRole: { color: "#64748b", fontSize: 12 },
+  issueInvoiceBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#10b981",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  issueInvoiceText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 });

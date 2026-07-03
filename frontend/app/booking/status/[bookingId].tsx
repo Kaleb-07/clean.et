@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,11 @@ import {
   Pressable,
   ActivityIndicator,
   Linking,
+  Alert,
+  Image,
+  Modal,
+  Platform,
+  TextInput,
 } from "react-native";
 import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,11 +30,17 @@ import {
   User,
   Shield,
   FileText,
+  Camera,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import * as ImagePicker from "expo-image-picker";
 
 import { useBookings } from "../../../hooks/useBookings";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { useAuth } from "../../../contexts/AuthContext";
+import API from "../../../src/api/client";
 
 function to12h(time24: string): string {
   if (!time24) return "";
@@ -45,10 +56,59 @@ function to12h(time24: string): string {
 export default function BookingStatusScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const insets = useSafeAreaInsets();
-  const { getBooking, isLoading } = useBookings();
+  const { getBooking, isLoading, refreshBookings } = useBookings();
   const { t } = useLanguage();
+  const { user } = useAuth();
 
   const booking = useMemo(() => getBooking(bookingId!), [bookingId, getBooking]);
+
+  // ── Proof upload state ──────────────────────────────────────────────────────
+  const [proofModal, setProofModal] = useState(false);
+  const [proofImage, setProofImage] = useState<string | null>(null);
+  const [proofNote, setProofNote] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [proofs, setProofs] = useState<any[]>([]);
+
+  const isStaff = user?.is_admin || user?.role === "staff";
+
+  const pickImage = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission required", "Please allow access to your photo library.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.75,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setProofImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  }, []);
+
+  const uploadProof = useCallback(async () => {
+    if (!proofImage && !proofNote) {
+      Alert.alert("Nothing to upload", "Please add a photo or a note.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const res = await API.post(`/bookings/${bookingId}/proof`, {
+        photo_base64: proofImage ?? undefined,
+        checklist_item: proofNote || undefined,
+      });
+      setProofs((prev) => [...prev, res.data.proof]);
+      setProofModal(false);
+      setProofImage(null);
+      setProofNote("");
+      Alert.alert("Proof uploaded! ✅", "Completion proof has been saved.");
+    } catch (e: any) {
+      Alert.alert("Upload failed", e?.response?.data?.message ?? "Try again.");
+    } finally {
+      setUploading(false);
+    }
+  }, [bookingId, proofImage, proofNote]);
 
   if (isLoading) {
     return (
@@ -98,6 +158,7 @@ export default function BookingStatusScreen() {
   };
 
   return (
+    <>
     <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
@@ -293,8 +354,101 @@ export default function BookingStatusScreen() {
             )}
           </BlurView>
         </Animated.View>
+
+        {/* ── COMPLETION PROOFS ─────────────────────────────────────── */}
+        {(proofs.length > 0 || (booking.completion_proofs && booking.completion_proofs.length > 0) || isStaff) && (
+          <Animated.View entering={FadeInUp.delay(300)} style={styles.proofsSection}>
+            <View style={styles.proofsSectionHeader}>
+              <Text style={styles.sectionTitle}>Completion Proofs</Text>
+              {isStaff && (
+                <Pressable onPress={() => setProofModal(true)} style={styles.addProofBtn}>
+                  <Upload size={14} color="#a78bfa" />
+                  <Text style={styles.addProofText}>Add Proof</Text>
+                </Pressable>
+              )}
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {[...(booking.completion_proofs ?? []), ...proofs].map((proof, i) => (
+                <View key={proof.id ?? i} style={styles.proofCard}>
+                  {proof.photo_url && proof.photo_url.startsWith("data:") || proof.photo_url?.startsWith("http") ? (
+                    <Image source={{ uri: proof.photo_url }} style={styles.proofImage} />
+                  ) : (
+                    <View style={[styles.proofImage, styles.proofImagePlaceholder]}>
+                      <ImageIcon size={28} color="#475569" />
+                    </View>
+                  )}
+                  {proof.checklist_item ? (
+                    <Text style={styles.proofNote} numberOfLines={2}>{proof.checklist_item}</Text>
+                  ) : null}
+                  <Text style={styles.proofDate}>
+                    {proof.created_at ? new Date(proof.created_at).toLocaleDateString() : ""}
+                  </Text>
+                </View>
+              ))}
+              {[...(booking.completion_proofs ?? []), ...proofs].length === 0 && (
+                <View style={styles.proofsEmpty}>
+                  <Camera size={24} color="#334155" />
+                  <Text style={styles.proofsEmptyText}>No proofs yet</Text>
+                </View>
+              )}
+            </ScrollView>
+          </Animated.View>
+        )}
       </ScrollView>
     </LinearGradient>
+
+    {/* ── PROOF UPLOAD MODAL ──────────────────────────────────────────── */}
+    <Modal
+      visible={proofModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setProofModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <BlurView intensity={60} tint="dark" style={styles.modalSheet}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Upload Completion Proof</Text>
+
+          {proofImage ? (
+            <Image source={{ uri: proofImage }} style={styles.previewImage} />
+          ) : null}
+
+          <Pressable onPress={pickImage} style={styles.pickImageBtn}>
+            <Camera size={18} color="#a78bfa" />
+            <Text style={styles.pickImageText}>
+              {proofImage ? "Change Photo" : "Select Photo"}
+            </Text>
+          </Pressable>
+
+          <TextInput
+            style={styles.noteInput}
+            placeholder="Add a checklist note (optional)…"
+            placeholderTextColor="#475569"
+            value={proofNote}
+            onChangeText={setProofNote}
+            multiline
+            numberOfLines={3}
+          />
+
+          <Pressable
+            onPress={uploadProof}
+            disabled={uploading}
+            style={[styles.uploadBtn, uploading && styles.uploadBtnDisabled]}
+          >
+            {uploading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.uploadBtnText}>Upload Proof</Text>
+            )}
+          </Pressable>
+
+          <Pressable onPress={() => setProofModal(false)} style={styles.cancelLink}>
+            <Text style={styles.cancelLinkText}>Cancel</Text>
+          </Pressable>
+        </BlurView>
+      </View>
+    </Modal>
+  </>
   );
 }
 
@@ -347,4 +501,32 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 12, color: "#64748b", textTransform: "uppercase", fontWeight: "600" },
   detailValue: { fontSize: 15, color: "#ffffff", fontWeight: "600", marginTop: 2 },
   divider: { height: 1, backgroundColor: "rgba(255,255,255,0.05)", marginVertical: 12 },
+  // Proofs
+  proofsSection: { marginBottom: 24 },
+  proofsSectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  addProofBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(139,92,246,0.15)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: "rgba(139,92,246,0.3)" },
+  addProofText: { color: "#a78bfa", fontSize: 12, fontWeight: "700" },
+  proofCard: { width: 140, marginRight: 12, borderRadius: 16, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", padding: 8 },
+  proofImage: { width: "100%" as any, height: 100, borderRadius: 10, marginBottom: 8 },
+  proofImagePlaceholder: { backgroundColor: "rgba(255,255,255,0.04)", justifyContent: "center", alignItems: "center" },
+  proofNote: { color: "#94a3b8", fontSize: 11, marginBottom: 4 },
+  proofDate: { color: "#475569", fontSize: 10 },
+  proofsEmpty: { width: 140, height: 120, justifyContent: "center", alignItems: "center", gap: 8, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.03)", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)" },
+  proofsEmptyText: { color: "#334155", fontSize: 12 },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  modalSheet: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 28, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.2)", alignSelf: "center", marginBottom: 20 },
+  modalTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", marginBottom: 16 },
+  previewImage: { width: "100%" as any, height: 160, borderRadius: 12, marginBottom: 12 },
+  pickImageBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(139,92,246,0.4)", backgroundColor: "rgba(139,92,246,0.1)", marginBottom: 12 },
+  pickImageText: { color: "#a78bfa", fontWeight: "600", fontSize: 14 },
+  noteInput: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 14, color: "#fff", fontSize: 13, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", marginBottom: 16, minHeight: 80, textAlignVertical: "top" },
+  uploadBtn: { backgroundColor: "#7c3aed", borderRadius: 16, paddingVertical: 16, alignItems: "center" },
+  uploadBtnDisabled: { backgroundColor: "rgba(124,58,237,0.4)" },
+  uploadBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  cancelLink: { alignItems: "center", marginTop: 14, paddingVertical: 4 },
+  cancelLinkText: { color: "#475569", fontSize: 13 },
 });
+
+export { };

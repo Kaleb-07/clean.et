@@ -96,62 +96,67 @@ export default function InvoicesScreen() {
     );
 
     return (
-      <BlurView intensity={20} tint="dark" style={styles.card}>
-        {/* Header row */}
-        <View style={styles.cardHeader}>
-          <Receipt size={18} color="#6366f1" />
-          <Text style={styles.cardId}>Invoice #{item.id}</Text>
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: sc.bg, borderColor: sc.color },
-            ]}
-          >
-            <StatusIcon size={11} color={sc.color} />
-            <Text style={[styles.badgeText, { color: sc.color }]}>
-              {sc.label}
+      <Pressable onPress={() => router.push(`/invoices/${item.id}`)}>
+        <BlurView intensity={20} tint="dark" style={styles.card}>
+          {/* Header row */}
+          <View style={styles.cardHeader}>
+            <Receipt size={18} color="#6366f1" />
+            <Text style={styles.cardId}>Invoice #{item.id}</Text>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: sc.bg, borderColor: sc.color },
+              ]}
+            >
+              <StatusIcon size={11} color={sc.color} />
+              <Text style={[styles.badgeText, { color: sc.color }]}>
+                {sc.label}
+              </Text>
+            </View>
+          </View>
+
+          {/* Amount */}
+          <Text style={styles.amount}>
+            ETB {item.amount.toLocaleString("en-ET", { minimumFractionDigits: 2 })}
+          </Text>
+
+          {/* Booking info */}
+          {item.booking && (
+            <Text style={styles.bookingInfo}>
+              {item.booking.sector_name ?? "Cleaning Service"} ·{" "}
+              {item.booking.booking_date}
             </Text>
-          </View>
-        </View>
+          )}
 
-        {/* Amount */}
-        <Text style={styles.amount}>
-          ETB {item.amount.toLocaleString("en-ET", { minimumFractionDigits: 2 })}
-        </Text>
+          {/* Due date */}
+          {item.due_at && (
+            <Text style={[styles.dueDate, item.status === "overdue" && { color: "#ef4444" }]}>
+              Due: {item.due_at}
+            </Text>
+          )}
 
-        {/* Booking info */}
-        {item.booking && (
-          <Text style={styles.bookingInfo}>
-            {item.booking.sector_name ?? "Cleaning Service"} ·{" "}
-            {item.booking.booking_date}
-          </Text>
-        )}
+          {/* Pay button */}
+          {!isPaid && !hasActivePayment && (
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation(); // Avoid double action (routing)
+                setSelectedInvoice(item);
+              }}
+              style={styles.payBtn}
+            >
+              <CreditCard size={15} color="#fff" />
+              <Text style={styles.payBtnText}>Pay Now</Text>
+            </Pressable>
+          )}
 
-        {/* Due date */}
-        {item.due_at && (
-          <Text style={[styles.dueDate, item.status === "overdue" && { color: "#ef4444" }]}>
-            Due: {item.due_at}
-          </Text>
-        )}
-
-        {/* Pay button */}
-        {!isPaid && !hasActivePayment && (
-          <Pressable
-            onPress={() => setSelectedInvoice(item)}
-            style={styles.payBtn}
-          >
-            <CreditCard size={15} color="#fff" />
-            <Text style={styles.payBtnText}>Pay Now</Text>
-          </Pressable>
-        )}
-
-        {hasActivePayment && !isPaid && (
-          <View style={styles.pendingBadge}>
-            <Clock size={13} color="#f59e0b" />
-            <Text style={styles.pendingText}>Payment in progress</Text>
-          </View>
-        )}
-      </BlurView>
+          {hasActivePayment && !isPaid && (
+            <View style={styles.pendingBadge}>
+              <Clock size={13} color="#f59e0b" />
+              <Text style={styles.pendingText}>Payment in progress</Text>
+            </View>
+          )}
+        </BlurView>
+      </Pressable>
     );
   };
 

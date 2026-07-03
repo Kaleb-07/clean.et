@@ -25,6 +25,11 @@ class InvoiceResource extends JsonResource
                     'id'           => $this->booking?->id,
                     'booking_date' => $this->booking?->booking_date,
                     'sector_name'  => $this->booking?->sector?->name,
+                    'customer'     => $this->booking?->customer ? [
+                        'id'    => $this->booking->customer->id,
+                        'name'  => $this->booking->customer->user?->name,
+                        'phone' => $this->booking->customer->user?->phone,
+                    ] : null,
                 ]
             ),
             'payments' => $this->when(

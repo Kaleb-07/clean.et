@@ -21,6 +21,7 @@ class User extends Authenticatable
         'password',
         'role',
         'language',
+        'push_token',
     ];
 
     protected $hidden = [
@@ -89,5 +90,10 @@ class User extends Authenticatable
     public function isCustomer(): bool
     {
         return $this->role === 'customer';
+    }
+
+    public function getIsAdminAttribute(): bool
+    {
+        return $this->isAdmin();
     }
 }

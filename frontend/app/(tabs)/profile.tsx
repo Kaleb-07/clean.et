@@ -26,6 +26,7 @@ import {
   Car,
   Building,
   Receipt,
+  Briefcase,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -129,6 +130,10 @@ export default function ProfileScreen() {
       router.push("/building-profiles");
     } else if (label === "My Invoices") {
       router.push("/invoices");
+    } else if (label === "My Subscription") {
+      router.push("/profile/subscription");
+    } else if (label === "Fleet Accounts") {
+      router.push("/profile/fleet");
     } else if (label === "Notifications") {
       router.push("/profile/notifications");
     } else if (label === "App Settings") {
@@ -164,8 +169,10 @@ export default function ProfileScreen() {
         { icon: User, label: "Personal Information", color: "#3b82f6" },
         { icon: Car, label: "My Vehicles", color: "#6366f1" },
         { icon: Building, label: "My Building Profiles", color: "#ec4899" },
+        { icon: CreditCard, label: "My Subscription", color: "#8b5cf6" },
         { icon: Receipt, label: "My Invoices", color: "#10b981" },
         { icon: Bell, label: "Notifications", color: "#f59e0b" },
+        { icon: Briefcase, label: "Fleet Accounts", color: "#a78bfa" },
       ],
     },
     {

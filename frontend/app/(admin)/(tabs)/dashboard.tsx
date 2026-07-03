@@ -129,10 +129,9 @@ export default function AdminDashboard() {
   };
 
   const stats = useMemo(() => {
-    const revenue = bookings.reduce(
-      (sum, b) => sum + (Number(b.price) || 0),
-      0
-    );
+    const revenue = bookings
+      .filter((b) => b.status === "completed" || b.status === "invoiced")
+      .reduce((sum, b) => sum + (Number(b.price) || 0), 0);
     return {
       bookings: bookings.length,
       customers: customers.length,
@@ -140,9 +139,11 @@ export default function AdminDashboard() {
       staff: staff.length,
       revenue: revenue.toLocaleString("en-ET"),
       pending: bookings.filter((b) => b.status === "pending").length,
-      confirmed: bookings.filter((b) => b.status === "confirmed").length,
+      active: bookings.filter((b) =>
+        ["confirmed", "driver_assigned", "picked_up", "in_progress"].includes(b.status)
+      ).length,
       completed: bookings.filter((b) => b.status === "completed").length,
-      inProgress: bookings.filter((b) => b.status === "in_progress").length,
+      invoiced: bookings.filter((b) => b.status === "invoiced").length,
     };
   }, [bookings, customers, sectors, staff]);
 
@@ -223,9 +224,9 @@ export default function AdminDashboard() {
         <Animated.View entering={FadeInRight.delay(150)} style={styles.statusRow}>
           {[
             { label: "Pending", value: stats.pending, color: "#f59e0b" },
-            { label: "In Progress", value: stats.inProgress, color: "#3b82f6" },
-            { label: "Confirmed", value: stats.confirmed, color: "#22c55e" },
+            { label: "Active", value: stats.active, color: "#3b82f6" },
             { label: "Completed", value: stats.completed, color: "#10b981" },
+            { label: "Invoiced", value: stats.invoiced, color: "#a855f7" },
           ].map((s) => (
             <View key={s.label} style={styles.statusItem}>
               <Text style={[styles.statusValue, { color: s.color }]}>{s.value}</Text>

@@ -107,10 +107,34 @@ class PaymentController extends Controller
         abort_unless($request->user()->is_admin, 403, 'Admin only.');
 
         DB::transaction(function () use ($payment) {
-            $payment->update(['status' => 'paid']);
+            $payment->update(['status' => 'completed']);
 
+            $invoice = $payment->invoice;
             // Mark the invoice as paid once payment is confirmed
-            $payment->invoice()->update(['status' => 'paid']);
+            $invoice->update(['status' => 'paid']);
+
+            // If invoice represents a subscription (booking_id is null)
+            if (is_null($invoice->booking_id)) {
+                $customer = $invoice->customer;
+                if ($customer) {
+                    // Find latest cancelled/inactive subscription
+                    $subscription = $customer->subscriptions()
+                        ->where('status', '!=', 'active')
+                        ->latest()
+                        ->first();
+
+                    if ($subscription) {
+                        $subscription->update([
+                            'status' => 'active',
+                            'renews_at' => now()->addMonth(),
+                        ]);
+
+                        $customer->update([
+                            'subscription_tier' => $subscription->plan,
+                        ]);
+                    }
+                }
+            }
         });
 
         return new PaymentResource($payment->fresh());

@@ -4,20 +4,23 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Sector;
 use App\Models\User;
 use App\Notifications\BookingNotification;
+use Illuminate\Support\Facades\DB;
 
 class BookingService
 {
     public function __construct(
         protected PricingService          $pricing,
         protected SchemaValidationService $schemaValidator,
+        protected NotificationService     $notifications,
     ) {}
 
     public function getAll(User $user): \Illuminate\Database\Eloquent\Collection
     {
-        $query = Booking::with(['sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service']);
+        $query = Booking::with(['sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service', 'invoice']);
 
         if ($user->isCustomer()) {
             // Customer sees only their own bookings
@@ -39,7 +42,7 @@ class BookingService
 
     public function getById(int $id, User $user): Booking
     {
-        $booking = Booking::with(['sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service'])
+        $booking = Booking::with(['sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service', 'invoice'])
             ->findOrFail($id);
 
         $this->authorizeView($booking, $user);
@@ -139,15 +142,50 @@ class BookingService
             abort(422, "Invalid status '{$status}'.");
         }
 
-        $booking = Booking::with('user')->findOrFail($id);
-        $booking->update(['status' => $status]);
+        $booking = Booking::with(['user', 'customer'])->findOrFail($id);
 
-        // Notify customer
+        DB::transaction(function () use ($booking, $status) {
+            $booking->update(['status' => $status]);
+
+            // Auto-generate invoice when booking transitions to 'invoiced'
+            if ($status === 'invoiced') {
+                $this->generateInvoice($booking);
+            }
+        });
+
+        // Fire push notification (fire-and-forget, outside transaction)
         if ($booking->user) {
+            // Legacy in-app notification
             $booking->user->notify(new BookingNotification("Your booking #{$booking->id} is now: {$status}"));
+            // Expo push notification
+            $this->notifications->notifyBookingStatus($booking->user, $booking->id, $status);
         }
 
         return $booking->load(['sector.category', 'customer.user', 'vehicle', 'service']);
+    }
+
+    /**
+     * Generate (or retrieve existing) invoice for a booking.
+     * Safe to call multiple times — will not duplicate.
+     */
+    public function generateInvoice(Booking $booking): Invoice
+    {
+        // Return existing invoice if already created
+        $existing = Invoice::where('booking_id', $booking->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        return Invoice::create([
+            'tenant_id'   => $booking->tenant_id,
+            'customer_id' => $booking->customer_id,
+            'booking_id'  => $booking->id,
+            'amount'      => $booking->price ?? 0,
+            'currency'    => $booking->currency ?? 'ETB',
+            'status'      => 'sent',
+            'period'      => now()->format('Y-m'),
+            'due_at'      => now()->addDays(7)->toDateString(),
+        ]);
     }
 
     public function delete(int $id, User $user): void
