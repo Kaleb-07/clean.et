@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-/* ================= COMPONENT ================= */
+/*===== COMPONENT ===== */
 
 export default function BookingDetails() {
   const { id } = useLocalSearchParams();
