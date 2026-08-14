@@ -21,13 +21,23 @@ class AdminSeeder extends Seeder
         $email = env('ADMIN_EMAIL', 'admin@example.com');
         $password = env('ADMIN_PASSWORD', 'admin123');
 
-        // Always update or create the admin user so password is set consistently
+        // Always update or create the tenant admin user so password is set consistently
         User::updateOrCreate(
             ['email' => $email],
             [
-                'name'     => 'Admin User',
+                'name'     => 'Tenant Admin User',
                 'password' => Hash::make($password),
                 'role'     => 'tenant_admin',
+            ]
+        );
+
+        // Seed Platform Super Admin Account
+        User::updateOrCreate(
+            ['email' => 'superadmin@clean.et'],
+            [
+                'name'     => 'Platform Super Admin',
+                'password' => Hash::make('superpassword123'),
+                'role'     => 'super_admin',
             ]
         );
     }

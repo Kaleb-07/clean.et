@@ -17,6 +17,7 @@ use App\Http\Controllers\API\SubscriptionController;
 use App\Http\Controllers\API\BookingProofController;
 use App\Http\Controllers\API\FleetAccountController;
 use App\Http\Controllers\API\TenantController;
+use App\Http\Controllers\API\SuperAdminController;
 
 // ─── Health Check ──────────────────────────────────────────────────────────────
 Route::get('/test', fn () => response()->json([
@@ -85,13 +86,21 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('/staff/{id}',  [StaffController::class, 'destroy']);
 });
 
-// ─── SUPER ADMIN ONLY (tenant management, platform config) ──────────────────
+// ─── SUPER ADMIN ONLY (tenant management, platform config & governance) ─────
 Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
-    Route::get('/tenants',             [TenantController::class, 'index']);
-    Route::post('/tenants',            [TenantController::class, 'store']);
-    Route::get('/tenants/{id}',        [TenantController::class, 'show']);
-    Route::put('/tenants/{id}',        [TenantController::class, 'update']);
-    Route::patch('/tenants/{id}/status', [TenantController::class, 'updateStatus']);
+    Route::get('/tenants',                [TenantController::class, 'index']);
+    Route::post('/tenants',               [TenantController::class, 'store']);
+    Route::get('/tenants/{id}',           [TenantController::class, 'show']);
+    Route::put('/tenants/{id}',           [TenantController::class, 'update']);
+    Route::patch('/tenants/{id}/status',  [TenantController::class, 'updateStatus']);
+    Route::post('/tenants/{id}/admins',   [TenantController::class, 'storeAdmin']);
+
+    // Analytics, System Governance & Health
+    Route::get('/super-admin/analytics',  [SuperAdminController::class, 'analytics']);
+    Route::get('/super-admin/health',     [SuperAdminController::class, 'health']);
+    Route::get('/super-admin/audit-logs', [SuperAdminController::class, 'auditLogs']);
+    Route::get('/super-admin/settings',   [SuperAdminController::class, 'getSettings']);
+    Route::put('/super-admin/settings',   [SuperAdminController::class, 'updateSettings']);
 });
 
 // ─── VEHICLES (customer-owned) ────────────────────────────────────────────────
