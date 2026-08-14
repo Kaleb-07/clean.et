@@ -51,10 +51,11 @@ const PROVIDERS: { value: PaymentProvider; label: string; emoji: string }[] = [
 
 export default function InvoicesScreen() {
   const insets = useSafeAreaInsets();
-  const { invoices, isLoading, reload, payInvoice } = useInvoices();
+  const { invoices, isLoading, reload, payInvoice, verifyPayment } = useInvoices();
 
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [paying, setPaying] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
 
   const handlePay = async (provider: PaymentProvider) => {
     if (!selectedInvoice) return;
@@ -87,10 +88,23 @@ export default function InvoicesScreen() {
     }
   };
 
+  const handleVerify = async (paymentId: number) => {
+    setVerifyingId(paymentId);
+    try {
+      await verifyPayment(paymentId);
+      Alert.alert("Success! 🎉", "Payment has been verified and confirmed.");
+    } catch (e: any) {
+      Alert.alert("Verification Failed", e?.message ?? "Could not verify payment yet.");
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
   const renderInvoice = ({ item }: { item: Invoice }) => {
     const sc = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.unpaid;
     const StatusIcon = sc.Icon;
     const isPaid = item.status === "paid" || item.status === "cancelled";
+    const pendingPayment = item.payments.find((p) => p.status === "pending");
     const hasActivePayment = item.payments.some((p) =>
       ["pending", "paid"].includes(p.status)
     );
@@ -149,10 +163,26 @@ export default function InvoicesScreen() {
             </Pressable>
           )}
 
-          {hasActivePayment && !isPaid && (
-            <View style={styles.pendingBadge}>
-              <Clock size={13} color="#f59e0b" />
-              <Text style={styles.pendingText}>Payment in progress</Text>
+          {hasActivePayment && !isPaid && pendingPayment && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 }}>
+              <View style={styles.pendingBadge}>
+                <Clock size={13} color="#f59e0b" />
+                <Text style={styles.pendingText}>Payment in progress</Text>
+              </View>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleVerify(pendingPayment.id);
+                }}
+                disabled={verifyingId === pendingPayment.id}
+                style={[styles.payBtn, { backgroundColor: "#10b981", paddingVertical: 8, paddingHorizontal: 12 }]}
+              >
+                {verifyingId === pendingPayment.id ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={[styles.payBtnText, { fontSize: 12 }]}>Confirm Payment</Text>
+                )}
+              </Pressable>
             </View>
           )}
         </BlurView>

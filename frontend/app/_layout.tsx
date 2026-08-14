@@ -33,20 +33,29 @@ function RootNavigator() {
           animation: "slide_from_right",
         }}
       >
-        {/* Public */}
+        {/* Splash / Auth Guard */}
         <Stack.Screen name="index" />
 
         {/* Auth Screens */}
         <Stack.Screen name="(auth)" />
 
-        {/* Main App */}
+        {/* Customer Main App */}
         <Stack.Screen name="(tabs)" />
 
-        {/* Booking */}
+        {/* Booking Flows */}
         <Stack.Screen name="booking/[sectorId]" />
+        <Stack.Screen name="booking/[serviceId]" />
         <Stack.Screen name="booking/status/[bookingId]" />
+        <Stack.Screen name="booking/edit/[id]" />
 
-        {/* Admin */}
+        {/* Customer Detail Screens */}
+        <Stack.Screen name="invoices/index" />
+        <Stack.Screen name="invoices/[id]" />
+        <Stack.Screen name="vehicles/index" />
+        <Stack.Screen name="building-profiles/index" />
+        <Stack.Screen name="profile/index" />
+
+        {/* Admin Panel */}
         <Stack.Screen name="(admin)" />
       </Stack>
     </View>

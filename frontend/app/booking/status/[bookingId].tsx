@@ -12,6 +12,7 @@ import {
   Modal,
   Platform,
   TextInput,
+  RefreshControl,
 } from "react-native";
 import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -157,6 +158,17 @@ export default function BookingStatusScreen() {
       .substring(0, 2);
   };
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshBookings();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshBookings]);
+
   return (
     <>
     <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
@@ -170,7 +182,18 @@ export default function BookingStatusScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#8b5cf6"
+            colors={["#8b5cf6"]}
+          />
+        }
+      >
         {/* STATUS TIMELINE CARD */}
         <Animated.View entering={FadeInDown.duration(600)} style={styles.statusSection}>
           <BlurView intensity={20} tint="dark" style={styles.statusCard}>

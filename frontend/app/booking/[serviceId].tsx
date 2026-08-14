@@ -256,7 +256,7 @@ export default function BookingDetailsScreen() {
       </ScrollView>
 
       {/* SUCCESS MODAL */}
-      <Modal transparent visible={showSuccess} animationType="fade">
+      <Modal transparent visible={showSuccess} animationType="fade" aria-hidden={false}>
         <View style={styles.modalOverlay}>
           <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
           <Animated.View entering={ZoomIn} style={styles.successModal}>

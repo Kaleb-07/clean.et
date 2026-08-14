@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios";
-import { getToken } from "../services/authStorage.js";
+import { getToken, removeToken } from "../services/authStorage.js";
 
 const API = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL,
@@ -22,6 +22,17 @@ API.interceptors.request.use(async (config) => {
 
   return config;
 });
+
+// Auto-clean stale tokens on 401 Unauthorized
+API.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response && error.response.status === 401) {
+      await removeToken();
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default API;
 

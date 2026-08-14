@@ -64,8 +64,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         syncPushToken();
       }
     } catch (e) {
-      console.log("Failed to load auth state", e);
+      // Stale or expired token stored — remove it and send to login
       await authStorage.removeToken();
+      setUser(null);
     } finally {
       setIsLoading(false);
     }

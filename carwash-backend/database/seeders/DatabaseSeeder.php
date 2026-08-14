@@ -20,13 +20,18 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        User::updateOrCreate(
+            ['email' => 'test@example.com'],
+            [
+                'name' => 'Test User',
+                'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+                'role' => 'customer',
+            ]
+        );
 
         $this->call([
             AdminSeeder::class,
+            TenantSeeder::class,
         ]);
     }
 }

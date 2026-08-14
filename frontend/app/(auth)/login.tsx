@@ -16,8 +16,9 @@ import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
-
+import * as Haptics from "expo-haptics";
 import axios from "axios";
+
 import API from "../../src/api/client";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -26,20 +27,21 @@ function getHomeRoute(role: string): string {
   switch (role) {
     case "super_admin":
     case "tenant_admin":
+    case "admin":
       return "/(admin)/(tabs)/dashboard";
     case "staff":
-      // Staff can also view admin bookings for now
       return "/(admin)/(tabs)/bookings";
     default:
       return "/(tabs)/home";
   }
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
 
-  // Toggle between phone and email login
   const [loginMode, setLoginMode] = useState<"phone" | "email">("phone");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -48,51 +50,76 @@ export default function LoginScreen() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const validate = (): boolean => {
+    const errors: Record<string, string> = {};
+    const rawInput = (loginMode === "phone" ? phone : email).trim();
+
+    if (!rawInput) {
+      errors.identifier = loginMode === "phone" ? "Phone number is required" : "Email is required";
+    } else if (rawInput.includes("@") || /[a-zA-Z]/.test(rawInput)) {
+      if (!EMAIL_REGEX.test(rawInput)) {
+        errors.identifier = "Please enter a valid email address";
+      }
+    } else {
+      const cleanPhone = rawInput.replace(/\D/g, "");
+      if (cleanPhone.length < 7) {
+        errors.identifier = "Please enter a valid phone number or email";
+      }
+    }
+
+    if (!password) {
+      errors.password = "Password is required";
+    } else if (password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleLogin = async () => {
     setError(null);
+    if (!validate()) {
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setLoading(true);
 
     try {
+      const rawInput = (loginMode === "phone" ? phone : email).trim();
       const payload: Record<string, string> = { password };
 
-      if (loginMode === "phone") {
-        if (!phone.trim()) {
-          setError("Phone number is required");
-          setLoading(false);
-          return;
-        }
-        payload.phone = phone.trim();
+      if (rawInput.includes("@")) {
+        payload.email = rawInput;
       } else {
-        if (!email.trim()) {
-          setError("Email is required");
-          setLoading(false);
-          return;
-        }
-        payload.email = email.trim();
+        payload.phone = rawInput;
       }
 
       const res = await API.post("/login", payload);
-
       const data = res.data.data || res.data;
       const token = data.token;
       const user = data.user;
 
       await login(token, user);
 
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace(getHomeRoute(user.role) as any);
-    } catch (err) {
+    } catch (err: any) {
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (axios.isAxiosError(err)) {
         const errors = err.response?.data?.errors;
-
         if (errors) {
           const firstError = (Object.values(errors)[0] as string[])?.[0];
-          setError(firstError || "Login failed");
+          setError(firstError || "Invalid credentials");
         } else {
-          setError(err.response?.data?.message || "Login failed");
+          setError(err.response?.data?.message || "Invalid phone/email or password");
         }
       } else {
-        setError("Something went wrong");
+        setError("Network error. Please check your connection.");
       }
     } finally {
       setLoading(false);
@@ -113,6 +140,7 @@ export default function LoginScreen() {
             paddingTop: insets.top + 40,
             paddingBottom: insets.bottom + 40,
           }}
+          showsVerticalScrollIndicator={false}
         >
           {/* HEADER */}
           <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
@@ -132,7 +160,12 @@ export default function LoginScreen() {
               {/* LOGIN MODE TOGGLE */}
               <View style={styles.toggleRow}>
                 <Pressable
-                  onPress={() => setLoginMode("phone")}
+                  onPress={() => {
+                    setLoginMode("phone");
+                    setError(null);
+                    setFieldErrors({});
+                    if (Platform.OS !== "web") Haptics.selectionAsync();
+                  }}
                   style={[
                     styles.toggleBtn,
                     loginMode === "phone" && styles.toggleBtnActive,
@@ -154,7 +187,12 @@ export default function LoginScreen() {
                 </Pressable>
 
                 <Pressable
-                  onPress={() => setLoginMode("email")}
+                  onPress={() => {
+                    setLoginMode("email");
+                    setError(null);
+                    setFieldErrors({});
+                    if (Platform.OS !== "web") Haptics.selectionAsync();
+                  }}
                   style={[
                     styles.toggleBtn,
                     loginMode === "email" && styles.toggleBtnActive,
@@ -186,48 +224,78 @@ export default function LoginScreen() {
                     </View>
                     <TextInput
                       value={phone}
-                      onChangeText={setPhone}
+                      onChangeText={(val) => {
+                        setPhone(val);
+                        setError(null);
+                        setFieldErrors((prev) => ({ ...prev, identifier: "" }));
+                      }}
                       placeholder="9XX XXX XXXX"
                       placeholderTextColor="rgba(255,255,255,0.4)"
                       keyboardType="phone-pad"
-                      style={[styles.input, styles.phoneInput]}
+                      style={[
+                        styles.input,
+                        styles.phoneInput,
+                        !!fieldErrors.identifier && styles.inputError,
+                      ]}
                     />
                   </View>
+                  {!!fieldErrors.identifier && (
+                    <Text style={styles.fieldErrorText}>{fieldErrors.identifier}</Text>
+                  )}
                 </View>
               )}
 
               {/* EMAIL INPUT */}
               {loginMode === "email" && (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Email</Text>
+                  <Text style={styles.label}>Email Address</Text>
                   <TextInput
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(val) => {
+                      setEmail(val);
+                      setError(null);
+                      setFieldErrors((prev) => ({ ...prev, identifier: "" }));
+                    }}
                     placeholder="name@example.com"
                     placeholderTextColor="rgba(255,255,255,0.4)"
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      !!fieldErrors.identifier && styles.inputError,
+                    ]}
                   />
+                  {!!fieldErrors.identifier && (
+                    <Text style={styles.fieldErrorText}>{fieldErrors.identifier}</Text>
+                  )}
                 </View>
               )}
 
               {/* PASSWORD */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Password</Text>
-
                 <View style={styles.passwordContainer}>
                   <TextInput
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(val) => {
+                      setPassword(val);
+                      setError(null);
+                      setFieldErrors((prev) => ({ ...prev, password: "" }));
+                    }}
                     secureTextEntry={!showPassword}
                     placeholder="••••••••"
                     placeholderTextColor="rgba(255,255,255,0.4)"
-                    style={[styles.input, styles.passwordInput]}
+                    style={[
+                      styles.input,
+                      styles.passwordInput,
+                      !!fieldErrors.password && styles.inputError,
+                    ]}
                   />
-
                   <Pressable
-                    onPress={() => setShowPassword(!showPassword)}
+                    onPress={() => {
+                      setShowPassword(!showPassword);
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
                     style={styles.eyeIcon}
                   >
                     <Ionicons
@@ -237,17 +305,20 @@ export default function LoginScreen() {
                     />
                   </Pressable>
                 </View>
+                {!!fieldErrors.password && (
+                  <Text style={styles.fieldErrorText}>{fieldErrors.password}</Text>
+                )}
               </View>
 
-              {/* ERROR */}
-              {error && (
-                <View style={styles.errorContainer}>
+              {/* GENERAL ERROR BANNER */}
+              {!!error && (
+                <Animated.View entering={FadeInDown} style={styles.errorContainer}>
                   <Ionicons name="alert-circle" size={16} color="#ef4444" />
                   <Text style={styles.errorText}>{error}</Text>
-                </View>
+                </Animated.View>
               )}
 
-              {/* BUTTON */}
+              {/* SIGN IN BUTTON */}
               <Pressable
                 onPress={handleLogin}
                 disabled={loading}
@@ -269,10 +340,9 @@ export default function LoginScreen() {
                 </LinearGradient>
               </Pressable>
 
-              {/* FOOTER */}
+              {/* FOOTER LINK */}
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Don't have an account?</Text>
-
                 <Link href="/(auth)/register" asChild>
                   <Pressable>
                     <Text style={styles.link}> Create Account</Text>
@@ -368,6 +438,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
   },
+  inputError: {
+    borderColor: "#ef4444",
+  },
+  fieldErrorText: {
+    color: "#f87171",
+    fontSize: 12,
+    marginTop: 4,
+  },
   phoneInputRow: {
     flexDirection: "row",
     gap: 8,
@@ -402,19 +480,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 10,
-    backgroundColor: "rgba(239,68,68,0.1)",
-    padding: 10,
-    borderRadius: 10,
+    marginBottom: 14,
+    backgroundColor: "rgba(239,68,68,0.12)",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(239,68,68,0.3)",
   },
   errorText: {
     color: "#ef4444",
     fontSize: 13,
+    fontWeight: "500",
   },
   button: {
     borderRadius: 12,
     overflow: "hidden",
-    marginTop: 10,
+    marginTop: 6,
   },
   buttonGradient: {
     padding: 16,

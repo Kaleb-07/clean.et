@@ -100,11 +100,23 @@ export function useInvoices() {
     []
   );
 
+  const verifyPayment = useCallback(
+    async (paymentId: number): Promise<Payment> => {
+      const verified = await apiFetch<Payment>(`/payments/${paymentId}/verify`, {
+        method: "POST",
+      });
+      await load();
+      return verified;
+    },
+    [load]
+  );
+
   return {
     invoices,
     isLoading,
     error,
     reload: load,
     payInvoice,
+    verifyPayment,
   };
 }

@@ -7,6 +7,8 @@ use App\Http\Requests\StorePaymentRequest;
 use App\Http\Resources\PaymentResource;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Notifications\BookingNotification;
+use App\Services\NotificationService;
 use App\Services\PaymentGatewayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,8 +22,10 @@ use Illuminate\Support\Facades\DB;
  */
 class PaymentController extends Controller
 {
-    public function __construct(private PaymentGatewayService $gateway)
-    {
+    public function __construct(
+        private PaymentGatewayService $gateway,
+        private NotificationService $notifications,
+    ) {
     }
 
     // ─────────────────────────────────────────────
@@ -103,21 +107,41 @@ class PaymentController extends Controller
     // ─────────────────────────────────────────────
     public function verify(Request $request, Payment $payment): PaymentResource
     {
-        // Only admin can manually verify (webhook adapters will extend this)
-        abort_unless($request->user()->is_admin, 403, 'Admin only.');
+        // Admins can manually verify; customers can self-verify their own payment
+        $user = $request->user();
+        if (! $user->is_admin) {
+            $customer       = $user->customer;
+            $invoiceCustomer = $payment->invoice?->customer_id;
+            abort_unless(
+                $customer && $invoiceCustomer === $customer->id,
+                403,
+                'Forbidden.'
+            );
+        }
 
-        DB::transaction(function () use ($payment) {
+        // Already completed — idempotent, return early
+        if ($payment->status === 'completed') {
+            return new PaymentResource($payment);
+        }
+
+        $bookingUser = null;
+
+        DB::transaction(function () use ($payment, &$bookingUser) {
+            // ✅ Payment status is 'completed' (matches database enum ['pending', 'completed', 'failed'])
             $payment->update(['status' => 'completed']);
 
-            $invoice = $payment->invoice;
-            // Mark the invoice as paid once payment is confirmed
+            $invoice = $payment->invoice()->with('booking.user')->first();
+
+            // Mark the invoice as paid
             $invoice->update(['status' => 'paid']);
 
-            // If invoice represents a subscription (booking_id is null)
+            // Resolve the user to notify
+            $bookingUser = $invoice->booking?->user ?? $invoice->customer?->user ?? null;
+
+            // If invoice is for a subscription, activate it
             if (is_null($invoice->booking_id)) {
                 $customer = $invoice->customer;
                 if ($customer) {
-                    // Find latest cancelled/inactive subscription
                     $subscription = $customer->subscriptions()
                         ->where('status', '!=', 'active')
                         ->latest()
@@ -125,17 +149,26 @@ class PaymentController extends Controller
 
                     if ($subscription) {
                         $subscription->update([
-                            'status' => 'active',
+                            'status'    => 'active',
                             'renews_at' => now()->addMonth(),
                         ]);
-
-                        $customer->update([
-                            'subscription_tier' => $subscription->plan,
-                        ]);
+                        $customer->update(['subscription_tier' => $subscription->plan]);
                     }
                 }
             }
         });
+
+        // Fire push notification outside transaction (fire-and-forget)
+        if ($bookingUser) {
+            $bookingUser->notify(new BookingNotification(
+                'Your payment of ETB ' . number_format($payment->amount, 2) . ' has been confirmed. Thank you!'
+            ));
+            $this->notifications->notify(
+                $bookingUser,
+                '✅ Payment Confirmed',
+                'ETB ' . number_format($payment->amount, 2) . ' paid successfully via ' . strtoupper($payment->provider) . '.'
+            );
+        }
 
         return new PaymentResource($payment->fresh());
     }

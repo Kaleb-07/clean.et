@@ -46,13 +46,21 @@ class AuthService
      */
     public function login(array $data): ?User
     {
-        $identifier = $data['phone'] ?? $data['email'] ?? null;
-        if (!$identifier) {
+        $rawIdentifier = trim($data['phone'] ?? $data['email'] ?? '');
+        if (!$rawIdentifier) {
             return null;
         }
 
-        $user = User::where('phone', $identifier)
-            ->orWhere('email', $identifier)
+        $normalizedPhone = $this->normalizePhone($rawIdentifier);
+
+        $user = User::withoutGlobalScopes()
+            ->where('email', strtolower($rawIdentifier))
+            ->orWhere('phone', $rawIdentifier)
+            ->orWhere(function ($query) use ($normalizedPhone) {
+                if ($normalizedPhone) {
+                    $query->where('phone', $normalizedPhone);
+                }
+            })
             ->first();
 
         if (!$user || !Hash::check($data['password'], $user->password)) {
@@ -64,5 +72,21 @@ class AuthService
         $user->token = $token;
 
         return $user;
+    }
+
+    private function normalizePhone(?string $phone): ?string
+    {
+        if (!$phone) return null;
+        $cleaned = preg_replace('/[^\d+]/', '', trim($phone));
+        if (str_starts_with($cleaned, '0')) {
+            return '+251' . substr($cleaned, 1);
+        }
+        if (str_starts_with($cleaned, '9') && strlen($cleaned) === 9) {
+            return '+251' . $cleaned;
+        }
+        if (str_starts_with($cleaned, '251')) {
+            return '+' . $cleaned;
+        }
+        return $cleaned;
     }
 }

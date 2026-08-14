@@ -27,12 +27,17 @@ import {
   HelpCircle,
   TrendingUp,
   RefreshCw,
+  Car,
+  Building2,
+  Plus,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeInRight, FadeIn, ZoomIn } from "react-native-reanimated";
 
 import { useCategories } from "../../hooks/useCategories";
 import { useBookings } from "../../hooks/useBookings";
+import { useVehicles } from "../../hooks/useVehicles";
+import { useBuildingProfiles } from "../../hooks/useBuildingProfiles";
 import { useLanguage } from "../../contexts/LanguageContext";
 import type { SectorField } from "../../constants/categories";
 
@@ -63,13 +68,19 @@ export default function DynamicBookingScreen() {
   const [recurring, setRecurring] = useState(false);
   const [recurrenceRule, setRecurrenceRule] = useState("weekly");
 
-  // Find active sector in the category tree
-  const sector = useMemo(() => {
+  // Vehicle & Building Profile hooks
+  const { vehicles } = useVehicles();
+  const { profiles: buildingProfiles } = useBuildingProfiles();
+  const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
+  const [selectedBuildingProfileId, setSelectedBuildingProfileId] = useState<number | null>(null);
+
+  // Find active sector & category in tree
+  const { sector, categorySlug } = useMemo(() => {
     for (const cat of categories) {
       const found = cat.sectors.find(s => String(s.id) === String(sectorId));
-      if (found) return found;
+      if (found) return { sector: found, categorySlug: cat.slug };
     }
-    return null;
+    return { sector: null, categorySlug: "" };
   }, [categories, sectorId]);
 
   // Generate next 14 days
@@ -174,6 +185,8 @@ export default function DynamicBookingScreen() {
         date: dateStr,
         timeSlot: selectedTime,
         requirementData: requirementData,
+        vehicleId: selectedVehicleId ?? undefined,
+        buildingProfileId: selectedBuildingProfileId ?? undefined,
         recurring: recurring,
         recurrenceRule: recurring ? recurrenceRule : undefined,
       });
@@ -254,6 +267,84 @@ export default function DynamicBookingScreen() {
             </View>
           </BlurView>
         </Animated.View>
+
+        {/* VEHICLE SELECTION (Car Washing) */}
+        {categorySlug === "car-washing" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Car size={18} color="#8b5cf6" />
+              <Text style={styles.sectionTitle}>Select Vehicle</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectGrid}>
+              {vehicles.map((v) => {
+                const isSelectedV = selectedVehicleId === v.id;
+                const vName = [v.make, v.model].filter(Boolean).join(" ") || v.vehicle_class;
+                return (
+                  <Pressable
+                    key={v.id}
+                    onPress={() => {
+                      setSelectedVehicleId(v.id);
+                      if (v.vehicle_class) {
+                        handleFieldChange("vehicle_class", v.vehicle_class);
+                      }
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    style={[styles.selectChip, isSelectedV && styles.selectChipActive]}
+                  >
+                    <Text style={[styles.selectChipText, isSelectedV && styles.textActive]}>
+                      🚗 {vName} {v.plate_number ? `(${v.plate_number})` : ""}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => router.push("/vehicles")}
+                style={[styles.selectChip, { backgroundColor: "rgba(139, 92, 246, 0.15)", borderColor: "#8b5cf6", flexDirection: "row", alignItems: "center", gap: 4 }]}
+              >
+                <Plus size={14} color="#a78bfa" />
+                <Text style={{ color: "#a78bfa", fontSize: 13, fontWeight: "600" }}>Manage Vehicles</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        )}
+
+        {/* BUILDING PROFILE SELECTION (Building Cleaning) */}
+        {categorySlug === "building-cleaning" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Building2 size={18} color="#8b5cf6" />
+              <Text style={styles.sectionTitle}>Select Building Profile</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectGrid}>
+              {buildingProfiles.map((bp) => {
+                const isSelectedBp = selectedBuildingProfileId === bp.id;
+                return (
+                  <Pressable
+                    key={bp.id}
+                    onPress={() => {
+                      setSelectedBuildingProfileId(bp.id);
+                      if (bp.area_sqm) handleFieldChange("total_area", bp.area_sqm);
+                      if (bp.floor_count) handleFieldChange("floor_count", bp.floor_count);
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    style={[styles.selectChip, isSelectedBp && styles.selectChipActive]}
+                  >
+                    <Text style={[styles.selectChipText, isSelectedBp && styles.textActive]}>
+                      🏢 {bp.name} ({bp.floor_count}F, {bp.area_sqm} sqm)
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => router.push("/building-profiles")}
+                style={[styles.selectChip, { backgroundColor: "rgba(139, 92, 246, 0.15)", borderColor: "#8b5cf6", flexDirection: "row", alignItems: "center", gap: 4 }]}
+              >
+                <Plus size={14} color="#a78bfa" />
+                <Text style={{ color: "#a78bfa", fontSize: 13, fontWeight: "600" }}>Manage Profiles</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        )}
 
         {/* DYNAMIC FORM FIELDS */}
         <View style={styles.section}>
@@ -493,7 +584,7 @@ export default function DynamicBookingScreen() {
       </ScrollView>
 
       {/* SUCCESS MODAL */}
-      <Modal transparent visible={showSuccess} animationType="fade">
+      <Modal transparent visible={showSuccess} animationType="fade" aria-hidden={false}>
         <View style={styles.modalOverlay}>
           <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
           <Animated.View entering={ZoomIn} style={styles.successModal}>

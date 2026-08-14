@@ -108,15 +108,24 @@ export default function AdminDashboard() {
         API.get("/staff"),
       ]);
 
-      if (bRes.status === "fulfilled") setBookings(bRes.value.data.data ?? []);
-      if (cRes.status === "fulfilled") setCustomers(cRes.value.data.data ?? []);
+      if (bRes.status === "fulfilled") {
+        const d = bRes.value.data;
+        setBookings(Array.isArray(d) ? d : d.data ?? []);
+      }
+      if (cRes.status === "fulfilled") {
+        const d = cRes.value.data;
+        setCustomers(Array.isArray(d) ? d : d.data ?? []);
+      }
       if (catRes.status === "fulfilled") {
-        // Flatten sectors from all categories
-        const cats = catRes.value.data.data ?? [];
+        const d = catRes.value.data;
+        const cats = Array.isArray(d) ? d : d.data ?? [];
         const allSectors = cats.flatMap((c: any) => c.sectors ?? []);
         setSectors(allSectors);
       }
-      if (stRes.status === "fulfilled") setStaff(stRes.value.data ?? []);
+      if (stRes.status === "fulfilled") {
+        const d = stRes.value.data;
+        setStaff(Array.isArray(d) ? d : d.data ?? []);
+      }
     } catch (e) {
       console.log("Dashboard load error:", e);
     }

@@ -69,7 +69,7 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return in_array($this->role, ['super_admin', 'tenant_admin']);
+        return in_array($this->role, ['super_admin', 'tenant_admin', 'admin']);
     }
 
     public function isSuperAdmin(): bool
@@ -79,7 +79,7 @@ class User extends Authenticatable
 
     public function isTenantAdmin(): bool
     {
-        return $this->role === 'tenant_admin';
+        return in_array($this->role, ['tenant_admin', 'admin']);
     }
 
     public function isStaff(): bool

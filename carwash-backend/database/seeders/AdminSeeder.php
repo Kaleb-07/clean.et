@@ -21,14 +21,14 @@ class AdminSeeder extends Seeder
         $email = env('ADMIN_EMAIL', 'admin@example.com');
         $password = env('ADMIN_PASSWORD', 'admin123');
 
-        // Check if admin already exists to avoid duplicates
-        if (!User::where('email', $email)->exists()) {
-            User::create([
-                'name' => 'Admin User',
-                'email' => $email,
+        // Always update or create the admin user so password is set consistently
+        User::updateOrCreate(
+            ['email' => $email],
+            [
+                'name'     => 'Admin User',
                 'password' => Hash::make($password),
-                'role' => 'admin',
-            ]);
-        }
+                'role'     => 'tenant_admin',
+            ]
+        );
     }
 }
