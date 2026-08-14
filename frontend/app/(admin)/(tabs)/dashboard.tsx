@@ -103,6 +103,7 @@ export default function AdminDashboard() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
+  const [tenantsList, setTenantsList] = useState<any[]>([]);
   const [superAdminStats, setSuperAdminStats] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [logoutModal, setLogoutModal] = useState(false);
@@ -115,12 +116,13 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      const [bRes, cRes, catRes, stRes, saRes] = await Promise.allSettled([
+      const [bRes, cRes, catRes, stRes, saRes, tRes] = await Promise.allSettled([
         apiFetch<any>("/bookings"),
         apiFetch<any>("/customers"),
         apiFetch<any>("/categories"),
         apiFetch<any>("/staff"),
         isSuperAdmin ? apiFetch<any>("/super-admin/analytics") : Promise.resolve(null),
+        isSuperAdmin ? apiFetch<any>("/tenants") : Promise.resolve(null),
       ]);
 
       if (bRes.status === "fulfilled") {
@@ -145,6 +147,11 @@ export default function AdminDashboard() {
         const data = saRes.value;
         const saObj = data?.gmv !== undefined ? data : data?.data ?? data;
         setSuperAdminStats(saObj);
+      }
+      if (tRes.status === "fulfilled" && tRes.value) {
+        const data = tRes.value;
+        const tList = Array.isArray(data) ? data : data?.data ?? [];
+        setTenantsList(tList);
       }
     } catch (e) {
       console.log("Clean.et Dashboard load error:", e);
@@ -172,8 +179,8 @@ export default function AdminDashboard() {
         customers: superAdminStats.total_customers ?? customers.length,
         sectors: sectors.length || 6,
         staff: superAdminStats.total_staff ?? staff.length,
-        tenants: superAdminStats.tenants?.total ?? 1,
-        activeTenants: superAdminStats.tenants?.active ?? 1,
+        tenants: superAdminStats.tenants?.total ?? tenantsList.length ?? 1,
+        activeTenants: superAdminStats.tenants?.active ?? tenantsList.length ?? 1,
         gmv: totalGmv.toLocaleString("en-ET", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         commission: estimatedCommission,
         pending: b.pending ?? 0,
@@ -192,8 +199,8 @@ export default function AdminDashboard() {
       customers: customers.length,
       sectors: sectors.length,
       staff: staff.length,
-      tenants: 1,
-      activeTenants: 1,
+      tenants: tenantsList.length || 1,
+      activeTenants: tenantsList.length || 1,
       gmv: totalRevenue.toLocaleString("en-ET", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       commission: (totalRevenue * 0.1).toLocaleString("en-ET", { minimumFractionDigits: 2 }),
       pending: bookings.filter((b) => b.status === "pending").length,
@@ -203,7 +210,7 @@ export default function AdminDashboard() {
       completed: bookings.filter((b) => b.status === "completed").length,
       invoiced: bookings.filter((b) => b.status === "invoiced").length,
     };
-  }, [bookings, customers, sectors, staff, isSuperAdmin, superAdminStats]);
+  }, [bookings, customers, sectors, staff, isSuperAdmin, superAdminStats, tenantsList]);
 
   const confirmLogout = async () => {
     await logout();
@@ -391,6 +398,73 @@ export default function AdminDashboard() {
               </View>
             </View>
           </Animated.View>
+
+          {/* ── LIVE TENANTS & TENANT ADMINS DIRECTORY PREVIEW ── */}
+          {isSuperAdmin && tenantsList.length > 0 && (
+            <View style={styles.directorySection}>
+              <View style={styles.directoryHeaderRow}>
+                <Text style={styles.directoryTitle}>Active Tenants & Primary Admins</Text>
+                <Pressable onPress={() => router.push("/(admin)/tenants")}>
+                  <Text style={styles.viewAllText}>View All ({tenantsList.length}) →</Text>
+                </Pressable>
+              </View>
+
+              {tenantsList.slice(0, 3).map((tenant: any) => {
+                const primaryAdmin = tenant.users?.[0] || tenant.admin;
+                return (
+                  <View key={tenant.id} style={styles.tenantPreviewCard}>
+                    <View style={styles.tenantIconBadge}>
+                      <Ionicons name="business" size={18} color="#60A5FA" />
+                    </View>
+
+                    <View style={{ flex: 1, marginHorizontal: 12 }}>
+                      <Text style={styles.tenantCardName}>{tenant.business_name}</Text>
+                      <Text style={styles.tenantCardAdmin}>
+                        Admin: {primaryAdmin?.name || "Unassigned"} ({primaryAdmin?.email || "No email"})
+                      </Text>
+                    </View>
+
+                    <View style={[styles.planBadge, { backgroundColor: tenant.plan === "enterprise" ? "#1E1B4B" : "#064E3B" }]}>
+                      <Text style={[styles.planBadgeText, { color: tenant.plan === "enterprise" ? "#A78BFA" : "#34D399" }]}>
+                        {tenant.plan?.toUpperCase()}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* ── LIVE STAFF CREW PREVIEW ── */}
+          {staff.length > 0 && (
+            <View style={styles.directorySection}>
+              <View style={styles.directoryHeaderRow}>
+                <Text style={styles.directoryTitle}>Field Staff Technicians</Text>
+                <Pressable onPress={() => router.push("/(admin)/staff")}>
+                  <Text style={styles.viewAllText}>Roster ({staff.length}) →</Text>
+                </Pressable>
+              </View>
+
+              {staff.slice(0, 3).map((s: any) => (
+                <View key={s.id} style={styles.tenantPreviewCard}>
+                  <View style={[styles.tenantIconBadge, { backgroundColor: "rgba(167, 139, 250, 0.15)" }]}>
+                    <Ionicons name="person" size={18} color="#A78BFA" />
+                  </View>
+
+                  <View style={{ flex: 1, marginHorizontal: 12 }}>
+                    <Text style={styles.tenantCardName}>{s.user?.name || "Staff Member"}</Text>
+                    <Text style={styles.tenantCardAdmin}>
+                      {s.role_title || "Technician"} · {s.user?.phone || "Phone on file"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.activePill}>
+                    <Text style={styles.activePillText}>Certified</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* ── ENTERPRISE MANAGEMENT TILES ── */}
           <Text style={styles.sectionHeaderTitle}>Platform Operations Command Hub</Text>
@@ -698,6 +772,73 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
     backgroundColor: "rgba(255, 255, 255, 0.08)",
+  },
+  directorySection: {
+    marginTop: 20,
+  },
+  directoryHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  directoryTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#F3F4F6",
+  },
+  viewAllText: {
+    fontSize: 12,
+    color: "#60A5FA",
+    fontWeight: "600",
+  },
+  tenantPreviewCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
+  },
+  tenantIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(96, 165, 250, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tenantCardName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#F9FAFB",
+  },
+  tenantCardAdmin: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
+  planBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  planBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  activePill: {
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  activePillText: {
+    color: "#34D399",
+    fontSize: 10,
+    fontWeight: "700",
   },
   sectionHeaderTitle: {
     fontSize: 17,

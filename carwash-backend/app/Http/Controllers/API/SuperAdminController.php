@@ -25,33 +25,34 @@ class SuperAdminController extends Controller
      */
     public function analytics(Request $request): JsonResponse
     {
-        $totalTenants = Tenant::count();
-        $activeTenants = Tenant::where('status', 'active')->count();
-        $suspendedTenants = Tenant::where('status', 'suspended')->count();
+        $totalTenants = Tenant::withoutGlobalScopes()->count();
+        $activeTenants = Tenant::withoutGlobalScopes()->where('status', 'active')->count();
+        $suspendedTenants = Tenant::withoutGlobalScopes()->where('status', 'suspended')->count();
 
         // GMV: Total completed booking revenue across all tenants
-        $totalGmv = Booking::whereIn('status', [Booking::STATUS_COMPLETED, Booking::STATUS_INVOICED])
+        $totalGmv = Booking::withoutGlobalScopes()
+            ->whereIn('status', [Booking::STATUS_COMPLETED, Booking::STATUS_INVOICED])
             ->sum('price');
 
-        $totalBookings = Booking::count();
+        $totalBookings = Booking::withoutGlobalScopes()->count();
 
         $bookingStatusBreakdown = [
-            'pending'     => Booking::where('status', Booking::STATUS_PENDING)->count(),
-            'confirmed'   => Booking::where('status', Booking::STATUS_CONFIRMED)->count(),
-            'in_progress' => Booking::where('status', Booking::STATUS_IN_PROGRESS)->count(),
-            'completed'   => Booking::whereIn('status', [Booking::STATUS_COMPLETED, Booking::STATUS_INVOICED])->count(),
-            'cancelled'   => Booking::where('status', Booking::STATUS_CANCELLED)->count(),
+            'pending'     => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_PENDING)->count(),
+            'confirmed'   => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_CONFIRMED)->count(),
+            'in_progress' => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_IN_PROGRESS)->count(),
+            'completed'   => Booking::withoutGlobalScopes()->whereIn('status', [Booking::STATUS_COMPLETED, Booking::STATUS_INVOICED])->count(),
+            'cancelled'   => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_CANCELLED)->count(),
         ];
 
         // Subscription Plans distribution
         $planDistribution = [
-            'starter'    => Tenant::where('plan', 'starter')->count(),
-            'growth'     => Tenant::where('plan', 'growth')->count(),
-            'enterprise' => Tenant::where('plan', 'enterprise')->count(),
+            'starter'    => Tenant::withoutGlobalScopes()->where('plan', 'starter')->count(),
+            'growth'     => Tenant::withoutGlobalScopes()->where('plan', 'growth')->count(),
+            'enterprise' => Tenant::withoutGlobalScopes()->where('plan', 'enterprise')->count(),
         ];
 
         // Categories / Services distribution across tenants
-        $allTenants = Tenant::all();
+        $allTenants = Tenant::withoutGlobalScopes()->get();
         $categoryCounts = [];
         foreach ($allTenants as $t) {
             foreach ($t->categories_enabled ?? [] as $cat) {
@@ -59,8 +60,8 @@ class SuperAdminController extends Controller
             }
         }
 
-        $totalCustomers = Customer::count();
-        $totalStaff = StaffProfile::count();
+        $totalCustomers = Customer::withoutGlobalScopes()->count();
+        $totalStaff = StaffProfile::withoutGlobalScopes()->count();
         $totalTenantAdmins = User::whereIn('role', ['tenant_admin', 'admin'])->count();
 
         return response()->json([

@@ -14,9 +14,14 @@ use Illuminate\Support\Facades\DB;
 class StaffController extends Controller
 {
     // GET /api/staff
-    public function index()
+    public function index(Request $request)
     {
-        $staff = StaffProfile::with(['user', 'certifications'])->get();
+        $query = StaffProfile::with(['user', 'certifications']);
+        if ($request->user() && $request->user()->role === 'super_admin') {
+            $query->withoutGlobalScopes();
+        }
+
+        $staff = $query->get();
         return response()->json($staff);
     }
 
