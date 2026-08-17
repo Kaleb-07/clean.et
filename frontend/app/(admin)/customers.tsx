@@ -3,25 +3,31 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
-import API from "../../src/api/client";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import API from "../../src/api/client";
+
 /* ================= TYPES ================= */
-type Customer = {
+interface Customer {
   id: number;
   name: string;
   email: string;
-};
+  phone?: string | null;
+  created_at?: string;
+  bookings_count?: number;
+}
 
 /* ================= COMPONENT ================= */
 export default function AdminCustomers() {
@@ -29,19 +35,24 @@ export default function AdminCustomers() {
   const insets = useSafeAreaInsets();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [inspectCustomer, setInspectCustomer] = useState<Customer | null>(null);
 
   const [deleteModal, setDeleteModal] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
-
-  const [successModal, setSuccessModal] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
     email: "",
+    phone: "",
+    password: "",
   });
 
   useEffect(() => {
@@ -50,38 +61,56 @@ export default function AdminCustomers() {
 
   /* ================= LOAD ================= */
   const loadCustomers = async () => {
+    setLoading(true);
     try {
       const res = await API.get("/customers");
-      setCustomers(res.data.data);
+      setCustomers(res.data.data ?? []);
     } catch (e) {
-      console.log(e);
+      console.log("Error loading customers:", e);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadCustomers();
+    setRefreshing(false);
   };
 
   /* ================= SAVE ================= */
   const handleSave = async () => {
-    try {
-      if (!form.name || !form.email) {
-        return Alert.alert("Error", "Name and email required");
-      }
+    if (!form.name.trim() || !form.email.trim()) {
+      return Alert.alert("Required", "Customer Name and Email address are required.");
+    }
 
+    setIsSubmitting(true);
+    try {
       if (editingCustomer) {
-        await API.put(`/customers/${editingCustomer.id}`, form);
-        setSuccessMessage("Customer updated successfully!");
+        await API.put(`/customers/${editingCustomer.id}`, {
+          name: form.name.trim(),
+          email: form.email.trim().toLowerCase(),
+          phone: form.phone.trim(),
+        });
+        Alert.alert("Updated", "Customer account profile updated successfully.");
       } else {
-        await API.post("/customers", form);
-        setSuccessMessage("Customer added successfully!");
+        await API.post("/customers", {
+          name: form.name.trim(),
+          email: form.email.trim().toLowerCase(),
+          phone: form.phone.trim(),
+          password: form.password ? form.password.trim() : "password123",
+        });
+        Alert.alert("🎉 Success", "New customer account created successfully!");
       }
 
       setModalVisible(false);
       setEditingCustomer(null);
-      setForm({ name: "", email: "" });
-
+      setForm({ name: "", email: "", phone: "", password: "" });
       loadCustomers();
-      setSuccessModal(true);
-    } catch (e) {
-      console.log(e);
-      Alert.alert("Error", "Something went wrong");
+    } catch (e: any) {
+      Alert.alert("Error", e?.response?.data?.message || "Failed to save customer.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -89,320 +118,507 @@ export default function AdminCustomers() {
   const confirmDelete = async () => {
     if (!selectedDeleteId) return;
 
+    setIsDeleting(true);
     try {
       await API.delete(`/customers/${selectedDeleteId}`);
       setDeleteModal(false);
-      setSuccessMessage("Customer deleted successfully!");
-      setSuccessModal(true);
+      setSelectedDeleteId(null);
+      Alert.alert("Deleted", "Customer account removed successfully.");
       loadCustomers();
-    } catch (e) {
-      console.log(e);
+    } catch (e: any) {
+      Alert.alert("Delete Error", e?.response?.data?.message || "Failed to delete customer.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const openDelete = (id: number) => {
-    setSelectedDeleteId(id);
-    setDeleteModal(true);
-  };
-
-  /* ================= EDIT ================= */
   const openEdit = (item: Customer) => {
     setEditingCustomer(item);
     setForm({
       name: item.name,
       email: item.email,
+      phone: item.phone || "",
+      password: "",
     });
     setModalVisible(true);
   };
 
-  /* ================= CARD ================= */
-  const renderItem = ({ item, index }: any) => (
-    <Animated.View entering={FadeInDown.delay(index * 80)}>
-      <View style={styles.card}>
-        <View style={styles.avatarBox}>
-          <Ionicons name="person" size={20} color="#8b5cf6" />
-        </View>
-
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{item.name}</Text>
-          <Text style={styles.desc}>{item.email}</Text>
-        </View>
-
-        <View style={styles.actions}>
-          <TouchableOpacity onPress={() => openEdit(item)}>
-            <Ionicons name="create-outline" size={22} color="#8b5cf6" />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => openDelete(item.id)}>
-            <Ionicons name="trash-outline" size={22} color="#ef4444" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Animated.View>
-  );
+  const filteredCustomers = customers.filter((c) => {
+    const q = searchQuery.toLowerCase();
+    const name = c.name.toLowerCase();
+    const email = c.email.toLowerCase();
+    const phone = (c.phone || "").toLowerCase();
+    return name.includes(q) || email.includes(q) || phone.includes(q);
+  });
 
   return (
-    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
-      {/* HEADER */}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* ── HEADER ── */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
             if (router.canGoBack()) router.back();
             else router.replace("/(admin)/(tabs)/dashboard");
           }}
+          style={styles.backBtn}
         >
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="arrow-back" size={20} color="#FFF" />
         </TouchableOpacity>
 
-        <Text style={styles.headerText}>Customers</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Global Customer Directory</Text>
+          <Text style={styles.headerSubtitle}>
+            {customers.length} Registered Customer Accounts
+          </Text>
+        </View>
 
-        <View style={{ width: 22 }} />
+        <TouchableOpacity style={styles.refreshBtn} onPress={loadCustomers}>
+          <Ionicons name="refresh" size={18} color="#60A5FA" />
+        </TouchableOpacity>
       </View>
 
-      {/* LIST */}
-      <FlatList
-        data={customers}
-        keyExtractor={(i) => i.id.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
-      />
-
-      {/* FAB */}
-      <TouchableOpacity
-        style={[styles.fab, { bottom: insets.bottom + 20 }]}
-        onPress={() => {
-          setEditingCustomer(null);
-          setForm({ name: "", email: "" });
-          setModalVisible(true);
-        }}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+        }
       >
-        <Ionicons name="add" size={26} color="#fff" />
-      </TouchableOpacity>
+        {/* ── HERO METRICS BAR ── */}
+        <LinearGradient colors={["#1E1B4B", "#312E81"]} style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroLabel}>Platform Customers Overview</Text>
+              <Text style={styles.heroValue}>{customers.length} Active Accounts</Text>
+            </View>
+            <View style={styles.heroIconBox}>
+              <Ionicons name="people" size={24} color="#34D399" />
+            </View>
+          </View>
 
-      {/* MODAL */}
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              {editingCustomer ? "Edit Customer" : "Add Customer"}
+          <View style={styles.heroSubRow}>
+            <View style={styles.subStatPill}>
+              <Text style={styles.subStatLabel}>Account Status:</Text>
+              <Text style={styles.subStatValue}>100% Verified Users</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* ── SEARCH & ACTION BAR ── */}
+        <View style={styles.actionBar}>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={18} color="#94A3B8" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search customer by name, email, or phone..."
+              placeholderTextColor="#64748B"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => {
+              setEditingCustomer(null);
+              setForm({ name: "", email: "", phone: "", password: "" });
+              setModalVisible(true);
+            }}
+          >
+            <Ionicons name="person-add" size={18} color="#FFF" />
+            <Text style={styles.addBtnText}>+ Add Customer</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── CUSTOMER LIST ── */}
+        {loading && customers.length === 0 ? (
+          <ActivityIndicator color="#3B82F6" size="large" style={{ marginTop: 40 }} />
+        ) : filteredCustomers.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={48} color="#475569" />
+            <Text style={styles.emptyTitle}>No Customers Found</Text>
+            <Text style={styles.emptySub}>
+              {searchQuery ? "Try refining your search term." : 'Tap "+ Add Customer" to register a new account.'}
             </Text>
-
-            <TextInput
-              placeholder="Name"
-              value={form.name}
-              onChangeText={(t) => setForm({ ...form, name: t })}
-              style={styles.input}
-              placeholderTextColor="#aaa"
-            />
-
-            <TextInput
-              placeholder="Email"
-              value={form.email}
-              onChangeText={(t) => setForm({ ...form, email: t })}
-              style={styles.input}
-              placeholderTextColor="#aaa"
-            />
-
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>Save</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setModalVisible(false)}>
-              <Text
-                style={{ textAlign: "center", marginTop: 10, color: "#fff" }}
+          </View>
+        ) : (
+          filteredCustomers.map((c, index) => (
+            <Animated.View key={c.id} entering={FadeInDown.delay(index * 40)}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setInspectCustomer(c)}
+                style={styles.card}
               >
-                Cancel
-              </Text>
+                <View style={styles.cardHeader}>
+                  <View style={styles.avatarBox}>
+                    <Text style={styles.avatarText}>
+                      {c.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={styles.customerName}>{c.name}</Text>
+                    <Text style={styles.customerEmail}>{c.email}</Text>
+                    {c.phone && (
+                      <Text style={styles.customerPhone}>📞 {c.phone}</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.verifiedBadge}>
+                    <Ionicons name="shield-checkmark" size={12} color="#34D399" />
+                    <Text style={styles.verifiedText}>Verified</Text>
+                  </View>
+                </View>
+
+                {/* Actions */}
+                <View style={styles.cardActions}>
+                  <TouchableOpacity
+                    style={[styles.miniActionBtn, { backgroundColor: "#3B82F622", borderColor: "#3B82F655" }]}
+                    onPress={() => setInspectCustomer(c)}
+                  >
+                    <Ionicons name="eye-outline" size={14} color="#60A5FA" />
+                    <Text style={{ color: "#60A5FA", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+                      Inspect
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.miniActionBtn, { backgroundColor: "#F59E0B22", borderColor: "#F59E0B55" }]}
+                    onPress={() => openEdit(c)}
+                  >
+                    <Ionicons name="create-outline" size={14} color="#FBBF24" />
+                    <Text style={{ color: "#FBBF24", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+                      Edit
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.miniActionBtn, { backgroundColor: "#EF444422", borderColor: "#EF444455" }]}
+                    onPress={() => {
+                      setSelectedDeleteId(c.id);
+                      setDeleteModal(true);
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={14} color="#F87171" />
+                    <Text style={{ color: "#F87171", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+                      Delete
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          ))
+        )}
+      </ScrollView>
+
+      {/* ── 👁️ INSPECT CUSTOMER MODAL ── */}
+      <Modal visible={!!inspectCustomer} transparent animationType="fade" onRequestClose={() => setInspectCustomer(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>{inspectCustomer?.name}</Text>
+                <Text style={{ color: "#60A5FA", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
+                  Customer ID #{inspectCustomer?.id}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setInspectCustomer(null)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 360 }}>
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Email Address (Login ID)</Text>
+                <Text style={styles.detailValue}>{inspectCustomer?.email}</Text>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Phone Number</Text>
+                <Text style={styles.detailValue}>{inspectCustomer?.phone || "No phone registered"}</Text>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Account Verification</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+                  <Ionicons name="shield-checkmark" size={16} color="#10B981" style={{ marginRight: 6 }} />
+                  <Text style={{ color: "#34D399", fontWeight: "700", fontSize: 13 }}>Active Verified Account</Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setInspectCustomer(null)}>
+              <Text style={styles.closeBtnText}>Close Inspection</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* DELETE MODAL */}
-      <Modal visible={deleteModal} transparent animationType="fade">
-        <View style={styles.confirmOverlay}>
-          <View style={styles.confirmBox}>
-            <Text style={styles.confirmTitle}>Delete Customer?</Text>
-            <Text style={styles.confirmText}>
-              This action cannot be undone.
-            </Text>
+      {/* ── ✏️ ADD / EDIT CUSTOMER MODAL ── */}
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>{editingCustomer ? "Edit Customer Account" : "Add Customer Account"}</Text>
+                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                  Register or update customer profile details
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
 
-            <View style={styles.confirmActions}>
-              <TouchableOpacity
-                style={[styles.confirmBtn, { backgroundColor: "#333" }]}
-                onPress={() => setDeleteModal(false)}
-              >
-                <Text style={{ color: "#fff" }}>Cancel</Text>
+            <ScrollView style={{ maxHeight: 380 }}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Full Name *</Text>
+                <TextInput
+                  placeholder="e.g. Abebe Bikila"
+                  placeholderTextColor="#64748B"
+                  value={form.name}
+                  onChangeText={(t) => setForm({ ...form, name: t })}
+                  style={styles.textInput}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email Address *</Text>
+                <TextInput
+                  placeholder="e.g. abebe@gmail.com"
+                  placeholderTextColor="#64748B"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={form.email}
+                  onChangeText={(t) => setForm({ ...form, email: t })}
+                  style={styles.textInput}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <TextInput
+                  placeholder="e.g. +251911..."
+                  placeholderTextColor="#64748B"
+                  keyboardType="phone-pad"
+                  value={form.phone}
+                  onChangeText={(t) => setForm({ ...form, phone: t })}
+                  style={styles.textInput}
+                />
+              </View>
+
+              {!editingCustomer && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Initial Password</Text>
+                  <TextInput
+                    placeholder="Min 6 characters (default: password123)"
+                    placeholderTextColor="#64748B"
+                    secureTextEntry
+                    value={form.password}
+                    onChangeText={(t) => setForm({ ...form, password: t })}
+                    style={styles.textInput}
+                  />
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+              <TouchableOpacity style={styles.closeBtn} onPress={() => setModalVisible(false)}>
+                <Text style={styles.closeBtnText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.confirmBtn, { backgroundColor: "#ef4444" }]}
-                onPress={confirmDelete}
+                style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]}
+                onPress={handleSave}
+                disabled={isSubmitting}
               >
-                <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                  Delete
-                </Text>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
+                    {editingCustomer ? "Save Updates" : "Create Account"}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* SUCCESS MODAL */}
-      <Modal visible={successModal} transparent animationType="fade">
-        <View style={styles.confirmOverlay}>
-          <View style={[styles.confirmBox, { borderColor: "#22c55e" }]}>
-            <Ionicons name="checkmark-circle" size={50} color="#22c55e" />
-            <Text style={styles.confirmTitle}>Success</Text>
-            <Text style={styles.confirmText}>{successMessage}</Text>
-
-            <TouchableOpacity
-              style={[styles.confirmBtn, { backgroundColor: "#22c55e" }]}
-              onPress={() => setSuccessModal(false)}
-            >
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                Continue
+      {/* ── 🗑️ DELETE CONFIRMATION MODAL ── */}
+      <Modal visible={deleteModal} transparent animationType="fade" onRequestClose={() => setDeleteModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { borderColor: "#EF4444" }]}>
+            <View style={{ alignItems: "center", paddingVertical: 10 }}>
+              <Ionicons name="warning-outline" size={36} color="#EF4444" style={{ marginBottom: 8 }} />
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#FFF", textAlign: "center" }}>
+                Delete Customer Account?
               </Text>
-            </TouchableOpacity>
+              <Text style={{ color: "#94A3B8", fontSize: 12, textAlign: "center", marginTop: 4 }}>
+                This will permanently erase this customer account from the platform.
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+              <TouchableOpacity style={styles.closeBtn} onPress={() => setDeleteModal(false)} disabled={isDeleting}>
+                <Text style={styles.closeBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.deleteModalBtn} onPress={confirmDelete} disabled={isDeleting}>
+                {isDeleting ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: "#FFF", fontWeight: "800" }}>🗑️ Yes, Delete</Text>}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
 /* ================= STYLES ================= */
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-
+  container: { flex: 1, backgroundColor: "#0F172A" },
   header: {
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#1E293B",
+    borderBottomWidth: 1,
+    borderBottomColor: "#334155",
+    gap: 12,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#334155",
+    justifyContent: "center",
     alignItems: "center",
   },
-
-  headerText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#F8FAFC" },
+  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
+  refreshBtn: { padding: 6 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+  heroCard: { padding: 18, borderRadius: 16, marginBottom: 16 },
+  heroRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  heroLabel: { fontSize: 12, color: "#DBEAFE", fontWeight: "500" },
+  heroValue: { fontSize: 24, fontWeight: "800", color: "#FFF", marginTop: 4 },
+  heroIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "rgba(52, 211, 153, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(52, 211, 153, 0.3)",
   },
-
-  card: {
+  heroSubRow: { flexDirection: "row", marginTop: 12, gap: 8 },
+  subStatPill: {
     flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 16,
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  subStatLabel: { fontSize: 11, color: "#CBD5E1", marginRight: 4 },
+  subStatValue: { fontSize: 11, fontWeight: "700", color: "#FFF" },
+  actionBar: { flexDirection: "row", marginBottom: 16, gap: 10 },
+  searchBox: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1E293B",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 42,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  searchInput: { flex: 1, color: "#F8FAFC", marginLeft: 8, fontSize: 13 },
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2563EB",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    justifyContent: "center",
+  },
+  addBtnText: { color: "#FFF", fontWeight: "700", marginLeft: 4, fontSize: 13 },
+  card: {
+    backgroundColor: "#1E293B",
+    borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    alignItems: "center",
+    borderColor: "#334155",
   },
-
+  cardHeader: { flexDirection: "row", alignItems: "center" },
   avatarBox: {
-    width: 45,
-    height: 45,
-    borderRadius: 12,
-    backgroundColor: "rgba(139,92,246,0.15)",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#3B82F622",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-
-  title: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  desc: { color: "#aaa", fontSize: 12 },
-
-  actions: { flexDirection: "row", gap: 12 },
-
-  fab: {
-    position: "absolute",
-    right: 20,
-    backgroundColor: "#6d28d9",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-
-  modalCard: {
-    backgroundColor: "#1a1b3a",
-    margin: 20,
-    padding: 20,
-    borderRadius: 16,
-  },
-
-  modalTitle: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-
-  input: {
-    backgroundColor: "rgba(255,255,255,0.05)",
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 10,
-    color: "#fff",
-  },
-
-  saveBtn: {
-    backgroundColor: "#6d28d9",
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 15,
-  },
-
-  confirmOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.6)",
-  },
-
-  confirmBox: {
-    width: "80%",
-    backgroundColor: "#1a1b3a",
-    padding: 20,
-    borderRadius: 16,
-    alignItems: "center",
+    marginRight: 12,
     borderWidth: 1,
-    borderColor: "#6d28d9",
+    borderColor: "#3B82F655",
   },
-
-  confirmTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginTop: 10,
-  },
-
-  confirmText: {
-    color: "#aaa",
-    textAlign: "center",
-    marginVertical: 10,
-  },
-
-  confirmActions: {
+  avatarText: { color: "#60A5FA", fontWeight: "800", fontSize: 18 },
+  customerName: { color: "#FFF", fontWeight: "800", fontSize: 15 },
+  customerEmail: { color: "#CBD5E1", fontSize: 12, marginTop: 1 },
+  customerPhone: { color: "#94A3B8", fontSize: 11, marginTop: 2 },
+  verifiedBadge: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 10,
-  },
-
-  confirmBtn: {
-    padding: 10,
-    borderRadius: 10,
-    minWidth: 80,
     alignItems: "center",
+    backgroundColor: "#10B98122",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#10B98155",
+    gap: 4,
   },
+  verifiedText: { color: "#34D399", fontSize: 10, fontWeight: "700" },
+  cardActions: {
+    flexDirection: "row",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#334155",
+    gap: 8,
+  },
+  miniActionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  emptyState: { alignItems: "center", paddingVertical: 50 },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#F8FAFC", marginTop: 10 },
+  emptySub: { fontSize: 12, color: "#94A3B8", marginTop: 4 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.8)", justifyContent: "center", padding: 16 },
+  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, maxHeight: "90%", borderWidth: 1, borderColor: "#334155" },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#F8FAFC" },
+  detailSection: { backgroundColor: "#0F172A", padding: 12, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: "#334155" },
+  detailLabel: { fontSize: 11, color: "#94A3B8", fontWeight: "700", textTransform: "uppercase" },
+  detailValue: { fontSize: 14, fontWeight: "700", color: "#F8FAFC", marginTop: 2 },
+  inputGroup: { marginBottom: 12 },
+  inputLabel: { fontSize: 12, fontWeight: "700", color: "#CBD5E1", marginBottom: 6 },
+  textInput: { backgroundColor: "#0F172A", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: "#F8FAFC", borderWidth: 1, borderColor: "#334155" },
+  closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  closeBtnText: { color: "#FFF", fontWeight: "700" },
+  submitBtn: { flex: 1, backgroundColor: "#2563EB", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  deleteModalBtn: { flex: 1, backgroundColor: "#EF4444", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
 });

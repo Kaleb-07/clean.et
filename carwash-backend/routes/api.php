@@ -155,5 +155,6 @@ Route::middleware('auth:sanctum')->group(function () {
 // ─── ADMIN INVOICE MANAGEMENT ────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('/admin/invoices/generate/{bookingId}', [AdminInvoiceController::class, 'generate']);
+    Route::put('/admin/invoices/{id}/status',            [AdminInvoiceController::class, 'updateStatus']);
 });
 

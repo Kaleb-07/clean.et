@@ -47,4 +47,27 @@ class AdminInvoiceController extends Controller
 
         return new InvoiceResource($invoice);
     }
+
+    /**
+     * PUT /api/admin/invoices/{id}/status
+     * Admin method to update an invoice status.
+     */
+    public function updateStatus(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'status' => 'required|string|in:draft,sent,paid,overdue,cancelled',
+        ]);
+
+        $invoice = \App\Models\Invoice::findOrFail($id);
+        $invoice->status = $validated['status'];
+        if ($validated['status'] === 'paid' && !$invoice->issued_at) {
+            $invoice->issued_at = now();
+        }
+        $invoice->save();
+
+        return response()->json([
+            'message' => "Invoice #{$id} status updated to {$validated['status']}.",
+            'data'    => $invoice,
+        ]);
+    }
 }

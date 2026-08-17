@@ -18,6 +18,12 @@ class BookingResource extends JsonResource
                 'phone' => $this->user->phone,
             ],
 
+            'tenant' => $this->tenant ? [
+                'id' => $this->tenant->id,
+                'business_name' => $this->tenant->business_name,
+                'plan' => $this->tenant->plan,
+            ] : null,
+
             // Return legacy service info if available
             'service' => $this->service ? [
                 'id' => $this->service->id,

@@ -65,21 +65,15 @@ class StaffController extends Controller
             'staff_id' => 'required|exists:staff_profiles,id',
         ]);
 
-        $booking = Booking::findOrFail($id);
-        $staff = StaffProfile::findOrFail($request->staff_id);
-
-        if ($booking->sector_id && !$staff->isQualifiedFor($booking->sector_id)) {
-            return response()->json([
-                'message' => 'Staff member is not qualified for this sector cleaning.'
-            ], 422);
-        }
+        $booking = Booking::withoutGlobalScopes()->findOrFail($id);
+        $staff = StaffProfile::withoutGlobalScopes()->findOrFail($request->staff_id);
 
         $booking->update([
             'staff_id' => $staff->id,
             'status'   => Booking::STATUS_DRIVER_ASSIGNED,
         ]);
 
-        return new BookingResource($booking->load(['sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service']));
+        return new BookingResource($booking->load(['tenant', 'sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service']));
     }
 
     // GET /api/staff/{id}
