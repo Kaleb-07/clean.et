@@ -46,24 +46,27 @@ class AuthService
      */
     public function login(array $data): ?User
     {
-        $rawIdentifier = trim($data['phone'] ?? $data['email'] ?? '');
+        $rawIdentifier = trim($data['email'] ?? $data['phone'] ?? '');
         if (!$rawIdentifier) {
             return null;
         }
 
+        $cleanPassword = trim($data['password'] ?? '');
         $normalizedPhone = $this->normalizePhone($rawIdentifier);
 
         $user = User::withoutGlobalScopes()
-            ->where('email', strtolower($rawIdentifier))
-            ->orWhere('phone', $rawIdentifier)
-            ->orWhere(function ($query) use ($normalizedPhone) {
+            ->where(function ($query) use ($rawIdentifier, $normalizedPhone) {
+                $query->where('email', strtolower($rawIdentifier))
+                      ->orWhere('email', $rawIdentifier)
+                      ->orWhere('phone', $rawIdentifier);
+
                 if ($normalizedPhone) {
-                    $query->where('phone', $normalizedPhone);
+                    $query->orWhere('phone', $normalizedPhone);
                 }
             })
             ->first();
 
-        if (!$user || !Hash::check($data['password'], $user->password)) {
+        if (!$user || !Hash::check($cleanPassword, $user->password)) {
             return null;
         }
 

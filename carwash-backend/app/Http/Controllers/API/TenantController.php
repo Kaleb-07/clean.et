@@ -58,12 +58,14 @@ class TenantController extends Controller
 
             $adminUser = null;
             if (!empty($validated['admin_email']) && !empty($validated['admin_password'])) {
+                $cleanEmail = strtolower(trim($validated['admin_email']));
+                $cleanPassword = trim($validated['admin_password']);
                 $adminUser = User::create([
                     'tenant_id' => $tenant->id,
-                    'name'      => $validated['admin_name'] ?? ($validated['business_name'] . ' Admin'),
-                    'email'     => $validated['admin_email'],
-                    'password'  => Hash::make($validated['admin_password']),
-                    'phone'     => $validated['admin_phone'] ?? null,
+                    'name'      => !empty($validated['admin_name']) ? trim($validated['admin_name']) : ($validated['business_name'] . ' Admin'),
+                    'email'     => $cleanEmail,
+                    'password'  => Hash::make($cleanPassword),
+                    'phone'     => !empty($validated['admin_phone']) ? trim($validated['admin_phone']) : null,
                     'role'      => 'tenant_admin',
                 ]);
             }
@@ -110,22 +112,59 @@ class TenantController extends Controller
         $tenant = Tenant::findOrFail($id);
 
         $validated = $request->validate([
-            'business_name'        => 'required|string|max:255',
-            'plan'                 => 'required|string|in:starter,growth,enterprise',
-            'categories_enabled'   => 'required|array',
+            'business_name'        => 'sometimes|required|string|max:255',
+            'plan'                 => 'sometimes|required|string|in:starter,growth,enterprise',
+            'categories_enabled'   => 'sometimes|required|array',
             'categories_enabled.*' => 'string|max:100',
+            'admin_name'           => 'nullable|string|max:255',
+            'admin_email'          => 'nullable|email|max:255',
+            'admin_password'       => 'nullable|string|min:6',
+            'admin_phone'          => 'nullable|string|max:50',
         ]);
 
-        $tenant->update($validated);
+        DB::transaction(function () use ($tenant, $validated) {
+            $tenantData = array_filter([
+                'business_name'      => $validated['business_name'] ?? null,
+                'plan'               => $validated['plan'] ?? null,
+                'categories_enabled' => $validated['categories_enabled'] ?? null,
+            ]);
+            if (!empty($tenantData)) {
+                $tenant->update($tenantData);
+            }
+
+            // Update primary tenant admin credentials if provided
+            $adminUser = User::where('tenant_id', $tenant->id)->where('role', 'tenant_admin')->first();
+            if ($adminUser) {
+                $userUpdates = [];
+                if (!empty($validated['admin_name'])) {
+                    $userUpdates['name'] = trim($validated['admin_name']);
+                }
+                if (!empty($validated['admin_email'])) {
+                    $userUpdates['email'] = strtolower(trim($validated['admin_email']));
+                }
+                if (!empty($validated['admin_password'])) {
+                    $userUpdates['password'] = Hash::make(trim($validated['admin_password']));
+                }
+                if (array_key_exists('admin_phone', $validated)) {
+                    $userUpdates['phone'] = !empty($validated['admin_phone']) ? trim($validated['admin_phone']) : null;
+                }
+
+                if (!empty($userUpdates)) {
+                    $adminUser->update($userUpdates);
+                }
+            }
+        });
 
         AuditLog::log(
             'TENANT_UPDATED',
-            "Updated tenant details for: {$tenant->business_name}",
-            ['tenant_id' => $tenant->id, 'changes' => $validated]
+            "Updated tenant details and admin credentials for: {$tenant->business_name}",
+            ['tenant_id' => $tenant->id]
         );
 
+        $tenant->load('users');
+
         return response()->json([
-            'message' => 'Tenant settings updated successfully.',
+            'message' => 'Tenant and admin credentials updated successfully.',
             'data'    => $tenant
         ]);
     }
@@ -188,5 +227,33 @@ class TenantController extends Controller
             'message' => 'Tenant admin user created successfully.',
             'data'    => $admin,
         ], 201);
+    }
+
+    // ─────────────────────────────────────────────
+    //  DELETE /api/tenants/{id}
+    // ─────────────────────────────────────────────
+    public function destroy(Request $request, $id): JsonResponse
+    {
+        $tenant = Tenant::findOrFail($id);
+        $businessName = $tenant->business_name;
+
+        DB::transaction(function () use ($tenant) {
+            // Delete associated tenant records (Bookings, StaffProfiles, Invoices, Users)
+            \App\Models\Booking::where('tenant_id', $tenant->id)->delete();
+            \App\Models\StaffProfile::where('tenant_id', $tenant->id)->delete();
+            \App\Models\Invoice::where('tenant_id', $tenant->id)->delete();
+            User::where('tenant_id', $tenant->id)->delete();
+            $tenant->delete();
+        });
+
+        AuditLog::log(
+            'TENANT_DELETED',
+            "Permanently deleted tenant company: {$businessName} (ID: {$id})",
+            ['tenant_id' => $id, 'business_name' => $businessName]
+        );
+
+        return response()->json([
+            'message' => "Tenant business '{$businessName}' removed successfully."
+        ]);
     }
 }

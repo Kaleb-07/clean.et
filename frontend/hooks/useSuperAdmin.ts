@@ -174,6 +174,17 @@ export function useSuperAdmin() {
     [loadAllData]
   );
 
+  const deleteTenant = useCallback(
+    async (id: number) => {
+      await apiFetch<{ message: string }>(`/tenants/${id}`, {
+        method: "DELETE",
+      });
+      setTenants((prev) => prev.filter((t) => t.id !== id));
+      await loadAllData();
+    },
+    [loadAllData]
+  );
+
   return {
     tenants,
     analytics,
@@ -186,6 +197,7 @@ export function useSuperAdmin() {
     createTenantWithAdmin,
     updateTenantStatus,
     updateTenant,
+    deleteTenant,
     updateSystemSettings,
   };
 }

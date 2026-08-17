@@ -11,10 +11,11 @@ import {
   ActivityIndicator,
   Switch,
   RefreshControl,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -24,6 +25,95 @@ import {
 } from "../../hooks/useSuperAdmin";
 
 type ActiveTab = "overview" | "tenants" | "governance";
+type WizardStep = 1 | 2 | 3;
+
+interface PlanTierInfo {
+  id: "starter" | "growth" | "enterprise";
+  name: string;
+  badge: string;
+  commission: string;
+  staffLimit: string;
+  features: string[];
+  colors: [string, string];
+  borderColor: string;
+}
+
+const SUBSCRIPTION_PLANS: PlanTierInfo[] = [
+  {
+    id: "starter",
+    name: "Starter Business",
+    badge: "5% Fee",
+    commission: "5% Commission",
+    staffLimit: "Max 5 Staff Members",
+    features: ["Standard Bay Wash / Clean", "Basic Invoicing & Billing", "Mobile App Access"],
+    colors: ["#0F172A", "#1E293B"],
+    borderColor: "#334155",
+  },
+  {
+    id: "growth",
+    name: "Growth Tier",
+    badge: "RECOMMENDED (8% Fee)",
+    commission: "8% Commission",
+    staffLimit: "Max 20 Staff Members",
+    features: ["Multi-Sector Enabled", "Automated Dispatch Queue", "Customer Accounts & Fleets"],
+    colors: ["#1E1B4B", "#312E81"],
+    borderColor: "#6366F1",
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise Core",
+    badge: "FULL ACCESS (10% Fee)",
+    commission: "10% Platform Rate",
+    staffLimit: "Unlimited Staff & Techs",
+    features: ["Full Multi-Sector Schemas", "IRATA Rope Access High-Rise", "Priority API & Dedicated Manager"],
+    colors: ["#064E3B", "#047857"],
+    borderColor: "#10B981",
+  },
+];
+
+interface SectorCategoryOption {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  color: string;
+  tags: string[];
+}
+
+const SECTOR_CATEGORIES: SectorCategoryOption[] = [
+  {
+    id: "car-washing",
+    title: "Car Washing & Detailing",
+    subtitle: "Sedans, SUVs, Minibuses, Engine Bays & Mobile Home Wash",
+    icon: "car-sport",
+    color: "#3B82F6",
+    tags: ["Foam Wash", "Interior Vacuum", "Ceramic Coating", "Mobile Dispatch"],
+  },
+  {
+    id: "building-cleaning",
+    title: "Building & Property Clean",
+    subtitle: "High-Rise Glass Windows, Post-Construction & Office Steam Sanitation",
+    icon: "business",
+    color: "#10B981",
+    tags: ["IRATA Rope Access", "High-Rise Glass", "Carpet Steam", "Plaster Clean"],
+  },
+  {
+    id: "laundry",
+    title: "Commercial Laundry & Linen",
+    subtitle: "Hotel Linens, Garment Dry Cleaning & Bulk Fabric Steam",
+    icon: "shirt",
+    color: "#F59E0B",
+    tags: ["Linen Steam", "Garment Express", "Dry Clean"],
+  },
+  {
+    id: "maintenance",
+    title: "Property Maintenance & HVAC",
+    subtitle: "Air Duct Sanitation, Plumbing, Electrical & Facility Care",
+    icon: "construct",
+    color: "#A78BFA",
+    tags: ["Duct Clean", "Facility Repairs", "HVAC Wash"],
+  },
+];
 
 export default function SuperAdminTenantsScreen() {
   const router = useRouter();
@@ -40,15 +130,45 @@ export default function SuperAdminTenantsScreen() {
     reload,
     createTenantWithAdmin,
     updateTenantStatus,
+    updateTenant,
+    deleteTenant,
     updateSystemSettings,
   } = useSuperAdmin();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Onboarding Modal state
+  // Onboarding Wizard Modal state
   const [modalVisible, setModalVisible] = useState(false);
+  const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // View & Edit Tenant Modal state
+  const [viewTenant, setViewTenant] = useState<Tenant | null>(null);
+  const [editTenant, setEditTenant] = useState<Tenant | null>(null);
+  const [deleteTenantTarget, setDeleteTenantTarget] = useState<Tenant | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [editForm, setEditForm] = useState<{
+    business_name: string;
+    plan: "starter" | "growth" | "enterprise";
+    categories_enabled: string[];
+    admin_name: string;
+    admin_email: string;
+    admin_password: string;
+    admin_phone: string;
+  }>({
+    business_name: "",
+    plan: "growth",
+    categories_enabled: [],
+    admin_name: "",
+    admin_email: "",
+    admin_password: "",
+    admin_phone: "",
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   const [form, setForm] = useState<CreateTenantPayload>({
     business_name: "",
@@ -78,24 +198,46 @@ export default function SuperAdminTenantsScreen() {
     });
   };
 
+  const toggleEditCategory = (cat: string) => {
+    setEditForm((prev) => {
+      const exists = prev.categories_enabled.includes(cat);
+      const updated = exists
+        ? prev.categories_enabled.filter((c) => c !== cat)
+        : [...prev.categories_enabled, cat];
+      return { ...prev, categories_enabled: updated };
+    });
+  };
+
   const handleCreateTenant = async () => {
     if (!form.business_name.trim()) {
-      Alert.alert("Error", "Please enter the Business Name.");
+      Alert.alert("Required", "Please enter the Tenant Business Name.");
+      setWizardStep(1);
       return;
     }
     if (form.categories_enabled.length === 0) {
-      Alert.alert("Error", "Please select at least one enabled service category.");
+      Alert.alert("Required", "Please select at least one authorized service sector category.");
+      setWizardStep(2);
       return;
     }
-    if (form.admin_email && !form.admin_password) {
-      Alert.alert("Error", "Please enter a password for the Tenant Admin user.");
+    if (!form.admin_email || !form.admin_password) {
+      Alert.alert("Required", "Please enter an Email Address and Password for the Tenant Admin user.");
+      setWizardStep(3);
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await createTenantWithAdmin(form);
+      await createTenantWithAdmin({
+        business_name: form.business_name.trim(),
+        plan: form.plan,
+        categories_enabled: form.categories_enabled,
+        admin_name: form.admin_name.trim(),
+        admin_email: form.admin_email.trim().toLowerCase(),
+        admin_password: form.admin_password.trim(),
+        admin_phone: form.admin_phone.trim(),
+      });
       setModalVisible(false);
+      setWizardStep(1);
       setForm({
         business_name: "",
         plan: "growth",
@@ -105,11 +247,56 @@ export default function SuperAdminTenantsScreen() {
         admin_password: "",
         admin_phone: "",
       });
-      Alert.alert("Success", "Tenant & Admin account onboarded successfully!");
+      Alert.alert("🎉 Success!", "Tenant Company & Admin Account successfully onboarded and activated!");
     } catch (err: any) {
-      Alert.alert("Error", err?.message || "Failed to onboard tenant.");
+      Alert.alert("Onboarding Error", err?.message || "Failed to onboard tenant.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const openEditModal = (t: Tenant) => {
+    const primaryAdmin = t.users?.[0] || (t as any).admin;
+    setEditTenant(t);
+    setEditForm({
+      business_name: t.business_name,
+      plan: t.plan,
+      categories_enabled: t.categories_enabled ?? ["car-washing"],
+      admin_name: primaryAdmin?.name || "",
+      admin_email: primaryAdmin?.email || "",
+      admin_password: "",
+      admin_phone: primaryAdmin?.phone || "",
+    });
+  };
+
+  const handleSaveEditTenant = async () => {
+    if (!editTenant) return;
+    if (!editForm.business_name.trim()) {
+      Alert.alert("Required", "Please enter a valid Business Name.");
+      return;
+    }
+    if (editForm.categories_enabled.length === 0) {
+      Alert.alert("Required", "At least one category must be selected.");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await updateTenant(editTenant.id, {
+        business_name: editForm.business_name.trim(),
+        plan: editForm.plan,
+        categories_enabled: editForm.categories_enabled,
+        admin_name: editForm.admin_name.trim(),
+        admin_email: editForm.admin_email.trim().toLowerCase(),
+        admin_password: editForm.admin_password.trim() ? editForm.admin_password.trim() : undefined,
+        admin_phone: editForm.admin_phone.trim(),
+      });
+      setEditTenant(null);
+      Alert.alert("Saved", "Tenant company profile & admin credentials updated successfully!");
+    } catch (err: any) {
+      Alert.alert("Update Error", err?.message || "Failed to update tenant.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -140,12 +327,20 @@ export default function SuperAdminTenantsScreen() {
     t.business_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(admin)/(tabs)/dashboard");
+    }
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ─── HEADER ─── */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={handleBack}
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={24} color="#FFF" />
@@ -179,9 +374,9 @@ export default function SuperAdminTenantsScreen() {
           onPress={() => setActiveTab("overview")}
         >
           <Ionicons
-            name="analytics-outline"
+            name="pie-chart-outline"
             size={18}
-            color={activeTab === "overview" ? "#3B82F6" : "#9CA3AF"}
+            color={activeTab === "overview" ? "#60A5FA" : "#9CA3AF"}
           />
           <Text
             style={[
@@ -200,7 +395,7 @@ export default function SuperAdminTenantsScreen() {
           <Ionicons
             name="business-outline"
             size={18}
-            color={activeTab === "tenants" ? "#3B82F6" : "#9CA3AF"}
+            color={activeTab === "tenants" ? "#60A5FA" : "#9CA3AF"}
           />
           <Text
             style={[
@@ -217,9 +412,9 @@ export default function SuperAdminTenantsScreen() {
           onPress={() => setActiveTab("governance")}
         >
           <Ionicons
-            name="shield-checkmark-outline"
+            name="settings-outline"
             size={18}
-            color={activeTab === "governance" ? "#3B82F6" : "#9CA3AF"}
+            color={activeTab === "governance" ? "#60A5FA" : "#9CA3AF"}
           />
           <Text
             style={[
@@ -232,10 +427,11 @@ export default function SuperAdminTenantsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ─── MAIN CONTENT AREA ─── */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading Super Admin Intelligence...</Text>
+          <Text style={styles.loadingText}>Loading Platform Governance...</Text>
         </View>
       ) : (
         <ScrollView
@@ -245,126 +441,103 @@ export default function SuperAdminTenantsScreen() {
             <RefreshControl refreshing={isLoading} onRefresh={reload} tintColor="#3B82F6" />
           }
         >
-          {/* ─── TAB 1: OVERVIEW & ANALYTICS ─── */}
+          {/* TAB 1: OVERVIEW & PLATFORM GMV */}
           {activeTab === "overview" && (
-            <Animated.View entering={FadeInDown.duration(300)}>
-              {/* GMV HERO CARD */}
+            <Animated.View entering={FadeInDown}>
+              {/* Hero GMV Box */}
               <LinearGradient
-                colors={["#1E3A8A", "#3B82F6"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                colors={["#1E1B4B", "#312E81"]}
                 style={styles.heroCard}
               >
                 <View style={styles.heroCardHeader}>
-                  <Text style={styles.heroLabel}>Total Platform GMV</Text>
+                  <Text style={styles.heroLabel}>Platform Gross Merchandise Value (GMV)</Text>
                   <View style={styles.currencyPill}>
                     <Text style={styles.currencyPillText}>
                       {analytics?.currency || "ETB"}
                     </Text>
                   </View>
                 </View>
+
                 <Text style={styles.heroValue}>
-                  {analytics?.currency || "ETB"}{" "}
-                  {analytics?.gmv.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  }) || "0.00"}
+                  ETB {(analytics?.gmv ?? 0).toLocaleString("en-ET", { minimumFractionDigits: 2 })}
                 </Text>
+
                 <Text style={styles.heroSubtext}>
-                  Gross Merchandise Value from completed & invoiced bookings across all tenants
+                  Total completed revenue across {analytics?.tenants?.active ?? 0} active tenants
                 </Text>
               </LinearGradient>
 
-              {/* STATS GRID */}
+              {/* KPI Boxes */}
               <View style={styles.gridRow}>
                 <View style={styles.statBox}>
-                  <Ionicons name="business" size={24} color="#3B82F6" />
-                  <Text style={styles.statBoxValue}>
-                    {analytics?.tenants.active || 0} / {analytics?.tenants.total || 0}
-                  </Text>
-                  <Text style={styles.statBoxLabel}>Active Tenants</Text>
+                  <Ionicons name="business" size={20} color="#60A5FA" />
+                  <Text style={styles.statBoxValue}>{analytics?.tenants?.total ?? 0}</Text>
+                  <Text style={styles.statBoxLabel}>Total Tenants</Text>
                 </View>
-
                 <View style={styles.statBox}>
-                  <Ionicons name="calendar" size={24} color="#10B981" />
-                  <Text style={styles.statBoxValue}>
-                    {analytics?.bookings.total || 0}
-                  </Text>
-                  <Text style={styles.statBoxLabel}>Global Bookings</Text>
-                </View>
-              </View>
-
-              <View style={styles.gridRow}>
-                <View style={styles.statBox}>
-                  <Ionicons name="people" size={24} color="#F59E0B" />
-                  <Text style={styles.statBoxValue}>
-                    {analytics?.total_customers || 0}
-                  </Text>
+                  <Ionicons name="people" size={20} color="#34D399" />
+                  <Text style={styles.statBoxValue}>{analytics?.total_customers ?? 0}</Text>
                   <Text style={styles.statBoxLabel}>Total Customers</Text>
                 </View>
+              </View>
 
+              <View style={styles.gridRow}>
                 <View style={styles.statBox}>
-                  <Ionicons name="construct" size={24} color="#8B5CF6" />
-                  <Text style={styles.statBoxValue}>
-                    {analytics?.total_staff || 0}
-                  </Text>
-                  <Text style={styles.statBoxLabel}>Field Staff Crew</Text>
+                  <Ionicons name="calendar" size={20} color="#F59E0B" />
+                  <Text style={styles.statBoxValue}>{analytics?.bookings?.total ?? 0}</Text>
+                  <Text style={styles.statBoxLabel}>Global Bookings</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Ionicons name="person-add" size={20} color="#A78BFA" />
+                  <Text style={styles.statBoxValue}>{analytics?.total_staff ?? 0}</Text>
+                  <Text style={styles.statBoxLabel}>Total Staff Crew</Text>
                 </View>
               </View>
 
-              {/* BOOKINGS BREAKDOWN CARD */}
+              {/* Order Status Breakdown */}
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Global Booking Status Breakdown</Text>
+                <Text style={styles.cardTitle}>Global Order Pipeline</Text>
                 <View style={styles.statusRow}>
                   <View style={styles.statusBadgeItem}>
                     <Text style={[styles.statusCount, { color: "#F59E0B" }]}>
-                      {analytics?.bookings.breakdown.pending || 0}
+                      {analytics?.bookings?.breakdown?.pending ?? 0}
                     </Text>
                     <Text style={styles.statusName}>Pending</Text>
                   </View>
-
                   <View style={styles.statusBadgeItem}>
                     <Text style={[styles.statusCount, { color: "#3B82F6" }]}>
-                      {analytics?.bookings.breakdown.in_progress || 0}
+                      {analytics?.bookings?.breakdown?.in_progress ?? 0}
                     </Text>
                     <Text style={styles.statusName}>In Progress</Text>
                   </View>
-
                   <View style={styles.statusBadgeItem}>
                     <Text style={[styles.statusCount, { color: "#10B981" }]}>
-                      {analytics?.bookings.breakdown.completed || 0}
+                      {analytics?.bookings?.breakdown?.completed ?? 0}
                     </Text>
                     <Text style={styles.statusName}>Completed</Text>
-                  </View>
-
-                  <View style={styles.statusBadgeItem}>
-                    <Text style={[styles.statusCount, { color: "#EF4444" }]}>
-                      {analytics?.bookings.breakdown.cancelled || 0}
-                    </Text>
-                    <Text style={styles.statusName}>Cancelled</Text>
                   </View>
                 </View>
               </View>
 
-              {/* SUBSCRIPTION PLAN DISTRIBUTION */}
+              {/* Plan Distribution */}
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Tenant Subscription Plan Breakdown</Text>
+                <Text style={styles.cardTitle}>Subscription Tiers Active</Text>
                 <View style={styles.planDistributionRow}>
                   <View style={styles.planCol}>
                     <Text style={styles.planCount}>
-                      {analytics?.plan_distribution.starter || 0}
+                      {analytics?.plan_distribution?.starter ?? 0}
                     </Text>
                     <Text style={styles.planLabel}>Starter</Text>
                   </View>
                   <View style={styles.planCol}>
-                    <Text style={[styles.planCount, { color: "#3B82F6" }]}>
-                      {analytics?.plan_distribution.growth || 0}
+                    <Text style={styles.planCount}>
+                      {analytics?.plan_distribution?.growth ?? 0}
                     </Text>
                     <Text style={styles.planLabel}>Growth</Text>
                   </View>
                   <View style={styles.planCol}>
-                    <Text style={[styles.planCount, { color: "#8B5CF6" }]}>
-                      {analytics?.plan_distribution.enterprise || 0}
+                    <Text style={styles.planCount}>
+                      {analytics?.plan_distribution?.enterprise ?? 0}
                     </Text>
                     <Text style={styles.planLabel}>Enterprise</Text>
                   </View>
@@ -373,125 +546,160 @@ export default function SuperAdminTenantsScreen() {
             </Animated.View>
           )}
 
-          {/* ─── TAB 2: TENANTS DIRECTORY & ONBOARDING ─── */}
+          {/* TAB 2: TENANTS MANAGEMENT & ONBOARDING */}
           {activeTab === "tenants" && (
-            <Animated.View entering={FadeInDown.duration(300)}>
-              {/* ACTION BAR */}
+            <Animated.View entering={FadeInDown}>
+              {/* Search & Action Bar */}
               <View style={styles.tenantActionBar}>
                 <View style={styles.searchBox}>
-                  <Ionicons name="search" size={18} color="#9CA3AF" />
+                  <Ionicons name="search" size={18} color="#94A3B8" />
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Search tenant business..."
-                    placeholderTextColor="#6B7280"
+                    placeholderTextColor="#64748B"
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                   />
                 </View>
                 <TouchableOpacity
                   style={styles.onboardButton}
-                  onPress={() => setModalVisible(true)}
+                  onPress={() => {
+                    setWizardStep(1);
+                    setModalVisible(true);
+                  }}
                 >
-                  <Ionicons name="add" size={20} color="#FFF" />
-                  <Text style={styles.onboardButtonText}>Onboard</Text>
+                  <Ionicons name="add-circle-outline" size={20} color="#FFF" />
+                  <Text style={styles.onboardButtonText}>+ Onboard</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* TENANTS LIST */}
+              {/* Tenant Cards List */}
               {filteredTenants.length === 0 ? (
                 <View style={styles.emptyBox}>
-                  <Ionicons name="business-outline" size={48} color="#4B5563" />
+                  <Ionicons name="business-outline" size={48} color="#475569" />
                   <Text style={styles.emptyTitle}>No Tenants Found</Text>
                   <Text style={styles.emptySub}>
-                    Click 'Onboard' to create your first tenant company & admin account.
+                    Tap "+ Onboard" to create a new tenant company and primary admin.
                   </Text>
                 </View>
               ) : (
-                filteredTenants.map((t) => (
-                  <View key={t.id} style={styles.tenantCard}>
-                    <View style={styles.tenantCardHeader}>
-                      <View style={styles.tenantTitleGroup}>
-                        <Text style={styles.tenantName}>{t.business_name}</Text>
-                        <View style={styles.planTag}>
-                          <Text style={styles.planTagText}>
-                            {t.plan.toUpperCase()}
+                filteredTenants.map((t) => {
+                  const isActive = t.status === "active";
+                  const primaryAdmin = t.users?.[0] || (t as any).admin;
+
+                  return (
+                    <View key={t.id} style={styles.tenantCard}>
+                      <View style={styles.tenantCardHeader}>
+                        <View style={styles.tenantTitleGroup}>
+                          <Text style={styles.tenantName}>{t.business_name}</Text>
+                          <View style={styles.planTag}>
+                            <Text style={styles.planTagText}>
+                              {t.plan.toUpperCase()} PLAN
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.switchGroup}>
+                          <Text
+                            style={[
+                              styles.statusLabel,
+                              { color: isActive ? "#10B981" : "#EF4444" },
+                            ]}
+                          >
+                            {isActive ? "ACTIVE" : "SUSPENDED"}
                           </Text>
+                          <Switch
+                            value={isActive}
+                            onValueChange={() => handleStatusToggle(t)}
+                            trackColor={{ false: "#475569", true: "#059669" }}
+                            thumbColor={isActive ? "#10B981" : "#94A3B8"}
+                          />
                         </View>
                       </View>
 
-                      <View style={styles.switchGroup}>
-                        <Text
-                          style={[
-                            styles.statusLabel,
-                            {
-                              color:
-                                t.status === "active" ? "#10B981" : "#EF4444",
-                            },
-                          ]}
+                      {/* Enabled Service Categories */}
+                      <View style={styles.categoriesRow}>
+                        <Text style={styles.fieldLabel}>Sectors Enabled:</Text>
+                        {(t.categories_enabled ?? []).map((cat) => (
+                          <View key={cat} style={styles.categoryBadge}>
+                            <Text style={styles.categoryBadgeText}>{cat}</Text>
+                          </View>
+                        ))}
+                      </View>
+
+                      {/* Primary Admin User Box */}
+                      {primaryAdmin && (
+                        <View style={styles.adminUserBox}>
+                          <Ionicons
+                            name="person-circle-outline"
+                            size={24}
+                            color="#60A5FA"
+                            style={{ marginRight: 8 }}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.adminName}>
+                              Primary Admin: {primaryAdmin.name}
+                            </Text>
+                            <Text style={styles.adminEmail}>
+                              {primaryAdmin.email} · {primaryAdmin.phone || "No phone"}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* ── TENANT ACTION BUTTONS (VIEW, EDIT, DELETE) ── */}
+                      <View style={styles.tenantCardActions}>
+                        <TouchableOpacity
+                          style={[styles.actionBtn, { backgroundColor: "#3B82F622", borderColor: "#3B82F655" }]}
+                          onPress={() => setViewTenant(t)}
                         >
-                          {t.status.toUpperCase()}
-                        </Text>
-                        <Switch
-                          value={t.status === "active"}
-                          onValueChange={() => handleStatusToggle(t)}
-                          trackColor={{ false: "#374151", true: "#059669" }}
-                          thumbColor={t.status === "active" ? "#10B981" : "#9CA3AF"}
-                        />
+                          <Ionicons name="eye-outline" size={16} color="#60A5FA" />
+                          <Text style={[styles.actionBtnText, { color: "#60A5FA" }]}>View</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.actionBtn, { backgroundColor: "#F59E0B22", borderColor: "#F59E0B55" }]}
+                          onPress={() => openEditModal(t)}
+                        >
+                          <Ionicons name="create-outline" size={16} color="#FBBF24" />
+                          <Text style={[styles.actionBtnText, { color: "#FBBF24" }]}>Edit</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.actionBtn, { backgroundColor: "#EF444422", borderColor: "#EF444455" }]}
+                          onPress={() => setDeleteTenantTarget(t)}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#F87171" />
+                          <Text style={[styles.actionBtnText, { color: "#F87171" }]}>Delete</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-
-                    {/* ENABLED SERVICES BADGES */}
-                    <View style={styles.categoriesRow}>
-                      <Text style={styles.fieldLabel}>Enabled Sectors:</Text>
-                      {t.categories_enabled.map((cat) => (
-                        <View key={cat} style={styles.categoryBadge}>
-                          <Text style={styles.categoryBadgeText}>{cat}</Text>
-                        </View>
-                      ))}
-                    </View>
-
-                    {/* TENANT ADMIN USER INFO */}
-                    {t.users && t.users.length > 0 && (
-                      <View style={styles.adminUserBox}>
-                        <Ionicons name="person-circle" size={20} color="#60A5FA" />
-                        <View style={{ marginLeft: 8 }}>
-                          <Text style={styles.adminName}>
-                            Admin: {t.users[0].name}
-                          </Text>
-                          <Text style={styles.adminEmail}>{t.users[0].email}</Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                ))
+                  );
+                })
               )}
             </Animated.View>
           )}
 
-          {/* ─── TAB 3: SYSTEM GOVERNANCE & AUDIT LOGS ─── */}
+          {/* TAB 3: SYSTEM GOVERNANCE & AUDIT LOGS */}
           {activeTab === "governance" && (
-            <Animated.View entering={FadeInDown.duration(300)}>
-              {/* GLOBAL SYSTEM SETTINGS CARD */}
+            <Animated.View entering={FadeInDown}>
+              {/* Governance Settings Form */}
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Global System Governance</Text>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Platform Currency</Text>
+                  <Text style={styles.inputLabel}>Default Platform Currency</Text>
                   <TextInput
                     style={styles.textInput}
                     value={settingsForm.default_currency}
                     onChangeText={(val) =>
                       setSettingsForm((p) => ({ ...p, default_currency: val }))
                     }
-                    placeholder="e.g. ETB, USD"
-                    placeholderTextColor="#6B7280"
                   />
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>
-                    Platform Commission Rate (%)
-                  </Text>
+                  <Text style={styles.inputLabel}>Platform Commission Rate (%)</Text>
                   <TextInput
                     style={styles.textInput}
                     keyboardType="numeric"
@@ -502,8 +710,6 @@ export default function SuperAdminTenantsScreen() {
                         platform_commission_rate: val,
                       }))
                     }
-                    placeholder="10.0"
-                    placeholderTextColor="#6B7280"
                   />
                 </View>
 
@@ -516,8 +722,23 @@ export default function SuperAdminTenantsScreen() {
                     onChangeText={(val) =>
                       setSettingsForm((p) => ({ ...p, support_email: val }))
                     }
-                    placeholder="support@clean.et"
-                    placeholderTextColor="#6B7280"
+                  />
+                </View>
+
+                <View style={[styles.inputGroup, { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }]}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={styles.inputLabel}>Maintenance Mode</Text>
+                    <Text style={{ color: "#64748B", fontSize: 11 }}>
+                      If enabled, non-admin users will see a system maintenance message.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={settingsForm.maintenance_mode}
+                    onValueChange={(val) =>
+                      setSettingsForm((p) => ({ ...p, maintenance_mode: val }))
+                    }
+                    trackColor={{ false: "#475569", true: "#DC2626" }}
+                    thumbColor={settingsForm.maintenance_mode ? "#EF4444" : "#94A3B8"}
                   />
                 </View>
 
@@ -529,13 +750,15 @@ export default function SuperAdminTenantsScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* AUDIT LOGS CARD */}
+              {/* Audit Logs History */}
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Platform Audit Logs History</Text>
+                <Text style={styles.cardTitle}>Platform Audit Logs</Text>
                 {auditLogs.length === 0 ? (
-                  <Text style={styles.emptySub}>No audit logs recorded yet.</Text>
+                  <Text style={{ color: "#64748B", fontSize: 12 }}>
+                    No administrative audit events recorded yet.
+                  </Text>
                 ) : (
-                  auditLogs.map((log) => (
+                  auditLogs.slice(0, 10).map((log) => (
                     <View key={log.id} style={styles.auditLogItem}>
                       <View style={styles.auditHeader}>
                         <View style={styles.actionTag}>
@@ -548,7 +771,7 @@ export default function SuperAdminTenantsScreen() {
                       <Text style={styles.auditDesc}>{log.description}</Text>
                       {log.user && (
                         <Text style={styles.auditUser}>
-                          By: {log.user.name} ({log.user.email}) | IP: {log.ip_address}
+                          By: {log.user.name} ({log.user.email})
                         </Text>
                       )}
                     </View>
@@ -560,126 +783,584 @@ export default function SuperAdminTenantsScreen() {
         </ScrollView>
       )}
 
-      {/* ─── ONBOARD TENANT MODAL ─── */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
+      {/* ─── 👁️ VIEW TENANT DETAILS MODAL ─── */}
+      <Modal
+        visible={!!viewTenant}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setViewTenant(null)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Onboard New Tenant & Admin</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close-circle" size={26} color="#9CA3AF" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>{viewTenant?.business_name}</Text>
+                <Text style={{ color: "#60A5FA", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
+                  Tenant ID #{viewTenant?.id} · {viewTenant?.plan.toUpperCase()} TIER
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setViewTenant(null)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalScroll}>
-              <Text style={styles.sectionHeader}>Business Details</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Business Name (e.g. Apex Detailing)"
-                placeholderTextColor="#6B7280"
-                value={form.business_name}
-                onChangeText={(val) => setForm((p) => ({ ...p, business_name: val }))}
-              />
-
-              {/* PLAN PICKER */}
-              <Text style={styles.inputLabel}>Subscription Plan</Text>
-              <View style={styles.planSelectorRow}>
-                {(["starter", "growth", "enterprise"] as const).map((p) => (
-                  <TouchableOpacity
-                    key={p}
-                    style={[
-                      styles.planOption,
-                      form.plan === p && styles.selectedPlanOption,
-                    ]}
-                    onPress={() => setForm((prev) => ({ ...prev, plan: p }))}
-                  >
-                    <Text
-                      style={[
-                        styles.planOptionText,
-                        form.plan === p && styles.selectedPlanOptionText,
-                      ]}
-                    >
-                      {p.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            <ScrollView style={{ maxHeight: 440 }}>
+              <View style={styles.detailCardSection}>
+                <Text style={styles.detailCardLabel}>Account Status</Text>
+                <View style={[styles.detailStatusBadge, { backgroundColor: viewTenant?.status === "active" ? "#10B98122" : "#EF444422" }]}>
+                  <Text style={{ color: viewTenant?.status === "active" ? "#34D399" : "#F87171", fontWeight: "800", fontSize: 12 }}>
+                    ● {viewTenant?.status.toUpperCase()}
+                  </Text>
+                </View>
               </View>
 
-              {/* SERVICES ENABLED CHECKBOXES */}
-              <Text style={styles.inputLabel}>Authorized Services / Sectors</Text>
-              <View style={styles.categoryCheckboxRow}>
-                {[
-                  { id: "car-washing", label: "Car Washing & Detailing" },
-                  { id: "building-cleaning", label: "Building & Property Clean" },
-                ].map((c) => {
-                  const checked = form.categories_enabled.includes(c.id);
+              <View style={styles.detailCardSection}>
+                <Text style={styles.detailCardLabel}>Authorized Service Sectors</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                  {(viewTenant?.categories_enabled ?? []).map((cat) => (
+                    <View key={cat} style={styles.categoryBadge}>
+                      <Text style={styles.categoryBadgeText}>✓ {cat}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {viewTenant?.users?.[0] && (
+                <View style={styles.detailCardSection}>
+                  <Text style={styles.detailCardLabel}>Primary Tenant Admin Account</Text>
+                  <View style={styles.adminUserBox}>
+                    <Ionicons name="person" size={20} color="#60A5FA" style={{ marginRight: 8 }} />
+                    <View>
+                      <Text style={styles.adminName}>{viewTenant.users[0].name}</Text>
+                      <Text style={styles.adminEmail}>{viewTenant.users[0].email}</Text>
+                      <Text style={styles.adminEmail}>{viewTenant.users[0].phone || "No phone registered"}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.detailCardSection}>
+                <Text style={styles.detailCardLabel}>Created Date</Text>
+                <Text style={{ color: "#E2E8F0", fontSize: 13 }}>
+                  {viewTenant?.created_at ? new Date(viewTenant.created_at).toLocaleString() : "N/A"}
+                </Text>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.closeViewButton}
+              onPress={() => setViewTenant(null)}
+            >
+              <Text style={styles.closeViewButtonText}>Close Inspection</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── 🗑️ DELETE CONFIRMATION MODAL ─── */}
+      <Modal
+        visible={!!deleteTenantTarget}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setDeleteTenantTarget(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { borderColor: "#EF4444" }]}>
+            <View style={{ alignItems: "center", paddingVertical: 10 }}>
+              <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: "#EF444422", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+                <Ionicons name="warning-outline" size={28} color="#EF4444" />
+              </View>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#FFF", textAlign: "center" }}>
+                Delete Tenant Company?
+              </Text>
+              <Text style={{ color: "#94A3B8", fontSize: 13, textAlign: "center", marginTop: 6, lineHeight: 18 }}>
+                Are you sure you want to permanently delete <Text style={{ color: "#FFF", fontWeight: "700" }}>{deleteTenantTarget?.business_name}</Text>?
+                {"\n\n"}This will erase the tenant business, primary admin credentials, staff profiles, and scoped bookings.
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+              <TouchableOpacity
+                style={styles.prevStepButton}
+                onPress={() => setDeleteTenantTarget(null)}
+                disabled={isDeleting}
+              >
+                <Text style={styles.prevStepButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.submitButton, { flex: 1, backgroundColor: "#EF4444", marginTop: 0 }, isDeleting && { opacity: 0.7 }]}
+                onPress={async () => {
+                  if (!deleteTenantTarget) return;
+                  setIsDeleting(true);
+                  try {
+                    await deleteTenant(deleteTenantTarget.id);
+                    setDeleteTenantTarget(null);
+                    Alert.alert("Deleted", `Tenant "${deleteTenantTarget.business_name}" deleted successfully.`);
+                  } catch (err: any) {
+                    Alert.alert("Delete Error", err?.message || "Failed to delete tenant.");
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.submitButtonText}>🗑️ Yes, Delete Tenant</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── ✏️ EDIT TENANT & ADMIN CREDENTIALS MODAL ─── */}
+      <Modal
+        visible={!!editTenant}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditTenant(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Edit Tenant & Admin User</Text>
+                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                  Update business profile, subscription, or primary admin credentials
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setEditTenant(null)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
+              <Text style={styles.sectionHeader}>Business Profile & Tier</Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Business Name *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editForm.business_name}
+                  onChangeText={(val) => setEditForm((p) => ({ ...p, business_name: val }))}
+                />
+              </View>
+
+              <Text style={styles.inputLabel}>Subscription Plan Tier</Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 14 }}>
+                {(["starter", "growth", "enterprise"] as const).map((planKey) => {
+                  const isSel = editForm.plan === planKey;
                   return (
                     <TouchableOpacity
-                      key={c.id}
+                      key={planKey}
                       style={[
-                        styles.checkboxItem,
-                        checked && styles.checkedCheckboxItem,
+                        styles.planOption,
+                        isSel && styles.selectedPlanOption,
+                        { flex: 0.31 },
                       ]}
-                      onPress={() => toggleCategory(c.id)}
+                      onPress={() => setEditForm((p) => ({ ...p, plan: planKey }))}
                     >
-                      <Ionicons
-                        name={checked ? "checkbox" : "square-outline"}
-                        size={20}
-                        color={checked ? "#3B82F6" : "#6B7280"}
-                      />
-                      <Text style={styles.checkboxText}>{c.label}</Text>
+                      <Text style={[styles.planOptionText, isSel && styles.selectedPlanOptionText]}>
+                        {planKey.toUpperCase()}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              <Text style={styles.sectionHeader}>Tenant Admin User Account</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Admin Full Name"
-                placeholderTextColor="#6B7280"
-                value={form.admin_name}
-                onChangeText={(val) => setForm((p) => ({ ...p, admin_name: val }))}
-              />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Admin Email Address"
-                placeholderTextColor="#6B7280"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={form.admin_email}
-                onChangeText={(val) => setForm((p) => ({ ...p, admin_email: val }))}
-              />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Admin Password"
-                placeholderTextColor="#6B7280"
-                secureTextEntry
-                value={form.admin_password}
-                onChangeText={(val) =>
-                  setForm((p) => ({ ...p, admin_password: val }))
-                }
-              />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Phone Number (+251...)"
-                placeholderTextColor="#6B7280"
-                keyboardType="phone-pad"
-                value={form.admin_phone}
-                onChangeText={(val) => setForm((p) => ({ ...p, admin_phone: val }))}
-              />
+              <Text style={styles.inputLabel}>Authorized Service Sectors</Text>
+              <View style={{ marginBottom: 14 }}>
+                {SECTOR_CATEGORIES.map((cat) => {
+                  const isChecked = editForm.categories_enabled.includes(cat.id);
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      onPress={() => toggleEditCategory(cat.id)}
+                      style={[
+                        styles.checkboxItem,
+                        isChecked && styles.checkedCheckboxItem,
+                      ]}
+                    >
+                      <Ionicons
+                        name={isChecked ? "checkbox" : "square-outline"}
+                        size={20}
+                        color={isChecked ? cat.color : "#64748B"}
+                      />
+                      <Text style={[styles.checkboxText, { flex: 1, marginLeft: 8 }]}>{cat.title}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* ── ADMIN USER CREDENTIALS EDIT SECTION ── */}
+              <Text style={styles.sectionHeader}>Primary Tenant Admin User Account</Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Admin Full Name *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Admin Name"
+                  placeholderTextColor="#64748B"
+                  value={editForm.admin_name}
+                  onChangeText={(val) => setEditForm((p) => ({ ...p, admin_name: val }))}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Admin Email (Login ID) *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="admin.company@clean.et"
+                  placeholderTextColor="#64748B"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={editForm.admin_email}
+                  onChangeText={(val) => setEditForm((p) => ({ ...p, admin_email: val }))}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Reset Admin Password (Optional)</Text>
+                <View style={styles.passwordInputWrap}>
+                  <TextInput
+                    style={[styles.textInput, { flex: 1, marginBottom: 0 }]}
+                    placeholder="Leave blank to keep existing password"
+                    placeholderTextColor="#64748B"
+                    secureTextEntry={!showEditPassword}
+                    value={editForm.admin_password}
+                    onChangeText={(val) => setEditForm((p) => ({ ...p, admin_password: val }))}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowEditPassword(!showEditPassword)}
+                    style={styles.passwordEyeButton}
+                  >
+                    <Ionicons
+                      name={showEditPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color="#94A3B8"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Admin Phone Number</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="+2519..."
+                  placeholderTextColor="#64748B"
+                  keyboardType="phone-pad"
+                  value={editForm.admin_phone}
+                  onChangeText={(val) => setEditForm((p) => ({ ...p, admin_phone: val }))}
+                />
+              </View>
+            </ScrollView>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+              <TouchableOpacity
+                style={styles.prevStepButton}
+                onPress={() => setEditTenant(null)}
+              >
+                <Text style={styles.prevStepButtonText}>Cancel</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.submitButton, isSubmitting && { opacity: 0.7 }]}
-                onPress={handleCreateTenant}
-                disabled={isSubmitting}
+                style={[styles.submitButton, { flex: 1, marginTop: 0 }, isUpdating && { opacity: 0.7 }]}
+                onPress={handleSaveEditTenant}
+                disabled={isUpdating}
               >
-                {isSubmitting ? (
+                {isUpdating ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={styles.submitButtonText}>Onboard Tenant & Admin</Text>
+                  <Text style={styles.submitButtonText}>Save Updates & Password</Text>
                 )}
               </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── MULTI-STEP ENTERPRISE TENANT ONBOARDING WIZARD MODAL ─── */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            {/* Modal Header & Wizard Stepper */}
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Onboard Tenant Business</Text>
+                <Text style={{ color: "#94A3B8", fontSize: 12, marginTop: 2 }}>
+                  Step {wizardStep} of 3 — {wizardStep === 1 ? "Company & Subscription Plan" : wizardStep === 2 ? "Service Sector Roles" : "Primary Admin Credentials"}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Stepper Progress Bar */}
+            <View style={styles.wizardProgressBar}>
+              <View style={[styles.wizardProgressFill, { width: wizardStep === 1 ? "33%" : wizardStep === 2 ? "66%" : "100%" }]} />
+            </View>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {/* ── WIZARD STEP 1: COMPANY PROFILE & SUBSCRIPTION PLAN ── */}
+              {wizardStep === 1 && (
+                <Animated.View entering={FadeInDown}>
+                  <Text style={styles.sectionHeader}>1. Business Profile</Text>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Tenant Business Name *</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. Apex Detailing Ltd / Skyline Cleaners"
+                      placeholderTextColor="#64748B"
+                      value={form.business_name}
+                      onChangeText={(val) => setForm((p) => ({ ...p, business_name: val }))}
+                    />
+                  </View>
+
+                  <Text style={styles.sectionHeader}>Select Subscription Plan Tier</Text>
+
+                  {SUBSCRIPTION_PLANS.map((plan) => {
+                    const isSelected = form.plan === plan.id;
+                    return (
+                      <TouchableOpacity
+                        key={plan.id}
+                        activeOpacity={0.8}
+                        onPress={() => setForm((p) => ({ ...p, plan: plan.id }))}
+                        style={[
+                          styles.planCardOption,
+                          { borderColor: isSelected ? plan.borderColor : "#334155" },
+                          isSelected && styles.planCardSelected,
+                        ]}
+                      >
+                        <LinearGradient
+                          colors={plan.colors}
+                          style={styles.planCardGradient}
+                        >
+                          <View style={styles.planCardHeaderRow}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.planCardName}>{plan.name}</Text>
+                              <Text style={styles.planCardMeta}>{plan.commission} · {plan.staffLimit}</Text>
+                            </View>
+
+                            <View
+                              style={[
+                                styles.planBadgePill,
+                                { backgroundColor: isSelected ? plan.borderColor : "rgba(255,255,255,0.1)" },
+                              ]}
+                            >
+                              <Text style={styles.planBadgePillText}>{plan.badge}</Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.planFeaturesList}>
+                            {plan.features.map((feat, idx) => (
+                              <View key={idx} style={styles.planFeatureItem}>
+                                <Ionicons name="checkmark-circle" size={14} color={isSelected ? "#34D399" : "#60A5FA"} />
+                                <Text style={styles.planFeatureText}>{feat}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  <TouchableOpacity
+                    style={styles.nextStepButton}
+                    onPress={() => {
+                      if (!form.business_name.trim()) {
+                        Alert.alert("Required", "Please enter the Business Name.");
+                        return;
+                      }
+                      setWizardStep(2);
+                    }}
+                  >
+                    <Text style={styles.nextStepButtonText}>Continue to Service Sectors ➔</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              )}
+
+              {/* ── WIZARD STEP 2: AUTHORIZED SERVICE SECTOR ROLES ── */}
+              {wizardStep === 2 && (
+                <Animated.View entering={FadeInDown}>
+                  <Text style={styles.sectionHeader}>2. Authorized Service Sectors</Text>
+                  <Text style={{ color: "#94A3B8", fontSize: 12, marginBottom: 12 }}>
+                    Assign which multi-sector categories this tenant company is authorized to manage and receive dispatch orders for:
+                  </Text>
+
+                  {SECTOR_CATEGORIES.map((cat) => {
+                    const isChecked = form.categories_enabled.includes(cat.id);
+                    return (
+                      <TouchableOpacity
+                        key={cat.id}
+                        activeOpacity={0.8}
+                        onPress={() => toggleCategory(cat.id)}
+                        style={[
+                          styles.sectorCategoryCard,
+                          isChecked && { borderColor: cat.color, backgroundColor: `${cat.color}15` },
+                        ]}
+                      >
+                        <View style={styles.sectorCategoryHeader}>
+                          <View style={[styles.sectorIconWrap, { backgroundColor: `${cat.color}22` }]}>
+                            <Ionicons name={cat.icon as any} size={22} color={cat.color} />
+                          </View>
+
+                          <View style={{ flex: 1, marginHorizontal: 10 }}>
+                            <Text style={styles.sectorCategoryTitle}>{cat.title}</Text>
+                            <Text style={styles.sectorCategorySub}>{cat.subtitle}</Text>
+                          </View>
+
+                          <Ionicons
+                            name={isChecked ? "checkbox-sharp" : "square-outline"}
+                            size={24}
+                            color={isChecked ? cat.color : "#64748B"}
+                          />
+                        </View>
+
+                        <View style={styles.sectorTagsRow}>
+                          {cat.tags.map((t, idx) => (
+                            <View key={idx} style={[styles.sectorTagPill, isChecked && { backgroundColor: `${cat.color}25` }]}>
+                              <Text style={[styles.sectorTagText, isChecked && { color: "#F9FAFB" }]}>#{t}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  <View style={styles.wizardNavRow}>
+                    <TouchableOpacity
+                      style={styles.prevStepButton}
+                      onPress={() => setWizardStep(1)}
+                    >
+                      <Text style={styles.prevStepButtonText}>⬅ Back</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.nextStepButton, { flex: 1, marginLeft: 10 }]}
+                      onPress={() => {
+                        if (form.categories_enabled.length === 0) {
+                          Alert.alert("Required", "Please select at least one authorized service sector category.");
+                          return;
+                        }
+                        setWizardStep(3);
+                      }}
+                    >
+                      <Text style={styles.nextStepButtonText}>Continue to Admin Credentials ➔</Text>
+                    </TouchableOpacity>
+                  </View>
+                </Animated.View>
+              )}
+
+              {/* ── WIZARD STEP 3: PRIMARY TENANT ADMIN USER ACCOUNT ── */}
+              {wizardStep === 3 && (
+                <Animated.View entering={FadeInDown}>
+                  <Text style={styles.sectionHeader}>3. Primary Tenant Admin Credentials</Text>
+                  <Text style={{ color: "#94A3B8", fontSize: 12, marginBottom: 14 }}>
+                    Create the primary executive account for <Text style={{ color: "#FFF", fontWeight: "700" }}>{form.business_name}</Text>:
+                  </Text>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Tenant Admin Full Name *</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. Solomon Teklu / Bethlehem Girma"
+                      placeholderTextColor="#64748B"
+                      value={form.admin_name}
+                      onChangeText={(val) => setForm((p) => ({ ...p, admin_name: val }))}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Admin Email Address (Login ID) *</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. admin.company@clean.et"
+                      placeholderTextColor="#64748B"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={form.admin_email}
+                      onChangeText={(val) => setForm((p) => ({ ...p, admin_email: val }))}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Secure Admin Password *</Text>
+                    <View style={styles.passwordInputWrap}>
+                      <TextInput
+                        style={[styles.textInput, { flex: 1, marginBottom: 0 }]}
+                        placeholder="Min 6 characters"
+                        placeholderTextColor="#64748B"
+                        secureTextEntry={!showPassword}
+                        value={form.admin_password}
+                        onChangeText={(val) => setForm((p) => ({ ...p, admin_password: val }))}
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowPassword(!showPassword)}
+                        style={styles.passwordEyeButton}
+                      >
+                        <Ionicons
+                          name={showPassword ? "eye-off-outline" : "eye-outline"}
+                          size={20}
+                          color="#94A3B8"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Admin Phone Number</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="+2519..."
+                      placeholderTextColor="#64748B"
+                      keyboardType="phone-pad"
+                      value={form.admin_phone}
+                      onChangeText={(val) => setForm((p) => ({ ...p, admin_phone: val }))}
+                    />
+                  </View>
+
+                  {/* Summary Box */}
+                  <View style={styles.onboardingSummaryCard}>
+                    <Text style={styles.summaryCardTitle}>Onboarding Summary</Text>
+                    <Text style={styles.summaryText}>• Business: {form.business_name || "N/A"}</Text>
+                    <Text style={styles.summaryText}>• Plan Tier: {form.plan.toUpperCase()}</Text>
+                    <Text style={styles.summaryText}>• Authorized Sectors: {form.categories_enabled.join(", ")}</Text>
+                    <Text style={styles.summaryText}>• Primary Admin: {form.admin_name || "Admin"} ({form.admin_email || "Pending"})</Text>
+                  </View>
+
+                  <View style={styles.wizardNavRow}>
+                    <TouchableOpacity
+                      style={styles.prevStepButton}
+                      onPress={() => setWizardStep(2)}
+                    >
+                      <Text style={styles.prevStepButtonText}>⬅ Back</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.submitButton, { flex: 1, marginLeft: 10 }, isSubmitting && { opacity: 0.7 }]}
+                      onPress={handleCreateTenant}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <ActivityIndicator color="#FFF" />
+                      ) : (
+                        <Text style={styles.submitButtonText}>🚀 Onboard & Activate Tenant</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </Animated.View>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -688,6 +1369,7 @@ export default function SuperAdminTenantsScreen() {
   );
 }
 
+/* ─── STYLES ─────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1016,6 +1698,61 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#94A3B8",
   },
+  tenantCardActions: {
+    flexDirection: "row",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#334155",
+    gap: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  actionBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    marginLeft: 4,
+  },
+  detailCardSection: {
+    marginBottom: 14,
+    backgroundColor: "#0F172A",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  detailCardLabel: {
+    fontSize: 11,
+    color: "#94A3B8",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  detailStatusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  closeViewButton: {
+    backgroundColor: "#334155",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 14,
+  },
+  closeViewButtonText: {
+    color: "#FFF",
+    fontWeight: "700",
+  },
   inputGroup: {
     marginBottom: 12,
   },
@@ -1033,7 +1770,15 @@ const styles = StyleSheet.create({
     color: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#334155",
-    marginBottom: 10,
+    marginBottom: 6,
+  },
+  passwordInputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  passwordEyeButton: {
+    position: "absolute",
+    right: 12,
   },
   saveSettingsButton: {
     backgroundColor: "#10B981",
@@ -1083,49 +1828,221 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
     justifyContent: "center",
     padding: 16,
   },
   modalCard: {
     backgroundColor: "#1E293B",
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 20,
-    maxHeight: "85%",
+    maxHeight: "90%",
     borderWidth: 1,
     borderColor: "#334155",
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
+    alignItems: "flex-start",
+    marginBottom: 10,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#F8FAFC",
   },
+  wizardProgressBar: {
+    height: 4,
+    backgroundColor: "#334155",
+    borderRadius: 2,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  wizardProgressFill: {
+    height: "100%",
+    backgroundColor: "#3B82F6",
+    borderRadius: 2,
+  },
   modalScroll: {
-    maxHeight: 500,
+    maxHeight: 520,
   },
   sectionHeader: {
     fontSize: 14,
     fontWeight: "700",
     color: "#60A5FA",
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  planSelectorRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    marginTop: 4,
     marginBottom: 12,
   },
+  planCardOption: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    marginBottom: 10,
+    overflow: "hidden",
+  },
+  planCardSelected: {
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  planCardGradient: {
+    padding: 14,
+  },
+  planCardHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  planCardName: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FFF",
+  },
+  planCardMeta: {
+    fontSize: 11,
+    color: "#94A3B8",
+    marginTop: 2,
+  },
+  planBadgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  planBadgePillText: {
+    color: "#FFF",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  planFeaturesList: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
+  },
+  planFeatureItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  planFeatureText: {
+    fontSize: 11,
+    color: "#CBD5E1",
+    marginLeft: 6,
+  },
+  sectorCategoryCard: {
+    backgroundColor: "#0F172A",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: "#334155",
+  },
+  sectorCategoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  sectorIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectorCategoryTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFF",
+  },
+  sectorCategorySub: {
+    fontSize: 11,
+    color: "#94A3B8",
+    marginTop: 2,
+  },
+  sectorTagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 10,
+    gap: 6,
+  },
+  sectorTagPill: {
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  sectorTagText: {
+    fontSize: 10,
+    color: "#94A3B8",
+    fontWeight: "600",
+  },
+  wizardNavRow: {
+    flexDirection: "row",
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  prevStepButton: {
+    backgroundColor: "#334155",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  prevStepButtonText: {
+    color: "#E2E8F0",
+    fontWeight: "700",
+  },
+  nextStepButton: {
+    backgroundColor: "#2563EB",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+  nextStepButtonText: {
+    color: "#FFF",
+    fontWeight: "800",
+    fontSize: 14,
+  },
+  onboardingSummaryCard: {
+    backgroundColor: "#0F172A",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  summaryCardTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#60A5FA",
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
+  summaryText: {
+    fontSize: 11,
+    color: "#CBD5E1",
+    marginBottom: 2,
+  },
+  submitButton: {
+    backgroundColor: "#10B981",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  submitButtonText: {
+    color: "#FFF",
+    fontWeight: "800",
+    fontSize: 14,
+  },
   planOption: {
-    flex: 0.31,
     backgroundColor: "#0F172A",
     borderRadius: 8,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#334155",
@@ -1142,16 +2059,13 @@ const styles = StyleSheet.create({
   selectedPlanOptionText: {
     color: "#FFF",
   },
-  categoryCheckboxRow: {
-    marginBottom: 12,
-  },
   checkboxItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#0F172A",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 6,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: "#334155",
   },
@@ -1160,20 +2074,7 @@ const styles = StyleSheet.create({
   },
   checkboxText: {
     color: "#F8FAFC",
-    marginLeft: 8,
     fontSize: 13,
-  },
-  submitButton: {
-    backgroundColor: "#2563EB",
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 16,
-    marginBottom: 20,
-  },
-  submitButtonText: {
-    color: "#FFF",
-    fontWeight: "700",
-    fontSize: 15,
+    fontWeight: "600",
   },
 });

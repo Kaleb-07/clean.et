@@ -165,7 +165,12 @@ export default function AdminServices() {
     <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace("/(admin)/(tabs)/dashboard");
+          }}
+        >
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
 

@@ -340,6 +340,58 @@ export default function LoginScreen() {
                 </LinearGradient>
               </Pressable>
 
+              {/* DEMO ACCOUNTS QUICK SELECTOR */}
+              <View style={{ marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)" }}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", marginBottom: 8, textAlign: "center" }}>
+                  ⚡ Quick Demo Fill Accounts
+                </Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
+                  <Pressable
+                    onPress={() => {
+                      setLoginMode("email");
+                      setEmail("superadmin@clean.et");
+                      setPassword("superpassword123");
+                    }}
+                    style={{ backgroundColor: "rgba(96, 165, 250, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(96, 165, 250, 0.3)" }}
+                  >
+                    <Text style={{ color: "#60A5FA", fontSize: 10, fontWeight: "700" }}>👑 Super Admin</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
+                      setLoginMode("email");
+                      setEmail("admin.apex@clean.et");
+                      setPassword("password123");
+                    }}
+                    style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(16, 185, 129, 0.3)" }}
+                  >
+                    <Text style={{ color: "#34D399", fontSize: 10, fontWeight: "700" }}>🏢 Tenant Admin (Apex)</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
+                      setLoginMode("email");
+                      setEmail("admin.skyline@clean.et");
+                      setPassword("password123");
+                    }}
+                    style={{ backgroundColor: "rgba(245, 158, 11, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(245, 158, 11, 0.3)" }}
+                  >
+                    <Text style={{ color: "#FBBF24", fontSize: 10, fontWeight: "700" }}>🏢 Tenant Admin (Skyline)</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
+                      setLoginMode("email");
+                      setEmail("staff.dawit@apex.et");
+                      setPassword("password123");
+                    }}
+                    style={{ backgroundColor: "rgba(167, 139, 250, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(167, 139, 250, 0.3)" }}
+                  >
+                    <Text style={{ color: "#C084FC", fontSize: 10, fontWeight: "700" }}>👷 Staff (Dawit)</Text>
+                  </Pressable>
+                </View>
+              </View>
+
               {/* FOOTER LINK */}
               <View style={styles.footer}>
                 <Text style={styles.footerText}>Don't have an account?</Text>

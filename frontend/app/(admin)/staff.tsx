@@ -256,7 +256,13 @@ export default function StaffScreen() {
       {/* ── HEADER ── */}
       <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20 }}>
         <Animated.View entering={FadeInDown.delay(50)} style={styles.topRow}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable
+            onPress={() => {
+              if (router.canGoBack()) router.back();
+              else router.replace("/(admin)/(tabs)/dashboard");
+            }}
+            style={styles.backBtn}
+          >
             <Ionicons name="arrow-back" size={20} color="#fff" />
           </Pressable>
           <View>

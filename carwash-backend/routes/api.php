@@ -94,6 +94,7 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::put('/tenants/{id}',           [TenantController::class, 'update']);
     Route::patch('/tenants/{id}/status',  [TenantController::class, 'updateStatus']);
     Route::post('/tenants/{id}/admins',   [TenantController::class, 'storeAdmin']);
+    Route::delete('/tenants/{id}',        [TenantController::class, 'destroy']);
 
     // Analytics, System Governance & Health
     Route::get('/super-admin/analytics',  [SuperAdminController::class, 'analytics']);

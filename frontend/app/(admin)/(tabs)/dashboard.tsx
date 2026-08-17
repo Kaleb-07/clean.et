@@ -46,24 +46,28 @@ interface ActionItemProps {
 }
 
 /* ─── EXECUTIVE STAT CARD ────────────────────────────────────────────────── */
-function ExecutiveStatCard({ icon, label, value, color, sub }: StatProps) {
+function ExecutiveStatCard({ icon, label, value, color, sub, onPress }: StatProps & { onPress?: () => void }) {
   return (
-    <Animated.View entering={FadeInDown.delay(100)} style={{ width: "48%" }}>
-      <BlurView intensity={25} tint="dark" style={styles.statCard}>
-        <View style={styles.statCardHeader}>
-          <View style={[styles.iconWrap, { backgroundColor: `${color}18` }]}>
-            <Ionicons name={icon as any} size={20} color={color} />
-          </View>
-          {sub && (
-            <View style={styles.subPill}>
-              <Text style={[styles.subPillText, { color }]}>{sub}</Text>
+    <Pressable onPress={onPress} style={{ width: "48%" }}>
+      {({ pressed }) => (
+        <Animated.View entering={FadeInDown.delay(100)} style={[pressed && { opacity: 0.85 }]}>
+          <BlurView intensity={25} tint="dark" style={styles.statCard}>
+            <View style={styles.statCardHeader}>
+              <View style={[styles.iconWrap, { backgroundColor: `${color}18` }]}>
+                <Ionicons name={icon as any} size={20} color={color} />
+              </View>
+              {sub && (
+                <View style={styles.subPill}>
+                  <Text style={[styles.subPillText, { color }]}>{sub}</Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
-      </BlurView>
-    </Animated.View>
+            <Text style={styles.statValue}>{value}</Text>
+            <Text style={styles.statLabel}>{label}</Text>
+          </BlurView>
+        </Animated.View>
+      )}
+    </Pressable>
   );
 }
 
@@ -334,6 +338,7 @@ export default function AdminDashboard() {
                 value={stats.tenants}
                 color="#60A5FA"
                 sub={`${stats.activeTenants} Active`}
+                onPress={() => router.push("/(admin)/tenants")}
               />
             ) : (
               <ExecutiveStatCard
@@ -342,6 +347,7 @@ export default function AdminDashboard() {
                 value={stats.bookings}
                 color="#3B82F6"
                 sub={`${stats.pending} Pending`}
+                onPress={() => router.push("/(admin)/(tabs)/bookings")}
               />
             )}
 
@@ -351,6 +357,7 @@ export default function AdminDashboard() {
               value={stats.customers}
               color="#34D399"
               sub="Car & Building"
+              onPress={() => router.push("/(admin)/customers")}
             />
 
             <ExecutiveStatCard
@@ -359,6 +366,7 @@ export default function AdminDashboard() {
               value={stats.sectors}
               color="#F59E0B"
               sub="Multi-Tenant"
+              onPress={() => router.push("/(admin)/services")}
             />
 
             <ExecutiveStatCard
@@ -367,37 +375,40 @@ export default function AdminDashboard() {
               value={stats.staff}
               color="#A78BFA"
               sub="Certified"
+              onPress={() => router.push("/(admin)/staff")}
             />
           </View>
 
           {/* ── REAL-TIME BOOKING STATUS STEPPER ── */}
-          <Animated.View entering={FadeInRight.delay(150)} style={styles.statusStepperContainer}>
-            <Text style={styles.stepperSectionTitle}>Global Order Pipeline</Text>
-            <View style={styles.stepperRow}>
-              <View style={styles.stepperItem}>
-                <Text style={[styles.stepperNum, { color: "#F59E0B" }]}>{stats.pending}</Text>
-                <Text style={styles.stepperText}>Pending</Text>
-              </View>
-              <View style={styles.stepperDivider} />
+          <Pressable onPress={() => router.push("/(admin)/(tabs)/bookings")}>
+            <Animated.View entering={FadeInRight.delay(150)} style={styles.statusStepperContainer}>
+              <Text style={styles.stepperSectionTitle}>Global Order Pipeline (Tap to Dispatch)</Text>
+              <View style={styles.stepperRow}>
+                <View style={styles.stepperItem}>
+                  <Text style={[styles.stepperNum, { color: "#F59E0B" }]}>{stats.pending}</Text>
+                  <Text style={styles.stepperText}>Pending</Text>
+                </View>
+                <View style={styles.stepperDivider} />
 
-              <View style={styles.stepperItem}>
-                <Text style={[styles.stepperNum, { color: "#3B82F6" }]}>{stats.active}</Text>
-                <Text style={styles.stepperText}>In Progress</Text>
-              </View>
-              <View style={styles.stepperDivider} />
+                <View style={styles.stepperItem}>
+                  <Text style={[styles.stepperNum, { color: "#3B82F6" }]}>{stats.active}</Text>
+                  <Text style={styles.stepperText}>In Progress</Text>
+                </View>
+                <View style={styles.stepperDivider} />
 
-              <View style={styles.stepperItem}>
-                <Text style={[styles.stepperNum, { color: "#10B981" }]}>{stats.completed}</Text>
-                <Text style={styles.stepperText}>Completed</Text>
-              </View>
-              <View style={styles.stepperDivider} />
+                <View style={styles.stepperItem}>
+                  <Text style={[styles.stepperNum, { color: "#10B981" }]}>{stats.completed}</Text>
+                  <Text style={styles.stepperText}>Completed</Text>
+                </View>
+                <View style={styles.stepperDivider} />
 
-              <View style={styles.stepperItem}>
-                <Text style={[styles.stepperNum, { color: "#8B5CF6" }]}>{stats.invoiced}</Text>
-                <Text style={styles.stepperText}>Invoiced</Text>
+                <View style={styles.stepperItem}>
+                  <Text style={[styles.stepperNum, { color: "#8B5CF6" }]}>{stats.invoiced}</Text>
+                  <Text style={styles.stepperText}>Invoiced</Text>
+                </View>
               </View>
-            </View>
-          </Animated.View>
+            </Animated.View>
+          </Pressable>
 
           {/* ── LIVE TENANTS & TENANT ADMINS DIRECTORY PREVIEW ── */}
           {isSuperAdmin && tenantsList.length > 0 && (
