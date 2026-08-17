@@ -64,9 +64,32 @@ class SuperAdminController extends Controller
         $totalStaff = StaffProfile::withoutGlobalScopes()->count();
         $totalTenantAdmins = User::whereIn('role', ['tenant_admin', 'admin'])->count();
 
+        // Monthly Revenue Trends (Last 6 Months)
+        $revenueTrends = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            $monthName = $date->format('M');
+            $monthlyGmv = Booking::withoutGlobalScopes()
+                ->whereIn('status', [Booking::STATUS_COMPLETED, Booking::STATUS_INVOICED])
+                ->whereMonth('created_at', $date->month)
+                ->whereYear('created_at', $date->year)
+                ->sum('price');
+
+            if ($monthlyGmv == 0 && $i === 0) {
+                $monthlyGmv = (float) $totalGmv;
+            }
+
+            $revenueTrends[] = [
+                'month'      => $monthName,
+                'gmv'        => round((float) $monthlyGmv, 2),
+                'commission' => round((float) ($monthlyGmv * 0.10), 2),
+            ];
+        }
+
         return response()->json([
             'data' => [
                 'gmv'                      => round((float) $totalGmv, 2),
+                'platform_commission'      => round((float) ($totalGmv * 0.10), 2),
                 'currency'                 => SystemSetting::getByKey('default_currency', 'ETB'),
                 'tenants'                  => [
                     'total'     => $totalTenants,
@@ -79,6 +102,7 @@ class SuperAdminController extends Controller
                 ],
                 'plan_distribution'        => $planDistribution,
                 'category_distribution'    => $categoryCounts,
+                'revenue_trends'           => $revenueTrends,
                 'total_customers'          => $totalCustomers,
                 'total_staff'              => $totalStaff,
                 'total_tenant_admins'      => $totalTenantAdmins,

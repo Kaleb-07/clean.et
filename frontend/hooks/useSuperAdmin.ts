@@ -19,8 +19,15 @@ export interface Tenant {
   users?: TenantAdminUser[];
 }
 
+export interface MonthlyRevenueTrend {
+  month: string;
+  gmv: number;
+  commission: number;
+}
+
 export interface SuperAdminAnalytics {
   gmv: number;
+  platform_commission?: number;
   currency: string;
   tenants: {
     total: number;
@@ -43,6 +50,7 @@ export interface SuperAdminAnalytics {
     enterprise: number;
   };
   category_distribution: Record<string, number>;
+  revenue_trends?: MonthlyRevenueTrend[];
   total_customers: number;
   total_staff: number;
   total_tenant_admins: number;
