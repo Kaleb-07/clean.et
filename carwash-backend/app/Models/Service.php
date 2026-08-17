@@ -13,10 +13,15 @@ class Service extends Model
         'name',
         'description',
         'price',
+        'image',
+        'duration',
+        'category',
+        'sector_id',
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'price'    => 'decimal:2',
+        'duration' => 'integer',
     ];
 
     // ================= RELATIONSHIPS =================
