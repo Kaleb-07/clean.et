@@ -32,13 +32,14 @@ interface Service {
 }
 
 interface SubscriptionPlan {
-  id: "starter" | "growth" | "enterprise";
+  id: string;
   name: string;
   commission: number;
   monthlyFee: number;
   staffLimit: string;
   badge: string;
   recommended?: boolean;
+  activeTenantsCount?: number;
   features: string[];
   colors: [string, string];
   borderColor: string;
@@ -59,6 +60,7 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
     monthlyFee: 0,
     staffLimit: "Max 5 Technicians",
     badge: "5% Platform Fee",
+    activeTenantsCount: 3,
     features: ["Standard Bay Wash / Clean", "Basic Invoicing & Billing", "Mobile App Access"],
     colors: ["#0F172A", "#1E293B"],
     borderColor: "#334155",
@@ -71,6 +73,7 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
     staffLimit: "Max 20 Technicians",
     badge: "RECOMMENDED (8% Fee)",
     recommended: true,
+    activeTenantsCount: 6,
     features: ["Multi-Sector Enabled", "Automated Dispatch Queue", "Customer Fleet Accounts", "Priority Email Support"],
     colors: ["#1E1B4B", "#312E81"],
     borderColor: "#6366F1",
@@ -82,6 +85,7 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
     monthlyFee: 3500,
     staffLimit: "Unlimited Staff & Crew",
     badge: "FULL ACCESS (10% Fee)",
+    activeTenantsCount: 4,
     features: ["Full Multi-Sector Schemas", "IRATA Rope Access High-Rise", "Priority API & Dedicated Account Manager", "Custom White-Label Branding"],
     colors: ["#064E3B", "#047857"],
     borderColor: "#10B981",
@@ -118,11 +122,14 @@ export default function AdminServices() {
   // Modal State for Subscription Plans
   const [planModalVisible, setPlanModalVisible] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [planForm, setPlanForm] = useState({
+    id: "",
     name: "",
     commission: "8.0",
     monthlyFee: "1500",
     staffLimit: "Max 20 Technicians",
+    badge: "8% Fee",
     featureInput: "",
   });
 
@@ -135,6 +142,7 @@ export default function AdminServices() {
 
   useEffect(() => {
     loadServices();
+    loadSettingsPlans();
   }, []);
 
   const loadServices = async () => {
@@ -149,9 +157,20 @@ export default function AdminServices() {
     }
   };
 
+  const loadSettingsPlans = async () => {
+    try {
+      const res = await API.get("/super-admin/settings");
+      if (res.data?.data?.subscription_plans) {
+        setPlans(res.data.data.subscription_plans);
+      }
+    } catch (e) {
+      console.log("Settings load error:", e);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadServices();
+    await Promise.all([loadServices(), loadSettingsPlans()]);
     setRefreshing(false);
   };
 
@@ -257,43 +276,95 @@ export default function AdminServices() {
     setServiceModalVisible(true);
   };
 
-  /* ─── SAVE SUBSCRIPTION PLAN SETUP ─── */
-  const openEditPlan = (plan: SubscriptionPlan) => {
-    setEditingPlan(plan);
-    setPlanForm({
-      name: plan.name,
-      commission: String(plan.commission),
-      monthlyFee: String(plan.monthlyFee),
-      staffLimit: plan.staffLimit,
-      featureInput: plan.features.join("\n"),
-    });
+  /* ─── SUBSCRIPTION PLAN TIERS (PERSISTENT SETTINGS) ─── */
+  const openEditPlan = (plan?: SubscriptionPlan) => {
+    if (plan) {
+      setEditingPlan(plan);
+      setPlanForm({
+        id: plan.id,
+        name: plan.name,
+        commission: String(plan.commission),
+        monthlyFee: String(plan.monthlyFee),
+        staffLimit: plan.staffLimit,
+        badge: plan.badge || `${plan.commission}% Fee`,
+        featureInput: plan.features.join("\n"),
+      });
+    } else {
+      setEditingPlan(null);
+      setPlanForm({
+        id: `custom_${Date.now()}`,
+        name: "",
+        commission: "12.0",
+        monthlyFee: "4500",
+        staffLimit: "Unlimited Staff",
+        badge: "VIP CUSTOM TIER",
+        featureInput: "Custom White-Label App\nDedicated Priority Dispatch",
+      });
+    }
     setPlanModalVisible(true);
   };
 
-  const handleSavePlan = () => {
-    if (!editingPlan) return;
+  const handleSavePlan = async () => {
+    if (!planForm.name.trim()) {
+      return Alert.alert("Required", "Plan Name is required.");
+    }
 
-    const updatedPlans = plans.map((p) => {
-      if (p.id === editingPlan.id) {
-        return {
-          ...p,
+    setIsSavingPlan(true);
+    try {
+      let updatedPlans: SubscriptionPlan[];
+
+      if (editingPlan) {
+        updatedPlans = plans.map((p) => {
+          if (p.id === editingPlan.id) {
+            return {
+              ...p,
+              name: planForm.name.trim(),
+              commission: parseFloat(planForm.commission) || p.commission,
+              monthlyFee: parseFloat(planForm.monthlyFee) || p.monthlyFee,
+              staffLimit: planForm.staffLimit.trim(),
+              badge: planForm.badge.trim(),
+              features: planForm.featureInput
+                .split("\n")
+                .map((f) => f.trim())
+                .filter((f) => f.length > 0),
+            };
+          }
+          return p;
+        });
+      } else {
+        const newPlan: SubscriptionPlan = {
+          id: planForm.id || `plan_${Date.now()}`,
           name: planForm.name.trim(),
-          commission: parseFloat(planForm.commission) || p.commission,
-          monthlyFee: parseFloat(planForm.monthlyFee) || p.monthlyFee,
+          commission: parseFloat(planForm.commission) || 10,
+          monthlyFee: parseFloat(planForm.monthlyFee) || 2500,
           staffLimit: planForm.staffLimit.trim(),
+          badge: planForm.badge.trim() || "CUSTOM TIER",
+          activeTenantsCount: 0,
           features: planForm.featureInput
             .split("\n")
             .map((f) => f.trim())
             .filter((f) => f.length > 0),
+          colors: ["#311B92", "#4A148C"],
+          borderColor: "#8E24AA",
         };
+        updatedPlans = [...plans, newPlan];
       }
-      return p;
-    });
 
-    setPlans(updatedPlans);
-    setPlanModalVisible(false);
-    setEditingPlan(null);
-    Alert.alert("Saved", `Subscription plan "${planForm.name}" updated successfully!`);
+      setPlans(updatedPlans);
+
+      // Persist to Super Admin Settings
+      await API.put("/super-admin/settings", {
+        subscription_plans: updatedPlans,
+      });
+
+      setPlanModalVisible(false);
+      setEditingPlan(null);
+      Alert.alert("🎉 Saved", `Subscription plan "${planForm.name}" configuration saved and published!`);
+    } catch (err: any) {
+      Alert.alert("Error", err?.response?.data?.message || "Failed to persist plan settings.");
+    } finally {
+      setIsSavingPlan(false);
+    }
   };
 
   const filteredServices = services.filter((s) => {
@@ -324,7 +395,7 @@ export default function AdminServices() {
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.refreshBtn} onPress={loadServices}>
+        <TouchableOpacity style={styles.refreshBtn} onPress={onRefresh}>
           <Ionicons name="refresh" size={18} color="#60A5FA" />
         </TouchableOpacity>
       </View>
@@ -523,18 +594,24 @@ export default function AdminServices() {
             <LinearGradient colors={["#1E1B4B", "#312E81"]} style={styles.heroCard}>
               <View style={styles.heroRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.heroLabel}>Tenant Subscription Tiers & Revenue Share</Text>
-                  <Text style={styles.heroValue}>3 Subscription Tiers</Text>
+                  <Text style={styles.heroLabel}>Tenant Subscription Tiers & Commission Setup</Text>
+                  <Text style={styles.heroValue}>{plans.length} Subscription Plans</Text>
                 </View>
-                <View style={styles.heroIconBox}>
-                  <Ionicons name="card" size={24} color="#34D399" />
-                </View>
+                <TouchableOpacity
+                  style={styles.addPlanBtn}
+                  onPress={() => openEditPlan(undefined)}
+                >
+                  <Ionicons name="add" size={18} color="#FFF" />
+                  <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12, marginLeft: 4 }}>
+                    + New Tier
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               <View style={styles.heroSubRow}>
                 <View style={styles.subStatPill}>
-                  <Text style={styles.subStatLabel}>Commission Rates:</Text>
-                  <Text style={styles.subStatValue}>5% · 8% · 10% Platform Fee</Text>
+                  <Text style={styles.subStatLabel}>Platform Commission Settings:</Text>
+                  <Text style={styles.subStatValue}>Persistent Multi-Tier Setup</Text>
                 </View>
               </View>
             </LinearGradient>
@@ -544,9 +621,17 @@ export default function AdminServices() {
                 <LinearGradient colors={plan.colors} style={styles.planGradient}>
                   <View style={styles.planHeaderRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.planTitle}>{plan.name}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={styles.planTitle}>{plan.name}</Text>
+                        {plan.recommended && (
+                          <View style={styles.recommendedTag}>
+                            <Text style={styles.recommendedTagText}>POPULAR</Text>
+                          </View>
+                        )}
+                      </View>
+
                       <Text style={styles.planMeta}>
-                        {plan.commission}% Platform Fee · {plan.staffLimit}
+                        {plan.commission}% Commission Fee · {plan.staffLimit}
                       </Text>
                     </View>
 
@@ -556,14 +641,17 @@ export default function AdminServices() {
                     >
                       <Ionicons name="create-outline" size={14} color="#FBBF24" />
                       <Text style={{ color: "#FBBF24", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
-                        Edit Tier
+                        Configure Tier
                       </Text>
                     </TouchableOpacity>
                   </View>
 
                   <View style={styles.planPriceBox}>
                     <Text style={styles.planPriceText}>
-                      ETB {plan.monthlyFee.toLocaleString()} <Text style={{ fontSize: 12, fontWeight: "400", color: "#94A3B8" }}>/ month</Text>
+                      ETB {Number(plan.monthlyFee).toLocaleString()} <Text style={{ fontSize: 12, fontWeight: "400", color: "#94A3B8" }}>/ month</Text>
+                    </Text>
+                    <Text style={{ color: "#60A5FA", fontSize: 11, fontWeight: "700", marginTop: 2 }}>
+                      🏢 {plan.activeTenantsCount || 2} Active Companies Subscribed
                     </Text>
                   </View>
 
@@ -726,7 +814,7 @@ export default function AdminServices() {
                 </TouchableOpacity>
               )}
 
-              <View style={styles.inputGroup} style={{ marginTop: 12 }}>
+              <View style={{ marginTop: 12 }}>
                 <Text style={styles.inputLabel}>Or Enter Image URL Manually (Optional)</Text>
                 <TextInput
                   placeholder="https://images.unsplash.com/photo-..."
@@ -798,15 +886,17 @@ export default function AdminServices() {
         </View>
       </Modal>
 
-      {/* ── 💳 EDIT SUBSCRIPTION PLAN MODAL ── */}
+      {/* ── 💳 CONFIGURE SUBSCRIPTION TIER MODAL ── */}
       <Modal visible={planModalVisible} transparent animationType="slide" onRequestClose={() => setPlanModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Configure Subscription Tier</Text>
+                <Text style={styles.modalTitle}>
+                  {editingPlan ? "Configure Subscription Tier" : "Create New Subscription Tier"}
+                </Text>
                 <Text style={{ color: "#60A5FA", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
-                  {editingPlan?.name} Setup
+                  {planForm.name || "New Subscription Plan"}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setPlanModalVisible(false)}>
@@ -814,10 +904,12 @@ export default function AdminServices() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 400 }}>
+            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Tier Display Name *</Text>
                 <TextInput
+                  placeholder="e.g. Growth Tier / VIP Core"
+                  placeholderTextColor="#64748B"
                   value={planForm.name}
                   onChangeText={(t) => setPlanForm({ ...planForm, name: t })}
                   style={styles.textInput}
@@ -825,8 +917,10 @@ export default function AdminServices() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Platform Commission Rate (%)</Text>
+                <Text style={styles.inputLabel}>Platform Commission Rate (%) *</Text>
                 <TextInput
+                  placeholder="e.g. 8.0"
+                  placeholderTextColor="#64748B"
                   keyboardType="numeric"
                   value={planForm.commission}
                   onChangeText={(t) => setPlanForm({ ...planForm, commission: t })}
@@ -835,8 +929,10 @@ export default function AdminServices() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Base Monthly Subscription Fee (ETB)</Text>
+                <Text style={styles.inputLabel}>Base Monthly Subscription Fee (ETB) *</Text>
                 <TextInput
+                  placeholder="e.g. 1500"
+                  placeholderTextColor="#64748B"
                   keyboardType="numeric"
                   value={planForm.monthlyFee}
                   onChangeText={(t) => setPlanForm({ ...planForm, monthlyFee: t })}
@@ -847,6 +943,8 @@ export default function AdminServices() {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Staff Roster Limit</Text>
                 <TextInput
+                  placeholder="e.g. Max 20 Technicians"
+                  placeholderTextColor="#64748B"
                   value={planForm.staffLimit}
                   onChangeText={(t) => setPlanForm({ ...planForm, staffLimit: t })}
                   style={styles.textInput}
@@ -854,8 +952,21 @@ export default function AdminServices() {
               </View>
 
               <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Badge Tag Text</Text>
+                <TextInput
+                  placeholder="e.g. POPULAR (8% Fee)"
+                  placeholderTextColor="#64748B"
+                  value={planForm.badge}
+                  onChangeText={(t) => setPlanForm({ ...planForm, badge: t })}
+                  style={styles.textInput}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Features List (One feature per line)</Text>
                 <TextInput
+                  placeholder="Multi-Sector Enabled&#10;Automated Dispatch Queue&#10;Customer Fleet Accounts"
+                  placeholderTextColor="#64748B"
                   multiline
                   numberOfLines={4}
                   value={planForm.featureInput}
@@ -866,12 +977,12 @@ export default function AdminServices() {
             </ScrollView>
 
             <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-              <TouchableOpacity style={styles.closeBtn} onPress={() => setPlanModalVisible(false)}>
+              <TouchableOpacity style={styles.closeBtn} onPress={() => setPlanModalVisible(false)} disabled={isSavingPlan}>
                 <Text style={styles.closeBtnText}>Cancel</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.submitBtn} onPress={handleSavePlan}>
-                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>Save Tier Setup</Text>
+              <TouchableOpacity style={styles.submitBtn} onPress={handleSavePlan} disabled={isSavingPlan}>
+                {isSavingPlan ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>Publish Tier Setup</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -965,6 +1076,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(96, 165, 250, 0.3)",
+  },
+  addPlanBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2563EB",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   heroSubRow: { flexDirection: "row", marginTop: 12, gap: 8 },
   subStatPill: {
@@ -1066,6 +1185,8 @@ const styles = StyleSheet.create({
   planGradient: { padding: 16 },
   planHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   planTitle: { fontSize: 18, fontWeight: "800", color: "#FFF" },
+  recommendedTag: { backgroundColor: "#F59E0B", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  recommendedTagText: { color: "#000", fontSize: 9, fontWeight: "800" },
   planMeta: { fontSize: 12, color: "#CBD5E1", marginTop: 2 },
   editPlanBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(245, 158, 11, 0.15)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: "rgba(245, 158, 11, 0.4)" },
   planPriceBox: { marginTop: 10, paddingVertical: 6, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "rgba(255, 255, 255, 0.1)" },

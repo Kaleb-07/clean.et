@@ -238,10 +238,10 @@ export default function SuperAdminTenantsScreen() {
         business_name: form.business_name.trim(),
         plan: form.plan,
         categories_enabled: form.categories_enabled,
-        admin_name: form.admin_name.trim(),
-        admin_email: form.admin_email.trim().toLowerCase(),
-        admin_password: form.admin_password.trim(),
-        admin_phone: form.admin_phone.trim(),
+        admin_name: (form.admin_name || "").trim(),
+        admin_email: (form.admin_email || "").trim().toLowerCase(),
+        admin_password: (form.admin_password || "").trim(),
+        admin_phone: (form.admin_phone || "").trim(),
       });
       setModalVisible(false);
       setWizardStep(1);

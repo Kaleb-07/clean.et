@@ -163,6 +163,7 @@ class SuperAdminController extends Controller
         $commission = SystemSetting::getByKey('platform_commission_rate', 10.0);
         $supportEmail = SystemSetting::getByKey('support_email', 'support@clean.et');
         $maintenance = SystemSetting::getByKey('maintenance_mode', false);
+        $plans = SystemSetting::getByKey('tenant_subscription_plans', null);
 
         return response()->json([
             'data' => [
@@ -170,6 +171,7 @@ class SuperAdminController extends Controller
                 'platform_commission_rate' => (float) $commission,
                 'support_email'            => $supportEmail,
                 'maintenance_mode'         => (bool) $maintenance,
+                'subscription_plans'       => $plans,
             ]
         ]);
     }
@@ -184,6 +186,7 @@ class SuperAdminController extends Controller
             'platform_commission_rate' => 'sometimes|numeric|min:0|max:100',
             'support_email'            => 'sometimes|email|max:255',
             'maintenance_mode'         => 'sometimes|boolean',
+            'subscription_plans'       => 'sometimes|array',
         ]);
 
         foreach ($validated as $key => $val) {

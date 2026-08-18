@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('services', function (Blueprint $table) {
             if (!Schema::hasColumn('services', 'image')) {
-                $table->string('image')->nullable()->after('price');
+                $table->longText('image')->nullable()->after('price');
             }
             if (!Schema::hasColumn('services', 'duration')) {
                 $table->integer('duration')->default(45)->after('image');

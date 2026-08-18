@@ -1,13 +1,17 @@
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import API from "../../src/api/client";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-/*===== COMPONENT ===== */
 
 export default function BookingDetails() {
   const { id } = useLocalSearchParams();
@@ -15,293 +19,202 @@ export default function BookingDetails() {
   const insets = useSafeAreaInsets();
 
   const [booking, setBooking] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const bookingId =
-    typeof id === "string" ? id : Array.isArray(id) ? id[0] : null;
+  const bookingId = typeof id === "string" ? id : Array.isArray(id) ? id[0] : null;
 
- const [error, setError] = useState(false);
+  const load = async () => {
+    if (!bookingId) {
+      setError(true);
+      setLoading(false);
+      return;
+    }
 
- const load = async () => {
-   if (!bookingId) {
-     setError(true);
-     return;
-   }
-
-   try {
-     const res = await API.get(`/bookings/${bookingId}`);
-     setBooking(res.data.data);
-   } catch (e) {
-     setError(true);
-   }
- };
+    try {
+      setLoading(true);
+      const res = await API.get(`/bookings/${bookingId}`);
+      setBooking(res.data.data);
+    } catch (e) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [id]),
+    }, [id])
   );
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return "#10b981";
-      case "pending":
-        return "#f59e0b";
+        return { label: "COMPLETED", color: "#34D399", bg: "#10B98122", border: "#10B98155" };
       case "in_progress":
-        return "#3b82f6";
+        return { label: "DISPATCHED", color: "#60A5FA", bg: "#3B82F622", border: "#3B82F655" };
+      case "pending":
+        return { label: "PENDING QUEUE", color: "#FBBF24", bg: "#F59E0B22", border: "#F59E0B55" };
       default:
-        return "#999";
+        return { label: (status || "UNKNOWN").toUpperCase(), color: "#94A3B8", bg: "#47556922", border: "#47556955" };
     }
   };
 
-  if (!booking) {
+  if (loading) {
     return (
-      <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
-        <Text style={styles.loading}>Loading...</Text>
-      </LinearGradient>
+      <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
     );
   }
 
-  return (
-    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
-      <ScrollView
-        contentContainerStyle={{
-          paddingTop: insets.top + 10,
-          paddingBottom: 40,
-          paddingHorizontal: 20,
-        }}
-      >
-        {/* HEADER */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.replace("/(admin)/(tabs)/bookings")}
-            style={styles.backBtn}
-          >
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-          </Pressable>
+  if (error || !booking) {
+    return (
+      <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
+        <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+        <Text style={styles.errorText}>Booking record not found.</Text>
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace("/(admin)/(tabs)/bookings");
+          }}
+          style={styles.errorBtn}
+        >
+          <Text style={styles.errorBtnText}>Return to Dispatch</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
-          <View>
-            <Text style={styles.eyebrow}>Booking</Text>
-            <Text style={styles.title}>#{booking.id}</Text>
+  const badge = getStatusBadge(booking.status);
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace("/(admin)/(tabs)/bookings");
+          }}
+          style={styles.backBtn}
+        >
+          <Ionicons name="arrow-back" size={20} color="#FFF" />
+        </TouchableOpacity>
+
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Booking Record #{booking.id}</Text>
+          <Text style={styles.headerSubtitle}>
+            🏢 {booking.tenant?.business_name || "Platform Direct"}
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* HERO CARD */}
+        <LinearGradient colors={["#1E1B4B", "#312E81"]} style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroLabel}>Total Booking Amount</Text>
+              <Text style={styles.heroValue}>
+                ETB {Number(booking.service?.price || 0).toLocaleString("en-ET", { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
+              <Text style={[styles.statusText, { color: badge.color }]}>{badge.label}</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* DETAILS SECTION */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Customer Details</Text>
+          <View style={styles.infoRow}>
+            <Ionicons name="person" size={16} color="#60A5FA" />
+            <Text style={styles.infoLabel}>Name:</Text>
+            <Text style={styles.infoValue}>{booking.customer?.name || "Anonymous Client"}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="mail" size={16} color="#60A5FA" />
+            <Text style={styles.infoLabel}>Email:</Text>
+            <Text style={styles.infoValue}>{booking.customer?.email || "No email registered"}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="call" size={16} color="#60A5FA" />
+            <Text style={styles.infoLabel}>Phone:</Text>
+            <Text style={styles.infoValue}>{booking.customer?.phone || "No phone registered"}</Text>
           </View>
         </View>
 
-        {/* ERROR */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Failed to load booking details.</Text>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Service Scope</Text>
+          <View style={styles.infoRow}>
+            <Ionicons name="cut" size={16} color="#34D399" />
+            <Text style={styles.infoLabel}>Service:</Text>
+            <Text style={styles.infoValue}>{booking.service?.name || "Standard Clean"}</Text>
           </View>
-        )}
-
-        {/* CARD */}
-        <BlurView intensity={40} tint="dark" style={styles.card}>
-          {/* CUSTOMER */}
-          <InfoRow
-            icon="person-outline"
-            label="Customer"
-            value={booking?.customer?.name || "N/A"}
-          />
-
-          <InfoRow
-            icon="mail-outline"
-            label="Email"
-            value={booking?.customer?.email || "N/A"}
-          />
-
-          <Divider />
-
-          {/* SERVICE */}
-          <InfoRow
-            icon="car-outline"
-            label="Service"
-            value={booking?.service?.name}
-          />
-
-          <InfoRow
-            icon="cash-outline"
-            label="Price"
-            value={`$${booking?.service?.price}`}
-          />
-
-          <Divider />
-
-          {/* DATE */}
-          <InfoRow
-            icon="calendar-outline"
-            label="Date"
-            value={booking?.booking_date}
-          />
-
-          <InfoRow
-            icon="time-outline"
-            label="Time"
-            value={booking?.booking_time}
-          />
-
-          <Divider />
-
-          {/* STATUS */}
-          <View style={{ marginTop: 10 }}>
-            <Text style={styles.label}>Status</Text>
-
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: `${getStatusColor(booking.status)}22` },
-              ]}
-            >
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: getStatusColor(booking.status) },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.statusText,
-                  { color: getStatusColor(booking.status) },
-                ]}
-              >
-                {booking.status}
-              </Text>
-            </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="calendar" size={16} color="#34D399" />
+            <Text style={styles.infoLabel}>Date:</Text>
+            <Text style={styles.infoValue}>{booking.booking_date}</Text>
           </View>
-        </BlurView>
+          <View style={styles.infoRow}>
+            <Ionicons name="time" size={16} color="#34D399" />
+            <Text style={styles.infoLabel}>Time:</Text>
+            <Text style={styles.infoValue}>{booking.booking_time}</Text>
+          </View>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Assigned Dispatch Crew</Text>
+          <View style={styles.infoRow}>
+            <Ionicons name="construct" size={16} color="#A78BFA" />
+            <Text style={styles.infoLabel}>Technician:</Text>
+            <Text style={styles.infoValue}>{booking.staff?.name || "Unassigned"}</Text>
+          </View>
+        </View>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
-/* ================= SMALL COMPONENTS ================= */
-
-const InfoRow = ({ icon, label, value }: any) => (
-  <View style={styles.row}>
-    <View style={styles.iconBox}>
-      <Ionicons name={icon} size={18} color="#8b5cf6" />
-    </View>
-
-    <View style={{ flex: 1 }}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
-    </View>
-  </View>
-);
-
-const Divider = () => <View style={styles.divider} />;
-
-/* ================= STYLES ================= */
-
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-
-  loading: {
-    color: "#fff",
-    textAlign: "center",
-    marginTop: 50,
-  },
-
+  container: { flex: 1, backgroundColor: "#0F172A" },
+  center: { justifyContent: "center", alignItems: "center", padding: 20 },
   header: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#1E293B",
+    borderBottomWidth: 1,
+    borderBottomColor: "#334155",
     gap: 12,
-    marginBottom: 20,
   },
-
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  errorContainer: {
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    backgroundColor: "rgba(255,255,255,0.03)",
-    marginTop: 20,
-  },
-
-  errorText: {
-    color: "#ef4444",
-    textAlign: "center",
-  },
-
-  eyebrow: {
-    color: "#8b5cf6",
-    fontSize: 12,
-  },
-
-  title: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "800",
-  },
-
-  card: {
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    backgroundColor: "rgba(255,255,255,0.03)",
-  },
-
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 14,
-  },
-
-  iconBox: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "rgba(139,92,246,0.15)",
+    backgroundColor: "#334155",
     justifyContent: "center",
     alignItems: "center",
   },
-
-  label: {
-    fontSize: 12,
-    color: "#aaa",
-  },
-
-  value: {
-    fontSize: 15,
-    color: "#fff",
-    marginTop: 2,
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    marginVertical: 12,
-  },
-
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginTop: 6,
-    gap: 6,
-    alignSelf: "flex-start",
-  },
-
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-
-  statusText: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "capitalize",
-  },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#F8FAFC" },
+  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+  heroCard: { padding: 18, borderRadius: 16, marginBottom: 16 },
+  heroRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  heroLabel: { fontSize: 12, color: "#DBEAFE", fontWeight: "500" },
+  heroValue: { fontSize: 24, fontWeight: "800", color: "#FFF", marginTop: 4 },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  statusText: { fontSize: 11, fontWeight: "800" },
+  sectionCard: { backgroundColor: "#1E293B", borderRadius: 14, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: "#334155" },
+  sectionTitle: { fontSize: 14, fontWeight: "800", color: "#FFF", marginBottom: 10 },
+  infoRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  infoLabel: { fontSize: 12, color: "#94A3B8", width: 80, marginLeft: 8 },
+  infoValue: { fontSize: 13, fontWeight: "700", color: "#F8FAFC", flex: 1 },
+  errorText: { color: "#F87171", fontSize: 14, fontWeight: "700", marginTop: 10 },
+  errorBtn: { backgroundColor: "#334155", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, marginTop: 14 },
+  errorBtnText: { color: "#FFF", fontWeight: "700", fontSize: 12 },
 });
