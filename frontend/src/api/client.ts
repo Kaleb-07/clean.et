@@ -11,13 +11,28 @@ const API = axios.create({
 
 console.log("API Base URL:", process.env.EXPO_PUBLIC_API_URL);
 
-// Attach token automatically
+let activeImpersonatedTenantId: number | null = null;
+
+export function setImpersonatedTenantId(tenantId: number | null) {
+  activeImpersonatedTenantId = tenantId;
+}
+
+export function getImpersonatedTenantId(): number | null {
+  return activeImpersonatedTenantId;
+}
+
+// Attach token & X-Tenant-ID automatically
 API.interceptors.request.use(async (config) => {
   const token = await getToken();
 
+  config.headers = config.headers ?? {};
+
   if (token) {
-    config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (activeImpersonatedTenantId) {
+    config.headers["X-Tenant-ID"] = String(activeImpersonatedTenantId);
   }
 
   return config;

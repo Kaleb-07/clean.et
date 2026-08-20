@@ -38,7 +38,7 @@ class TenantController extends Controller
     {
         $validated = $request->validate([
             'business_name'        => 'required|string|max:255',
-            'plan'                 => 'required|string|in:starter,growth,enterprise',
+            'plan'                 => 'required|string|max:100',
             'categories_enabled'   => 'required|array',
             'categories_enabled.*' => 'string|max:100',
             // Optional primary tenant admin creation attributes:
@@ -113,7 +113,7 @@ class TenantController extends Controller
 
         $validated = $request->validate([
             'business_name'        => 'sometimes|required|string|max:255',
-            'plan'                 => 'sometimes|required|string|in:starter,growth,enterprise',
+            'plan'                 => 'sometimes|required|string|max:100',
             'categories_enabled'   => 'sometimes|required|array',
             'categories_enabled.*' => 'string|max:100',
             'admin_name'           => 'nullable|string|max:255',

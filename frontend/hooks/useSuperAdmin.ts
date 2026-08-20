@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { apiFetch } from "../src/api/client";
+import { apiFetch, setImpersonatedTenantId } from "../src/api/client";
 
 export interface TenantAdminUser {
   id: number;
@@ -85,16 +85,54 @@ export interface SystemSettings {
   platform_commission_rate: number;
   support_email: string;
   maintenance_mode: boolean;
+  subscription_plans?: any;
+  sector_categories?: any;
 }
 
 export interface CreateTenantPayload {
   business_name: string;
-  plan: "starter" | "growth" | "enterprise";
+  plan: string;
   categories_enabled: string[];
   admin_name?: string;
   admin_email?: string;
   admin_password?: string;
   admin_phone?: string;
+}
+
+export interface TenantPayout {
+  id: number;
+  tenant_id: number;
+  gross_amount: number;
+  commission_rate: number;
+  commission_amount: number;
+  net_payout: number;
+  period_start: string;
+  period_end: string;
+  status: "pending" | "processing" | "paid" | "failed";
+  payout_method: "telebirr" | "cbe" | "bank_transfer";
+  reference_number?: string;
+  notes?: string;
+  processed_at?: string;
+  created_at: string;
+  tenant?: Tenant;
+}
+
+export interface GeneratePayoutsPayload {
+  period_start: string;
+  period_end: string;
+  payout_method?: "telebirr" | "cbe" | "bank_transfer";
+}
+
+export interface UpdatePayoutStatusPayload {
+  status: "pending" | "processing" | "paid" | "failed";
+  reference_number?: string;
+  notes?: string;
+}
+
+export interface BroadcastPayload {
+  title: string;
+  message: string;
+  target: "all" | "tenant_admins" | "customers";
 }
 
 export function useSuperAdmin() {
@@ -103,6 +141,8 @@ export function useSuperAdmin() {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
+  const [payouts, setPayouts] = useState<TenantPayout[]>([]);
+  const [impersonatedTenant, setImpersonatedTenant] = useState<Tenant | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,13 +151,14 @@ export function useSuperAdmin() {
     setIsLoading(true);
     setError(null);
     try {
-      const [tenantsData, analyticsData, healthData, settingsData, auditData] =
+      const [tenantsData, analyticsData, healthData, settingsData, auditData, payoutsData] =
         await Promise.all([
           apiFetch<Tenant[]>("/tenants"),
           apiFetch<SuperAdminAnalytics>("/super-admin/analytics"),
           apiFetch<SystemHealth>("/super-admin/health"),
           apiFetch<SystemSettings>("/super-admin/settings"),
           apiFetch<any>("/super-admin/audit-logs"),
+          apiFetch<any>("/super-admin/payouts"),
         ]);
 
       setTenants(tenantsData);
@@ -125,6 +166,7 @@ export function useSuperAdmin() {
       setHealth(healthData);
       setSettings(settingsData);
       setAuditLogs(Array.isArray(auditData) ? auditData : auditData.data || []);
+      setPayouts(Array.isArray(payoutsData) ? payoutsData : payoutsData.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load super admin data.");
     } finally {
@@ -135,6 +177,11 @@ export function useSuperAdmin() {
   useEffect(() => {
     loadAllData();
   }, [loadAllData]);
+
+  const impersonateTenant = useCallback((tenant: Tenant | null) => {
+    setImpersonatedTenant(tenant);
+    setImpersonatedTenantId(tenant ? tenant.id : null);
+  }, []);
 
   const createTenantWithAdmin = useCallback(async (payload: CreateTenantPayload) => {
     const created = await apiFetch<Tenant>("/tenants", {
@@ -193,12 +240,47 @@ export function useSuperAdmin() {
     [loadAllData]
   );
 
+  const generatePayouts = useCallback(
+    async (payload: GeneratePayoutsPayload) => {
+      const result = await apiFetch<any>("/super-admin/payouts/generate", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      await loadAllData();
+      return result;
+    },
+    [loadAllData]
+  );
+
+  const updatePayoutStatus = useCallback(
+    async (id: number, payload: UpdatePayoutStatusPayload) => {
+      const updated = await apiFetch<TenantPayout>(`/super-admin/payouts/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      setPayouts((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      await loadAllData();
+      return updated;
+    },
+    [loadAllData]
+  );
+
+  const sendBroadcast = useCallback(async (payload: BroadcastPayload) => {
+    return await apiFetch<{ message: string; user_count: number }>("/super-admin/broadcast", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }, []);
+
   return {
     tenants,
     analytics,
     health,
     auditLogs,
     settings,
+    payouts,
+    impersonatedTenant,
+    impersonateTenant,
     isLoading,
     error,
     reload: loadAllData,
@@ -207,5 +289,8 @@ export function useSuperAdmin() {
     updateTenant,
     deleteTenant,
     updateSystemSettings,
+    generatePayouts,
+    updatePayoutStatus,
+    sendBroadcast,
   };
 }

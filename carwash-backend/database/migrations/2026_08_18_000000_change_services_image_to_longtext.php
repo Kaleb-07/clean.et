@@ -10,7 +10,9 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasColumn('services', 'image')) {
-            DB::statement('ALTER TABLE services MODIFY image LONGTEXT NULL');
+            if (DB::getDriverName() === 'mysql') {
+                DB::statement('ALTER TABLE services MODIFY image LONGTEXT NULL');
+            }
         } else {
             Schema::table('services', function (Blueprint $table) {
                 $table->longText('image')->nullable()->after('price');
@@ -20,7 +22,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (Schema::hasColumn('services', 'image')) {
+        if (Schema::hasColumn('services', 'image') && DB::getDriverName() === 'mysql') {
             DB::statement('ALTER TABLE services MODIFY image VARCHAR(255) NULL');
         }
     }

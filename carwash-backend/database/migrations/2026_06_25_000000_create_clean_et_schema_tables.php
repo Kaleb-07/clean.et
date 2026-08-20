@@ -15,7 +15,7 @@ return new class extends Migration
             Schema::create('tenants', function (Blueprint $table) {
                 $table->id();
                 $table->string('business_name');
-                $table->enum('plan', ['starter', 'growth', 'enterprise'])->default('starter');
+                $table->string('plan', 100)->default('starter');
                 $table->json('categories_enabled');
                 $table->enum('status', ['active', 'suspended'])->default('active');
                 $table->timestamps();

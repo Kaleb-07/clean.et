@@ -10,6 +10,7 @@ use App\Models\StaffProfile;
 use App\Models\SystemSetting;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\TenantPayout;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -157,13 +158,91 @@ class SuperAdminController extends Controller
     /**
      * GET /api/super-admin/settings
      */
-    public function getSettings(Request $request): JsonResponse
+    public function getSettings(?Request $request = null): JsonResponse
     {
         $currency = SystemSetting::getByKey('default_currency', 'ETB');
         $commission = SystemSetting::getByKey('platform_commission_rate', 10.0);
         $supportEmail = SystemSetting::getByKey('support_email', 'support@clean.et');
         $maintenance = SystemSetting::getByKey('maintenance_mode', false);
-        $plans = SystemSetting::getByKey('tenant_subscription_plans', null);
+        $defaultPlans = [
+            [
+                'id'          => 'starter',
+                'name'        => 'Starter Business',
+                'badge'       => '5% Fee',
+                'commission'  => '5% Commission',
+                'staffLimit'  => 'Max 5 Staff Members',
+                'features'    => ['Standard Bay Wash / Clean', 'Basic Invoicing & Billing', 'Mobile App Access'],
+                'colors'      => ['#0F172A', '#1E293B'],
+                'borderColor' => '#334155',
+            ],
+            [
+                'id'          => 'growth',
+                'name'        => 'Growth Tier',
+                'badge'       => 'RECOMMENDED (8% Fee)',
+                'commission'  => '8% Commission',
+                'staffLimit'  => 'Max 20 Staff Members',
+                'features'    => ['Multi-Sector Enabled', 'Automated Dispatch Queue', 'Customer Accounts & Fleets'],
+                'colors'      => ['#1E1B4B', '#312E81'],
+                'borderColor' => '#6366F1',
+            ],
+            [
+                'id'          => 'enterprise',
+                'name'        => 'Enterprise Core',
+                'badge'       => 'FULL ACCESS (10% Fee)',
+                'commission'  => '10% Platform Rate',
+                'staffLimit'  => 'Unlimited Staff & Techs',
+                'features'    => ['Full Multi-Sector Schemas', 'IRATA Rope Access High-Rise', 'Priority API & Dedicated Manager'],
+                'colors'      => ['#064E3B', '#047857'],
+                'borderColor' => '#10B981',
+            ],
+        ];
+
+        $defaultSectors = [
+            [
+                'id'           => 'car-washing',
+                'title'        => 'Car Washing & Detailing',
+                'subtitle'     => 'Sedans, SUVs, Minibuses, Engine Bays & Mobile Home Wash',
+                'icon'         => 'car-sport',
+                'color'        => '#3B82F6',
+                'tags'         => ['Foam Wash', 'Interior Vacuum', 'Ceramic Coating', 'Mobile Dispatch'],
+                'sharePercent' => 65,
+            ],
+            [
+                'id'           => 'building-cleaning',
+                'title'        => 'Building & Property Clean',
+                'subtitle'     => 'High-Rise Glass Windows, Post-Construction & Office Steam Sanitation',
+                'icon'         => 'business',
+                'color'        => '#10B981',
+                'tags'         => ['IRATA Rope Access', 'High-Rise Glass', 'Carpet Steam', 'Plaster Clean'],
+                'sharePercent' => 25,
+            ],
+            [
+                'id'           => 'laundry',
+                'title'        => 'Commercial Laundry & Linen',
+                'subtitle'     => 'Hotel Linens, Garment Dry Cleaning & Bulk Fabric Steam',
+                'icon'         => 'shirt',
+                'color'        => '#F59E0B',
+                'tags'         => ['Linen Steam', 'Garment Express', 'Dry Clean'],
+                'sharePercent' => 7,
+            ],
+            [
+                'id'           => 'maintenance',
+                'title'        => 'Property Maintenance & HVAC',
+                'subtitle'     => 'Air Duct Sanitation, Plumbing, Electrical & Facility Care',
+                'icon'         => 'construct',
+                'color'        => '#A78BFA',
+                'tags'         => ['Duct Clean', 'Facility Repairs', 'HVAC Wash'],
+                'sharePercent' => 3,
+            ],
+        ];
+
+        $plans = SystemSetting::getByKey('tenant_subscription_plans')
+            ?? SystemSetting::getByKey('subscription_plans')
+            ?? $defaultPlans;
+
+        $sectors = SystemSetting::getByKey('platform_sector_categories')
+            ?? SystemSetting::getByKey('sector_categories')
+            ?? $defaultSectors;
 
         return response()->json([
             'data' => [
@@ -172,6 +251,7 @@ class SuperAdminController extends Controller
                 'support_email'            => $supportEmail,
                 'maintenance_mode'         => (bool) $maintenance,
                 'subscription_plans'       => $plans,
+                'sector_categories'        => $sectors,
             ]
         ]);
     }
@@ -187,17 +267,179 @@ class SuperAdminController extends Controller
             'support_email'            => 'sometimes|email|max:255',
             'maintenance_mode'         => 'sometimes|boolean',
             'subscription_plans'       => 'sometimes|array',
+            'sector_categories'        => 'sometimes|array',
         ]);
 
         foreach ($validated as $key => $val) {
-            SystemSetting::setByKey($key, $val, 'system_governance');
+            $dbKey = match ($key) {
+                'subscription_plans' => 'tenant_subscription_plans',
+                'sector_categories'  => 'platform_sector_categories',
+                default              => $key,
+            };
+            SystemSetting::setByKey($dbKey, $val, 'system_governance');
+            if ($dbKey !== $key) {
+                SystemSetting::setByKey($key, $val, 'system_governance');
+            }
         }
 
         AuditLog::log('UPDATE_SYSTEM_SETTINGS', 'Super Admin updated global system settings.', $validated);
 
+        return $this->getSettings();
+    }
+
+    /**
+     * GET /api/super-admin/payouts
+     */
+    public function payouts(Request $request): JsonResponse
+    {
+        $query = TenantPayout::with('tenant');
+
+        if ($request->has('tenant_id')) {
+            $query->where('tenant_id', $request->get('tenant_id'));
+        }
+
+        if ($request->has('status')) {
+            $query->where('status', $request->get('status'));
+        }
+
+        $payouts = $query->latest()->paginate($request->get('per_page', 20));
+
+        return response()->json($payouts);
+    }
+
+    /**
+     * POST /api/super-admin/payouts/generate
+     */
+    public function generatePayouts(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'period_start'  => 'required|date',
+            'period_end'    => 'required|date|after_or_equal:period_start',
+            'payout_method' => 'sometimes|string|in:telebirr,cbe,bank_transfer',
+        ]);
+
+        $defaultCommissionRate = (float) SystemSetting::getByKey('platform_commission_rate', 10.0);
+        $payoutMethod = $validated['payout_method'] ?? 'telebirr';
+        $tenants = Tenant::withoutGlobalScopes()->where('status', 'active')->get();
+        $generated = [];
+
+        DB::transaction(function () use ($tenants, $validated, $defaultCommissionRate, $payoutMethod, &$generated) {
+            foreach ($tenants as $tenant) {
+                // Calculate gross amount for completed bookings in period
+                $grossAmount = (float) Booking::withoutGlobalScopes()
+                    ->where('tenant_id', $tenant->id)
+                    ->whereIn('status', [Booking::STATUS_COMPLETED, Booking::STATUS_INVOICED])
+                    ->whereBetween('created_at', [$validated['period_start'] . ' 00:00:00', $validated['period_end'] . ' 23:59:59'])
+                    ->sum('price');
+
+                if ($grossAmount <= 0) {
+                    continue;
+                }
+
+                $commissionRate = $defaultCommissionRate;
+                $commissionAmount = round($grossAmount * ($commissionRate / 100), 2);
+                $netPayout = round($grossAmount - $commissionAmount, 2);
+
+                $payout = TenantPayout::create([
+                    'tenant_id'         => $tenant->id,
+                    'gross_amount'      => $grossAmount,
+                    'commission_rate'   => $commissionRate,
+                    'commission_amount' => $commissionAmount,
+                    'net_payout'        => $netPayout,
+                    'period_start'      => $validated['period_start'],
+                    'period_end'        => $validated['period_end'],
+                    'status'            => 'pending',
+                    'payout_method'     => $payoutMethod,
+                    'reference_number'  => 'PO-' . strtoupper(uniqid()),
+                    'notes'             => "Settlement payout for period {$validated['period_start']} to {$validated['period_end']}.",
+                ]);
+
+                $payout->load('tenant');
+                $generated[] = $payout;
+            }
+
+            AuditLog::log(
+                'PAYOUTS_GENERATED',
+                "Generated " . count($generated) . " settlement payout records for period {$validated['period_start']} to {$validated['period_end']}.",
+                ['count' => count($generated)]
+            );
+        });
+
         return response()->json([
-            'message' => 'System governance settings updated successfully.',
-            'data'    => $validated,
+            'message' => 'Settlement payouts generated successfully.',
+            'count'   => count($generated),
+            'data'    => $generated,
+        ], 201);
+    }
+
+    /**
+     * PATCH /api/super-admin/payouts/{id}/status
+     */
+    public function updatePayoutStatus(Request $request, $id): JsonResponse
+    {
+        $payout = TenantPayout::with('tenant')->findOrFail($id);
+
+        $validated = $request->validate([
+            'status'           => 'required|string|in:pending,processing,paid,failed',
+            'reference_number' => 'sometimes|nullable|string|max:100',
+            'notes'            => 'sometimes|nullable|string',
+        ]);
+
+        $updateData = ['status' => $validated['status']];
+
+        if (array_key_exists('reference_number', $validated) && !empty($validated['reference_number'])) {
+            $updateData['reference_number'] = trim($validated['reference_number']);
+        }
+        if (array_key_exists('notes', $validated)) {
+            $updateData['notes'] = $validated['notes'];
+        }
+        if ($validated['status'] === 'paid') {
+            $updateData['processed_at'] = now();
+        }
+
+        $payout->update($updateData);
+
+        AuditLog::log(
+            'PAYOUT_STATUS_UPDATED',
+            "Updated payout ID #{$payout->id} status to '{$validated['status']}' for tenant {$payout->tenant->business_name}.",
+            ['payout_id' => $payout->id, 'status' => $validated['status']]
+        );
+
+        return response()->json([
+            'message' => 'Payout status updated successfully.',
+            'data'    => $payout->fresh('tenant'),
+        ]);
+    }
+
+    /**
+     * POST /api/super-admin/broadcast
+     */
+    public function broadcast(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'title'   => 'required|string|max:255',
+            'message' => 'required|string',
+            'target'  => 'required|string|in:all,tenant_admins,customers',
+        ]);
+
+        $query = User::query();
+        if ($validated['target'] === 'tenant_admins') {
+            $query->whereIn('role', ['tenant_admin', 'admin']);
+        } elseif ($validated['target'] === 'customers') {
+            $query->where('role', 'customer');
+        }
+
+        $userCount = $query->count();
+
+        AuditLog::log(
+            'SYSTEM_BROADCAST_SENT',
+            "Super Admin dispatched platform broadcast ('{$validated['title']}') to target: {$validated['target']} ({$userCount} users).",
+            ['title' => $validated['title'], 'target' => $validated['target'], 'user_count' => $userCount]
+        );
+
+        return response()->json([
+            'message'    => "System broadcast dispatched successfully to {$userCount} users.",
+            'user_count' => $userCount,
         ]);
     }
 }

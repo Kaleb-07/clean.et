@@ -53,6 +53,17 @@ class Customer extends Model
 
     public function activeSubscription()
     {
-        return $this->subscriptions()->where('status', 'active')->latest()->first();
+        $sub = $this->subscriptions()->where('status', 'active')->latest()->first();
+        if (!$sub) {
+            $sub = $this->subscriptions()->latest()->first();
+        }
+        if (!$sub && $this->subscription_tier && $this->subscription_tier !== 'none') {
+            return (object) [
+                'plan'      => $this->subscription_tier,
+                'status'    => 'active',
+                'renews_at' => now()->addMonth()->toIso8601String(),
+            ];
+        }
+        return $sub;
     }
 }

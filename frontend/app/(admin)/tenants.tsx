@@ -22,13 +22,14 @@ import {
   useSuperAdmin,
   Tenant,
   CreateTenantPayload,
+  TenantPayout,
 } from "../../hooks/useSuperAdmin";
 
-type ActiveTab = "overview" | "tenants" | "governance";
+type ActiveTab = "overview" | "tenants" | "payouts" | "governance";
 type WizardStep = 1 | 2 | 3;
 
 interface PlanTierInfo {
-  id: "starter" | "growth" | "enterprise";
+  id: string;
   name: string;
   badge: string;
   commission: string;
@@ -130,6 +131,9 @@ export default function SuperAdminTenantsScreen() {
     health,
     auditLogs,
     settings,
+    payouts,
+    impersonatedTenant,
+    impersonateTenant,
     isLoading,
     error,
     reload,
@@ -138,9 +142,32 @@ export default function SuperAdminTenantsScreen() {
     updateTenant,
     deleteTenant,
     updateSystemSettings,
+    generatePayouts,
+    updatePayoutStatus,
+    sendBroadcast,
   } = useSuperAdmin();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
+
+  // Payout modals state
+  const [generatePayoutModalVisible, setGeneratePayoutModalVisible] = useState(false);
+  const [payoutPeriodStart, setPayoutPeriodStart] = useState("2026-08-01");
+  const [payoutPeriodEnd, setPayoutPeriodEnd] = useState("2026-08-18");
+  const [payoutMethod, setPayoutMethod] = useState<"telebirr" | "cbe" | "bank_transfer">("telebirr");
+  const [isGeneratingPayouts, setIsGeneratingPayouts] = useState(false);
+
+  const [editPayout, setEditPayout] = useState<TenantPayout | null>(null);
+  const [payoutStatusForm, setPayoutStatusForm] = useState<"pending" | "processing" | "paid" | "failed">("paid");
+  const [payoutRefForm, setPayoutRefForm] = useState("");
+  const [payoutNotesForm, setPayoutNotesForm] = useState("");
+  const [isUpdatingPayout, setIsUpdatingPayout] = useState(false);
+
+  // Broadcast modal state
+  const [broadcastModalVisible, setBroadcastModalVisible] = useState(false);
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastTarget, setBroadcastTarget] = useState<"all" | "tenant_admins" | "customers">("all");
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [auditSearch, setAuditSearch] = useState("");
 
@@ -194,6 +221,206 @@ export default function SuperAdminTenantsScreen() {
     maintenance_mode: settings?.maintenance_mode || false,
     auto_dispatch: true,
   });
+
+  const activePlans: PlanTierInfo[] =
+    settings?.subscription_plans && settings.subscription_plans.length > 0
+      ? settings.subscription_plans
+      : SUBSCRIPTION_PLANS;
+
+  const activeSectors: SectorCategoryOption[] =
+    settings?.sector_categories && settings.sector_categories.length > 0
+      ? settings.sector_categories
+      : SECTOR_CATEGORIES;
+
+  // Dynamic Sector Category Modal State
+  const [sectorModalVisible, setSectorModalVisible] = useState(false);
+  const [editingSector, setEditingSector] = useState<SectorCategoryOption | null>(null);
+  const [sectorForm, setSectorForm] = useState({
+    id: "",
+    title: "",
+    subtitle: "",
+    icon: "sparkles",
+    color: "#3B82F6",
+    tags: "",
+  });
+
+  const handleOpenCreateSector = () => {
+    setEditingSector(null);
+    setSectorForm({
+      id: "",
+      title: "",
+      subtitle: "",
+      icon: "sparkles",
+      color: "#3B82F6",
+      tags: "Standard Service, Express Care",
+    });
+    setSectorModalVisible(true);
+  };
+
+  const handleOpenEditSector = (sector: SectorCategoryOption) => {
+    setEditingSector(sector);
+    setSectorForm({
+      id: sector.id,
+      title: sector.title,
+      subtitle: sector.subtitle || "",
+      icon: sector.icon || "sparkles",
+      color: sector.color || "#3B82F6",
+      tags: Array.isArray(sector.tags) ? sector.tags.join(", ") : sector.tags || "",
+    });
+    setSectorModalVisible(true);
+  };
+
+  const handleSaveSector = async () => {
+    if (!sectorForm.title.trim()) {
+      Alert.alert("Required", "Please enter Sector Title.");
+      return;
+    }
+    const sectorId = (sectorForm.id.trim() || sectorForm.title.toLowerCase().replace(/[^a-z0-9]/g, "-"));
+    const newSectorObj: SectorCategoryOption = {
+      id: sectorId,
+      title: sectorForm.title.trim(),
+      subtitle: sectorForm.subtitle.trim() || "Custom Service Industry Sector",
+      icon: sectorForm.icon.trim() || "sparkles",
+      color: sectorForm.color.trim() || "#3B82F6",
+      tags: sectorForm.tags.split(",").map((t) => t.trim()).filter(Boolean),
+      sharePercent: 5,
+    };
+
+    let updatedSectors = [...activeSectors];
+    const existingIndex = updatedSectors.findIndex((s) => s.id === sectorId);
+    if (existingIndex >= 0) {
+      updatedSectors[existingIndex] = newSectorObj;
+    } else {
+      updatedSectors.push(newSectorObj);
+    }
+
+    try {
+      await updateSystemSettings({ sector_categories: updatedSectors });
+      setSectorModalVisible(false);
+      Alert.alert("Success 🎉", `Service Sector "${newSectorObj.title}" saved permanently!`);
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to save service sector.");
+    }
+  };
+
+  const handleDeleteSector = async (sectorId: string) => {
+    Alert.alert("Confirm Delete", `Are you sure you want to remove service sector "${sectorId}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          const updatedSectors = activeSectors.filter((s) => s.id !== sectorId);
+          try {
+            await updateSystemSettings({ sector_categories: updatedSectors });
+            Alert.alert("Deleted", "Service sector removed permanently.");
+          } catch (e: any) {
+            Alert.alert("Error", e.message || "Failed to delete service sector.");
+          }
+        },
+      },
+    ]);
+  };
+
+  // Subscription Plan Tier Modal State
+  const [planTierModalVisible, setPlanTierModalVisible] = useState(false);
+  const [editingTier, setEditingTier] = useState<PlanTierInfo | null>(null);
+  const [tierForm, setTierForm] = useState({
+    id: "",
+    name: "",
+    badge: "",
+    commission: "",
+    staffLimit: "",
+    features: "",
+    colorStart: "#1E1B4B",
+    colorEnd: "#312E81",
+    borderColor: "#6366F1",
+  });
+
+  const handleOpenCreateTier = () => {
+    setEditingTier(null);
+    setTierForm({
+      id: "",
+      name: "",
+      badge: "NEW TIER",
+      commission: "10% Commission",
+      staffLimit: "Unlimited Staff",
+      features: "Multi-Sector Access, Priority Support",
+      colorStart: "#1E1B4B",
+      colorEnd: "#312E81",
+      borderColor: "#6366F1",
+    });
+    setPlanTierModalVisible(true);
+  };
+
+  const handleOpenEditTier = (tier: PlanTierInfo) => {
+    setEditingTier(tier);
+    setTierForm({
+      id: tier.id,
+      name: tier.name,
+      badge: tier.badge || "",
+      commission: tier.commission || "",
+      staffLimit: tier.staffLimit || "",
+      features: Array.isArray(tier.features) ? tier.features.join(", ") : tier.features || "",
+      colorStart: tier.colors ? tier.colors[0] : "#1E1B4B",
+      colorEnd: tier.colors ? tier.colors[1] : "#312E81",
+      borderColor: tier.borderColor || "#6366F1",
+    });
+    setPlanTierModalVisible(true);
+  };
+
+  const handleSaveTier = async () => {
+    if (!tierForm.name.trim()) {
+      Alert.alert("Required", "Please enter Tier Name.");
+      return;
+    }
+    const tierId = (tierForm.id.trim() || tierForm.name.toLowerCase().replace(/[^a-z0-9]/g, "_"));
+    const newTierObj: PlanTierInfo = {
+      id: tierId,
+      name: tierForm.name.trim(),
+      badge: tierForm.badge.trim() || "CUSTOM TIER",
+      commission: tierForm.commission.trim() || "10% Commission",
+      staffLimit: tierForm.staffLimit.trim() || "Unlimited Staff",
+      features: tierForm.features.split(",").map((f) => f.trim()).filter(Boolean),
+      colors: [tierForm.colorStart, tierForm.colorEnd],
+      borderColor: tierForm.borderColor,
+    };
+
+    let updatedPlans = [...activePlans];
+    const existingIndex = updatedPlans.findIndex((p) => p.id === tierId);
+    if (existingIndex >= 0) {
+      updatedPlans[existingIndex] = newTierObj;
+    } else {
+      updatedPlans.push(newTierObj);
+    }
+
+    try {
+      await updateSystemSettings({ subscription_plans: updatedPlans });
+      setPlanTierModalVisible(false);
+      Alert.alert("Success 🎉", `Subscription Tier "${newTierObj.name}" saved permanently!`);
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to save subscription tier.");
+    }
+  };
+
+  const handleDeleteTier = async (tierId: string) => {
+    Alert.alert("Confirm Delete", `Are you sure you want to remove plan tier "${tierId}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          const updatedPlans = activePlans.filter((p) => p.id !== tierId);
+          try {
+            await updateSystemSettings({ subscription_plans: updatedPlans });
+            Alert.alert("Deleted", "Subscription tier removed permanently.");
+          } catch (e: any) {
+            Alert.alert("Error", e.message || "Failed to delete subscription tier.");
+          }
+        },
+      },
+    ]);
+  };
 
   const toggleCategory = (cat: string) => {
     setForm((prev) => {
@@ -311,8 +538,12 @@ export default function SuperAdminTenantsScreen() {
     const newStatus = tenant.status === "active" ? "suspended" : "active";
     try {
       await updateTenantStatus(tenant.id, newStatus);
+      Alert.alert(
+        "⚡ Status Updated",
+        `Tenant "${tenant.business_name}" account status has been changed to ${newStatus.toUpperCase()} successfully!`
+      );
     } catch (err: any) {
-      Alert.alert("Error", err?.message || "Failed to update status.");
+      Alert.alert("Status Update Error", err?.message || "Failed to update status.");
     }
   };
 
@@ -324,9 +555,72 @@ export default function SuperAdminTenantsScreen() {
         support_email: settingsForm.support_email,
         maintenance_mode: settingsForm.maintenance_mode,
       });
-      Alert.alert("Saved", "System governance settings updated!");
+      Alert.alert(
+        "⚙️ Governance Settings Saved",
+        "Global platform currency, commission rates, support email, and maintenance mode updated successfully!"
+      );
     } catch (err: any) {
-      Alert.alert("Error", err?.message || "Failed to update settings.");
+      Alert.alert("Settings Save Error", err?.message || "Failed to update settings.");
+    }
+  };
+
+  const handleGeneratePayouts = async () => {
+    if (!payoutPeriodStart || !payoutPeriodEnd) {
+      return Alert.alert("Required", "Please enter valid Period Start and End dates.");
+    }
+    setIsGeneratingPayouts(true);
+    try {
+      const res = await generatePayouts({
+        period_start: payoutPeriodStart,
+        period_end: payoutPeriodEnd,
+        payout_method: payoutMethod,
+      });
+      setGeneratePayoutModalVisible(false);
+      Alert.alert("🎉 Success", `Generated ${res.count ?? 0} settlement payouts!`);
+    } catch (e: any) {
+      Alert.alert("Error", e?.message || "Failed to generate payouts.");
+    } finally {
+      setIsGeneratingPayouts(false);
+    }
+  };
+
+  const handleUpdatePayoutStatus = async () => {
+    if (!editPayout) return;
+    setIsUpdatingPayout(true);
+    try {
+      await updatePayoutStatus(editPayout.id, {
+        status: payoutStatusForm,
+        reference_number: payoutRefForm.trim() || undefined,
+        notes: payoutNotesForm.trim() || undefined,
+      });
+      setEditPayout(null);
+      Alert.alert("Updated", "Settlement payout status updated successfully.");
+    } catch (e: any) {
+      Alert.alert("Error", e?.message || "Failed to update payout status.");
+    } finally {
+      setIsUpdatingPayout(false);
+    }
+  };
+
+  const handleSendBroadcast = async () => {
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+      return Alert.alert("Required", "Please provide a Title and Message for the broadcast.");
+    }
+    setIsSendingBroadcast(true);
+    try {
+      const res = await sendBroadcast({
+        title: broadcastTitle.trim(),
+        message: broadcastMessage.trim(),
+        target: broadcastTarget,
+      });
+      setBroadcastModalVisible(false);
+      setBroadcastTitle("");
+      setBroadcastMessage("");
+      Alert.alert("📢 Broadcast Dispatched", res.message || "System broadcast sent successfully.");
+    } catch (e: any) {
+      Alert.alert("Error", e?.message || "Failed to send broadcast.");
+    } finally {
+      setIsSendingBroadcast(false);
     }
   };
 
@@ -393,6 +687,21 @@ export default function SuperAdminTenantsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ─── IMPERSONATION BANNER ─── */}
+      {impersonatedTenant && (
+        <View style={styles.impersonationBanner}>
+          <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+            <Ionicons name="eye-sharp" size={18} color="#F59E0B" style={{ marginRight: 8 }} />
+            <Text style={styles.impersonationText} numberOfLines={1}>
+              Impersonating: <Text style={{ fontWeight: "800", color: "#FFF" }}>{impersonatedTenant.business_name}</Text>
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.exitImpersonationButton} onPress={() => impersonateTenant(null)}>
+            <Text style={styles.exitImpersonationText}>Exit View</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* ─── NAVIGATION TABS ─── */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
@@ -430,6 +739,25 @@ export default function SuperAdminTenantsScreen() {
             ]}
           >
             Tenants ({tenants.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabItem, activeTab === "payouts" && styles.activeTabItem]}
+          onPress={() => setActiveTab("payouts")}
+        >
+          <Ionicons
+            name="wallet-outline"
+            size={18}
+            color={activeTab === "payouts" ? "#60A5FA" : "#9CA3AF"}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "payouts" && styles.activeTabText,
+            ]}
+          >
+            Payouts ({payouts.length})
           </Text>
         </TouchableOpacity>
 
@@ -545,7 +873,7 @@ export default function SuperAdminTenantsScreen() {
                   Revenue distribution across authorized service categories
                 </Text>
 
-                {SECTOR_CATEGORIES.map((cat) => (
+                {activeSectors.map((cat) => (
                   <View key={cat.id} style={{ marginBottom: 12 }}>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -751,6 +1079,17 @@ export default function SuperAdminTenantsScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity
+                          style={[styles.actionBtn, { backgroundColor: "#8B5CF622", borderColor: "#8B5CF655" }]}
+                          onPress={() => {
+                            impersonateTenant(t);
+                            Alert.alert("👁️ Impersonating", `Switched context to ${t.business_name}. Bookings & operations now scope to this business.`);
+                          }}
+                        >
+                          <Ionicons name="eye-sharp" size={16} color="#A78BFA" />
+                          <Text style={[styles.actionBtnText, { color: "#A78BFA" }]}>Impersonate</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                           style={[styles.actionBtn, { backgroundColor: "#F59E0B22", borderColor: "#F59E0B55" }]}
                           onPress={() => openEditModal(t)}
                         >
@@ -773,7 +1112,126 @@ export default function SuperAdminTenantsScreen() {
             </Animated.View>
           )}
 
-          {/* TAB 3: PROFESSIONAL SYSTEM GOVERNANCE SUITE & DIAGNOSTICS */}
+          {/* TAB 3: PAYOUTS & SETTLEMENTS */}
+          {activeTab === "payouts" && (
+            <Animated.View entering={FadeInDown}>
+              {/* Payout Hero Summary */}
+              <LinearGradient colors={["#064E3B", "#047857"]} style={styles.heroCard}>
+                <View style={styles.heroCardHeader}>
+                  <Text style={styles.heroLabel}>Total Tenant Payout Settlements</Text>
+                  <View style={styles.currencyPill}>
+                    <Text style={styles.currencyPillText}>NET SETTLED</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.heroValue}>
+                  ETB {payouts.reduce((sum, p) => sum + (Number(p.net_payout) || 0), 0).toLocaleString("en-ET", { minimumFractionDigits: 2 })}
+                </Text>
+
+                <View style={{ flexDirection: "row", gap: 12, marginTop: 12 }}>
+                  <View style={{ backgroundColor: "#FFFFFF22", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                    <Text style={{ color: "#A7F3D0", fontSize: 11, fontWeight: "700" }}>
+                      Pending: {payouts.filter((p) => p.status === "pending").length}
+                    </Text>
+                  </View>
+                  <View style={{ backgroundColor: "#FFFFFF22", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                    <Text style={{ color: "#A7F3D0", fontSize: 11, fontWeight: "700" }}>
+                      Paid: {payouts.filter((p) => p.status === "paid").length}
+                    </Text>
+                  </View>
+                </View>
+              </LinearGradient>
+
+              <View style={styles.card}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <View>
+                    <Text style={styles.cardTitle}>Tenant Settlement Payouts</Text>
+                    <Text style={{ color: "#94A3B8", fontSize: 11 }}>Calculated gross earnings, platform commission, and net payouts</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.onboardButton}
+                    onPress={() => setGeneratePayoutModalVisible(true)}
+                  >
+                    <Ionicons name="flash-outline" size={16} color="#FFF" />
+                    <Text style={styles.onboardButtonText}>⚡ Generate</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {payouts.length === 0 ? (
+                  <View style={styles.emptyBox}>
+                    <Ionicons name="wallet-outline" size={48} color="#475569" />
+                    <Text style={styles.emptyTitle}>No Payout Settlements Recorded</Text>
+                    <Text style={styles.emptySub}>
+                      Tap "⚡ Generate" to calculate payouts for business tenants over a date range.
+                    </Text>
+                  </View>
+                ) : (
+                  payouts.map((p) => {
+                    const isPaid = p.status === "paid";
+                    const isPending = p.status === "pending";
+
+                    return (
+                      <View key={p.id} style={styles.tenantCard}>
+                        <View style={styles.tenantCardHeader}>
+                          <View style={styles.tenantTitleGroup}>
+                            <Text style={styles.tenantName}>{p.tenant?.business_name || `Tenant #${p.tenant_id}`}</Text>
+                            <Text style={{ color: "#94A3B8", fontSize: 11 }}>Ref: {p.reference_number || "N/A"}</Text>
+                          </View>
+
+                          <View style={[styles.detailStatusBadge, {
+                            backgroundColor: isPaid ? "#10B98122" : isPending ? "#F59E0B22" : "#EF444422"
+                          }]}>
+                            <Text style={{
+                              color: isPaid ? "#34D399" : isPending ? "#FBBF24" : "#F87171",
+                              fontWeight: "800",
+                              fontSize: 11
+                            }}>
+                              ● {p.status.toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", backgroundColor: "#0F172A", padding: 12, borderRadius: 8, marginVertical: 8 }}>
+                          <View>
+                            <Text style={{ color: "#94A3B8", fontSize: 10 }}>Gross Sales</Text>
+                            <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>ETB {Number(p.gross_amount).toFixed(2)}</Text>
+                          </View>
+                          <View>
+                            <Text style={{ color: "#94A3B8", fontSize: 10 }}>Fee ({p.commission_rate}%)</Text>
+                            <Text style={{ color: "#F59E0B", fontWeight: "700", fontSize: 13 }}>- ETB {Number(p.commission_amount).toFixed(2)}</Text>
+                          </View>
+                          <View>
+                            <Text style={{ color: "#94A3B8", fontSize: 10 }}>Net Payout</Text>
+                            <Text style={{ color: "#10B981", fontWeight: "800", fontSize: 14 }}>ETB {Number(p.net_payout).toFixed(2)}</Text>
+                          </View>
+                        </View>
+
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <Text style={{ color: "#64748B", fontSize: 11 }}>
+                            Period: {p.period_start} to {p.period_end} ({p.payout_method.toUpperCase()})
+                          </Text>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, { backgroundColor: "#3B82F622", borderColor: "#3B82F655" }]}
+                            onPress={() => {
+                              setEditPayout(p);
+                              setPayoutStatusForm(p.status);
+                              setPayoutRefForm(p.reference_number || "");
+                              setPayoutNotesForm(p.notes || "");
+                            }}
+                          >
+                            <Ionicons name="create-outline" size={14} color="#60A5FA" />
+                            <Text style={[styles.actionBtnText, { color: "#60A5FA" }]}>Update</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            </Animated.View>
+          )}
+
+          {/* TAB 4: PROFESSIONAL SYSTEM GOVERNANCE SUITE & DIAGNOSTICS */}
           {activeTab === "governance" && (
             <Animated.View entering={FadeInDown}>
               {/* System Diagnostics & Operational Health */}
@@ -896,6 +1354,151 @@ export default function SuperAdminTenantsScreen() {
                 >
                   <Text style={styles.saveSettingsText}>Save Governance Settings</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.saveSettingsButton, { backgroundColor: "#8B5CF6", marginTop: 10 }]}
+                  onPress={() => setBroadcastModalVisible(true)}
+                >
+                  <Text style={styles.saveSettingsText}>📢 Dispatch System Broadcast</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Dynamic Subscription Plan Tiers Manager */}
+              <View style={styles.card}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <View>
+                    <Text style={styles.cardTitle}>Dynamic Subscription Plan Tiers</Text>
+                    <Text style={{ color: "#94A3B8", fontSize: 11 }}>
+                      Configure custom subscription tiers, badges, commission rates & features
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={{ backgroundColor: "#2563EB", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: "row", alignItems: "center" }}
+                    onPress={handleOpenCreateTier}
+                  >
+                    <Ionicons name="add-circle-outline" size={16} color="#FFF" />
+                    <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 11, marginLeft: 4 }}>➕ Create Tier</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {activePlans.map((planTier) => (
+                  <View
+                    key={planTier.id}
+                    style={{
+                      backgroundColor: "#0F172A",
+                      borderRadius: 10,
+                      padding: 12,
+                      marginBottom: 10,
+                      borderWidth: 1,
+                      borderColor: planTier.borderColor || "#334155",
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Text style={{ color: "#F8FAFC", fontSize: 14, fontWeight: "700" }}>{planTier.name}</Text>
+                          <View style={{ backgroundColor: "#3B82F622", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ color: "#60A5FA", fontSize: 10, fontWeight: "700" }}>{planTier.badge}</Text>
+                          </View>
+                        </View>
+                        <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                          ID: <Text style={{ color: "#E2E8F0", fontWeight: "600" }}>{planTier.id}</Text> • {planTier.commission} • {planTier.staffLimit}
+                        </Text>
+                      </View>
+
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <TouchableOpacity
+                          style={{ padding: 6, backgroundColor: "#334155", borderRadius: 6 }}
+                          onPress={() => handleOpenEditTier(planTier)}
+                        >
+                          <Ionicons name="create-outline" size={16} color="#60A5FA" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{ padding: 6, backgroundColor: "#334155", borderRadius: 6 }}
+                          onPress={() => handleDeleteTier(planTier.id)}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+                      {(planTier.features || []).map((feat, idx) => (
+                        <View key={idx} style={{ backgroundColor: "#1E293B", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: "#94A3B8", fontSize: 10 }}>✓ {feat}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {/* Dynamic Authorized Service Sector Categories Manager */}
+              <View style={styles.card}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                  <View>
+                    <Text style={styles.cardTitle}>Dynamic Authorized Service Sectors</Text>
+                    <Text style={{ color: "#94A3B8", fontSize: 11 }}>
+                      Manage platform industry sectors, icons, tags & authorization scope
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={{ backgroundColor: "#10B981", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, flexDirection: "row", alignItems: "center" }}
+                    onPress={handleOpenCreateSector}
+                  >
+                    <Ionicons name="add-circle-outline" size={16} color="#FFF" />
+                    <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 11, marginLeft: 4 }}>➕ Create Sector</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {activeSectors.map((sectorItem) => (
+                  <View
+                    key={sectorItem.id}
+                    style={{
+                      backgroundColor: "#0F172A",
+                      borderRadius: 10,
+                      padding: 12,
+                      marginBottom: 10,
+                      borderWidth: 1,
+                      borderColor: "#334155",
+                    }}
+                  >
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Ionicons name={(sectorItem.icon || "sparkles") as any} size={18} color={sectorItem.color || "#3B82F6"} />
+                          <Text style={{ color: "#F8FAFC", fontSize: 14, fontWeight: "700" }}>{sectorItem.title}</Text>
+                        </View>
+                        <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                          ID: <Text style={{ color: "#E2E8F0", fontWeight: "600" }}>{sectorItem.id}</Text> — {sectorItem.subtitle}
+                        </Text>
+                      </View>
+
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <TouchableOpacity
+                          style={{ padding: 6, backgroundColor: "#334155", borderRadius: 6 }}
+                          onPress={() => handleOpenEditSector(sectorItem)}
+                        >
+                          <Ionicons name="create-outline" size={16} color="#60A5FA" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{ padding: 6, backgroundColor: "#334155", borderRadius: 6 }}
+                          onPress={() => handleDeleteSector(sectorItem.id)}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+                      {(sectorItem.tags || []).map((t, idx) => (
+                        <View key={idx} style={{ backgroundColor: "#1E293B", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: sectorItem.color || "#3B82F6", fontSize: 10 }}>• {t}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ))}
               </View>
 
               {/* Interactive Audit Logs Console */}
@@ -1136,7 +1739,7 @@ export default function SuperAdminTenantsScreen() {
 
               <Text style={styles.inputLabel}>Authorized Service Sectors</Text>
               <View style={{ marginBottom: 14 }}>
-                {SECTOR_CATEGORIES.map((cat) => {
+                {activeSectors.map((cat) => {
                   const isChecked = editForm.categories_enabled.includes(cat.id);
                   return (
                     <TouchableOpacity
@@ -1292,7 +1895,7 @@ export default function SuperAdminTenantsScreen() {
 
                   <Text style={styles.sectionHeader}>Select Subscription Plan Tier</Text>
 
-                  {SUBSCRIPTION_PLANS.map((plan) => {
+                  {activePlans.map((plan) => {
                     const isSelected = form.plan === plan.id;
                     return (
                       <TouchableOpacity
@@ -1361,7 +1964,7 @@ export default function SuperAdminTenantsScreen() {
                     Assign which multi-sector categories this tenant company is authorized to manage and receive dispatch orders for:
                   </Text>
 
-                  {SECTOR_CATEGORIES.map((cat) => {
+                  {activeSectors.map((cat) => {
                     const isChecked = form.categories_enabled.includes(cat.id);
                     return (
                       <TouchableOpacity
@@ -1528,12 +2131,605 @@ export default function SuperAdminTenantsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ─── ⚡ GENERATE PAYOUT SETTLEMENTS MODAL ─── */}
+      <Modal
+        visible={generatePayoutModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setGeneratePayoutModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Generate Settlement Payouts</Text>
+                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                  Calculate gross revenue, commission & net payouts for all active tenants
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setGeneratePayoutModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 400 }}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Period Start Date (YYYY-MM-DD)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={payoutPeriodStart}
+                  onChangeText={setPayoutPeriodStart}
+                  placeholder="2026-08-01"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Period End Date (YYYY-MM-DD)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={payoutPeriodEnd}
+                  onChangeText={setPayoutPeriodEnd}
+                  placeholder="2026-08-18"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Preferred Settlement Method</Text>
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+                  {(["telebirr", "cbe", "bank_transfer"] as const).map((m) => (
+                    <TouchableOpacity
+                      key={m}
+                      style={[
+                        styles.planOption,
+                        { flex: 1 },
+                        payoutMethod === m && styles.selectedPlanOption,
+                      ]}
+                      onPress={() => setPayoutMethod(m)}
+                    >
+                      <Text
+                        style={[
+                          styles.planOptionText,
+                          payoutMethod === m && styles.selectedPlanOptionText,
+                        ]}
+                      >
+                        {m.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: "#10B981", marginTop: 12 }, isGeneratingPayouts && { opacity: 0.7 }]}
+              onPress={handleGeneratePayouts}
+              disabled={isGeneratingPayouts}
+            >
+              {isGeneratingPayouts ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.submitButtonText}>⚡ Calculate & Generate Payouts</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── ✏️ UPDATE PAYOUT STATUS MODAL ─── */}
+      <Modal
+        visible={!!editPayout}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditPayout(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Update Payout Settlement</Text>
+                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                  Set payout status and attach payment gateway reference number
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setEditPayout(null)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 400 }}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Payout Status</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                  {(["pending", "processing", "paid", "failed"] as const).map((st) => (
+                    <TouchableOpacity
+                      key={st}
+                      style={[
+                        styles.planOption,
+                        { paddingHorizontal: 12 },
+                        payoutStatusForm === st && styles.selectedPlanOption,
+                      ]}
+                      onPress={() => setPayoutStatusForm(st)}
+                    >
+                      <Text
+                        style={[
+                          styles.planOptionText,
+                          payoutStatusForm === st && styles.selectedPlanOptionText,
+                        ]}
+                      >
+                        {st.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Payment Reference Number / Transaction ID</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={payoutRefForm}
+                  onChangeText={setPayoutRefForm}
+                  placeholder="e.g. TXN-TELEBIRR-883492"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Notes / Instructions</Text>
+                <TextInput
+                  style={[styles.textInput, { height: 60, textAlignVertical: "top" }]}
+                  multiline
+                  value={payoutNotesForm}
+                  onChangeText={setPayoutNotesForm}
+                  placeholder="Settlement paid via Telebirr merchant portal."
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: "#3B82F6", marginTop: 12 }, isUpdatingPayout && { opacity: 0.7 }]}
+              onPress={handleUpdatePayoutStatus}
+              disabled={isUpdatingPayout}
+            >
+              {isUpdatingPayout ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.submitButtonText}>Save Payout Status</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── 📢 DISPATCH SYSTEM BROADCAST MODAL ─── */}
+      <Modal
+        visible={broadcastModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setBroadcastModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Dispatch System Broadcast</Text>
+                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                  Send a platform alert announcement to users across sectors
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setBroadcastModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Target Audience</Text>
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+                  {(["all", "tenant_admins", "customers"] as const).map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[
+                        styles.planOption,
+                        { flex: 1 },
+                        broadcastTarget === t && styles.selectedPlanOption,
+                      ]}
+                      onPress={() => setBroadcastTarget(t)}
+                    >
+                      <Text
+                        style={[
+                          styles.planOptionText,
+                          broadcastTarget === t && styles.selectedPlanOptionText,
+                        ]}
+                      >
+                        {t === "all" ? "ALL USERS" : t === "tenant_admins" ? "TENANT ADMINS" : "CUSTOMERS"}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Broadcast Title</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={broadcastTitle}
+                  onChangeText={setBroadcastTitle}
+                  placeholder="e.g. Scheduled System Upgrade"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Broadcast Announcement Message</Text>
+                <TextInput
+                  style={[styles.textInput, { height: 80, textAlignVertical: "top" }]}
+                  multiline
+                  value={broadcastMessage}
+                  onChangeText={setBroadcastMessage}
+                  placeholder="Please note system maintenance will take place tonight from 2 AM to 3 AM."
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: "#8B5CF6", marginTop: 12 }, isSendingBroadcast && { opacity: 0.7 }]}
+              onPress={handleSendBroadcast}
+              disabled={isSendingBroadcast}
+            >
+              {isSendingBroadcast ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.submitButtonText}>📢 Send Platform Broadcast</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── 🏷️ CREATE / EDIT SUBSCRIPTION PLAN TIER MODAL ─── */}
+      <Modal
+        visible={planTierModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPlanTierModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  {editingTier ? `Edit Plan Tier: ${editingTier.name}` : "Create Custom Subscription Plan Tier"}
+                </Text>
+                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                  Changes will be saved permanently to system governance settings
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setPlanTierModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Tier Identifier (Unique Key)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={tierForm.id}
+                  onChangeText={(val) => setTierForm((p) => ({ ...p, id: val }))}
+                  placeholder="e.g. enterprise_plus"
+                  placeholderTextColor="#64748B"
+                  editable={!editingTier}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Tier Display Name *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={tierForm.name}
+                  onChangeText={(val) => setTierForm((p) => ({ ...p, name: val }))}
+                  placeholder="e.g. Enterprise Core"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Badge Tag Text</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={tierForm.badge}
+                  onChangeText={(val) => setTierForm((p) => ({ ...p, badge: val }))}
+                  placeholder="e.g. RECOMMENDED (10% Fee)"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Commission Rate Description</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={tierForm.commission}
+                  onChangeText={(val) => setTierForm((p) => ({ ...p, commission: val }))}
+                  placeholder="e.g. 10% Commission"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Staff / Tech Capacity Limit</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={tierForm.staffLimit}
+                  onChangeText={(val) => setTierForm((p) => ({ ...p, staffLimit: val }))}
+                  placeholder="e.g. Unlimited Staff & Techs"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Included Features (Comma Separated)</Text>
+                <TextInput
+                  style={[styles.textInput, { height: 60, textAlignVertical: "top" }]}
+                  multiline
+                  value={tierForm.features}
+                  onChangeText={(val) => setTierForm((p) => ({ ...p, features: val }))}
+                  placeholder="Multi-Sector Enabled, Automated Dispatch, Priority Support"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: "#2563EB", marginTop: 12 }]}
+              onPress={handleSaveTier}
+            >
+              <Text style={styles.submitButtonText}>💾 Save Plan Tier Permanently</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── 🌐 CREATE / EDIT AUTHORIZED SERVICE SECTOR MODAL ─── */}
+      <Modal
+        visible={sectorModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setSectorModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  {editingSector ? `Edit Sector: ${editingSector.title}` : "Create Custom Authorized Service Sector"}
+                </Text>
+                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                  Dynamically adds new industry sectors across tenant onboarding and service catalog
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setSectorModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Sector Slug ID (Unique Key)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={sectorForm.id}
+                  onChangeText={(val) => setSectorForm((p) => ({ ...p, id: val }))}
+                  placeholder="e.g. solar-panel-cleaning"
+                  placeholderTextColor="#64748B"
+                  editable={!editingSector}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Sector Title *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={sectorForm.title}
+                  onChangeText={(val) => setSectorForm((p) => ({ ...p, title: val }))}
+                  placeholder="e.g. Solar Panel & Rooftop Wash"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Sector Subtitle / Description</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={sectorForm.subtitle}
+                  onChangeText={(val) => setSectorForm((p) => ({ ...p, subtitle: val }))}
+                  placeholder="e.g. Photovoltaic Cell De-dusting & Solar Farm Washing"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              {/* 🎨 INTERACTIVE ICON SELECTION GRID */}
+              <View style={styles.inputGroup}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <Text style={styles.inputLabel}>Select Sector Symbol Icon</Text>
+                  <Text style={{ color: sectorForm.color, fontSize: 11, fontWeight: "700" }}>Selected: {sectorForm.icon}</Text>
+                </View>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                  {[
+                    "car-sport",
+                    "business",
+                    "shirt",
+                    "construct",
+                    "sparkles",
+                    "sunny",
+                    "water",
+                    "leaf",
+                    "flash",
+                    "shield-checkmark",
+                    "home",
+                    "cube",
+                  ].map((iconName) => {
+                    const isSelected = sectorForm.icon === iconName;
+                    return (
+                      <TouchableOpacity
+                        key={iconName}
+                        style={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: 10,
+                          backgroundColor: isSelected ? `${sectorForm.color}22` : "#0F172A",
+                          borderWidth: isSelected ? 2 : 1,
+                          borderColor: isSelected ? sectorForm.color : "#334155",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        onPress={() => setSectorForm((p) => ({ ...p, icon: iconName }))}
+                      >
+                        <Ionicons
+                          name={iconName as any}
+                          size={20}
+                          color={isSelected ? sectorForm.color : "#94A3B8"}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 🎨 INTERACTIVE COLOR PALETTE SWATCHES */}
+              <View style={styles.inputGroup}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <Text style={styles.inputLabel}>Select Sector Accent Color</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: sectorForm.color }} />
+                    <Text style={{ color: "#F8FAFC", fontSize: 11, fontWeight: "700" }}>{sectorForm.color}</Text>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
+                  {[
+                    "#3B82F6",
+                    "#10B981",
+                    "#F59E0B",
+                    "#8B5CF6",
+                    "#EC4899",
+                    "#EF4444",
+                    "#06B6D4",
+                    "#6366F1",
+                    "#14B8A6",
+                    "#F97316",
+                  ].map((colorHex) => {
+                    const isSelected = sectorForm.color.toLowerCase() === colorHex.toLowerCase();
+                    return (
+                      <TouchableOpacity
+                        key={colorHex}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          backgroundColor: colorHex,
+                          borderWidth: isSelected ? 3 : 0,
+                          borderColor: "#FFFFFF",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        onPress={() => setSectorForm((p) => ({ ...p, color: colorHex }))}
+                      >
+                        {isSelected && <Ionicons name="checkmark" size={16} color="#FFF" />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <TextInput
+                  style={[styles.textInput, { fontSize: 12, height: 38 }]}
+                  value={sectorForm.color}
+                  onChangeText={(val) => setSectorForm((p) => ({ ...p, color: val }))}
+                  placeholder="Or enter custom Hex (e.g. #EC4899)"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              {/* ✨ LIVE SECTOR BADGE PREVIEW */}
+              <View style={{ backgroundColor: "#0F172A", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: sectorForm.color, marginBottom: 12 }}>
+                <Text style={{ color: "#64748B", fontSize: 10, fontWeight: "700", textTransform: "uppercase", marginBottom: 6 }}>
+                  ✨ Live Sector Card Preview
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: `${sectorForm.color}22`, alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name={(sectorForm.icon || "sparkles") as any} size={20} color={sectorForm.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: "#F8FAFC", fontSize: 13, fontWeight: "700" }}>
+                      {sectorForm.title.trim() || "Sector Title Preview"}
+                    </Text>
+                    <Text style={{ color: "#94A3B8", fontSize: 11 }}>
+                      {sectorForm.subtitle.trim() || "Sector Subtitle Preview"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Service Tags (Comma Separated)</Text>
+                <TextInput
+                  style={[styles.textInput, { height: 60, textAlignVertical: "top" }]}
+                  multiline
+                  value={sectorForm.tags}
+                  onChangeText={(val) => setSectorForm((p) => ({ ...p, tags: val }))}
+                  placeholder="De-dusting, Anti-Reflective Coating, Solar Farm"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: "#10B981", marginTop: 12 }]}
+              onPress={handleSaveSector}
+            >
+              <Text style={styles.submitButtonText}>💾 Save Service Sector Permanently</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 /* ─── STYLES ─────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
+  impersonationBanner: {
+    backgroundColor: "#F59E0B22",
+    borderColor: "#F59E0B55",
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  impersonationText: {
+    color: "#FBBF24",
+    fontSize: 12,
+    marginLeft: 4,
+    flex: 1,
+  },
+  exitImpersonationButton: {
+    backgroundColor: "#F59E0B",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  exitImpersonationText: {
+    color: "#0F172A",
+    fontWeight: "800",
+    fontSize: 11,
+  },
   container: {
     flex: 1,
     backgroundColor: "#0F172A",

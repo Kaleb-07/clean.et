@@ -102,6 +102,14 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::get('/super-admin/audit-logs', [SuperAdminController::class, 'auditLogs']);
     Route::get('/super-admin/settings',   [SuperAdminController::class, 'getSettings']);
     Route::put('/super-admin/settings',   [SuperAdminController::class, 'updateSettings']);
+
+    // Payouts & Commission Settlement
+    Route::get('/super-admin/payouts',             [SuperAdminController::class, 'payouts']);
+    Route::post('/super-admin/payouts/generate',   [SuperAdminController::class, 'generatePayouts']);
+    Route::patch('/super-admin/payouts/{id}/status', [SuperAdminController::class, 'updatePayoutStatus']);
+
+    // System Broadcasts
+    Route::post('/super-admin/broadcast',          [SuperAdminController::class, 'broadcast']);
 });
 
 // ─── VEHICLES (customer-owned) ────────────────────────────────────────────────

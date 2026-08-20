@@ -47,6 +47,11 @@ class Tenant extends Model
         return $this->morphMany(Subscription::class, 'owner');
     }
 
+    public function payouts()
+    {
+        return $this->hasMany(TenantPayout::class);
+    }
+
     // ================= HELPERS =================
 
     protected static ?int $currentTenantId = null;

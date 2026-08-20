@@ -142,7 +142,14 @@ export default function SubscriptionScreen() {
       ]);
       setPlans(plansRes.data ?? []);
 
-      const customerSub = meRes.data?.data?.active_subscription;
+      const payload = meRes.data?.data ?? meRes.data;
+      const customerSub =
+        payload?.active_subscription ??
+        payload?.user?.active_subscription ??
+        (payload?.user?.subscription_tier && payload.user.subscription_tier !== "none"
+          ? { plan: payload.user.subscription_tier, status: "active" }
+          : null);
+
       setActiveSub(customerSub ?? null);
     } catch (e) {
       console.log("Subscription load error:", e);

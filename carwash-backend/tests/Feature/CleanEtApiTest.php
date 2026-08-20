@@ -662,6 +662,87 @@ class CleanEtApiTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    /**
+     * Test Super Admin Dynamic Subscription Plans, Dynamic Sectors, and Governance Settings.
+     */
+    public function test_super_admin_dynamic_plans_sectors_and_settings_governance(): void
+    {
+        $superAdmin = User::factory()->create([
+            'phone' => '+251999111222',
+            'role' => 'super_admin',
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        // 1. GET Settings
+        $response = $this->actingAs($superAdmin)->getJson('/api/super-admin/settings');
+        $response->assertStatus(200)
+            ->assertJsonPath('data.default_currency', 'ETB');
+
+        // 2. PUT Settings with dynamic custom plan tier & dynamic sector category
+        $customPlans = [
+            [
+                'id' => 'growth_pro',
+                'name' => 'Growth Pro Custom',
+                'badge' => 'POPULAR PRO',
+                'commission' => '7% Commission',
+                'staffLimit' => '50 Staff',
+                'features' => ['Multi-Sector', 'Priority Dispatch'],
+                'colors' => ['#1E1B4B', '#312E81'],
+                'borderColor' => '#6366F1',
+            ]
+        ];
+
+        $customSectors = [
+            [
+                'id' => 'solar-panel-cleaning',
+                'title' => 'Solar Panel & Rooftop Wash',
+                'subtitle' => 'Photovoltaic Farm & Rooftop Washing',
+                'icon' => 'sunny',
+                'color' => '#F59E0B',
+                'tags' => ['De-dusting', 'Solar Farm'],
+                'sharePercent' => 15,
+            ]
+        ];
+
+        $response = $this->actingAs($superAdmin)->putJson('/api/super-admin/settings', [
+            'default_currency' => 'ETB',
+            'platform_commission_rate' => 12.5,
+            'subscription_plans' => $customPlans,
+            'sector_categories' => $customSectors,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.default_currency', 'ETB')
+            ->assertJsonPath('data.platform_commission_rate', 12.5)
+            ->assertJsonPath('data.subscription_plans.0.id', 'growth_pro')
+            ->assertJsonPath('data.sector_categories.0.id', 'solar-panel-cleaning');
+
+        // 3. Onboard tenant using newly created dynamic plan tier & sector category
+        $response = $this->actingAs($superAdmin)->postJson('/api/tenants', [
+            'business_name' => 'Rooftop Solar Wash Inc',
+            'plan' => 'growth_pro',
+            'categories_enabled' => ['solar-panel-cleaning'],
+            'admin_name' => 'Solar Manager',
+            'admin_email' => 'manager@solarwash.et',
+            'admin_password' => 'Secret123!',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.business_name', 'Rooftop Solar Wash Inc')
+            ->assertJsonPath('data.plan', 'growth_pro')
+            ->assertJsonPath('data.categories_enabled.0', 'solar-panel-cleaning');
+
+        // 4. Dispatch System Broadcast Announcement
+        $response = $this->actingAs($superAdmin)->postJson('/api/super-admin/broadcast', [
+            'title' => 'Platform Maintenance Notice',
+            'message' => 'System maintenance scheduled for midnight.',
+            'target' => 'all',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'System broadcast dispatched successfully to 2 users.');
+    }
 }
 
 

@@ -59,12 +59,12 @@ class SubscriptionController extends Controller
         $planDetails = collect($this->plans)->firstWhere('id', $planId);
 
         $invoice = DB::transaction(function () use ($customer, $planDetails, $request, $user) {
-            // 1. Create or update subscription model as cancelled/inactive first
+            // 1. Create or update subscription model as cancelled/inactive first (active upon payment)
             $subscription = $customer->subscriptions()->create([
-                'plan' => $planDetails['id'],
+                'plan'          => $planDetails['id'],
                 'billing_cycle' => $request->billing_cycle,
-                'status' => 'cancelled', // start inactive/cancelled until payment verified
-                'renews_at' => now()->addMonth(),
+                'status'        => 'cancelled',
+                'renews_at'     => now()->addMonth(),
             ]);
 
             // 2. Generate Invoice with booking_id = null
