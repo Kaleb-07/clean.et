@@ -29,6 +29,7 @@ class Service extends Model
         'image',
         'duration',
         'category',
+        'sub_center',
         'sector_id',
     ];
 

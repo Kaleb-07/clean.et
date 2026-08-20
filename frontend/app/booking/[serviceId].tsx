@@ -149,16 +149,24 @@ export default function BookingDetailsScreen() {
         <Animated.View entering={FadeInDown.duration(600)} style={styles.section}>
           <BlurView intensity={20} tint="dark" style={styles.serviceCard}>
             <View style={styles.serviceHeader}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.serviceName}>{service.name}</Text>
-                <View style={styles.durationBadge}>
-                  <Clock size={12} color="#a3a3a3" />
-                  <Text style={styles.durationText}>{service.duration || "45"} min</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                  <View style={styles.durationBadge}>
+                    <Clock size={12} color="#a3a3a3" />
+                    <Text style={styles.durationText}>{service.duration || "45"} min</Text>
+                  </View>
+
+                  <View style={{ backgroundColor: "#10B98122", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: "#10B98155" }}>
+                    <Text style={{ color: "#34D399", fontSize: 10, fontWeight: "700" }}>
+                      {service.sub_center ? service.sub_center.replace("-", " ").toUpperCase() : "VERIFIED SERVICE BRANCH"}
+                    </Text>
+                  </View>
                 </View>
               </View>
-              <Text style={styles.price}>${service.price}</Text>
+              <Text style={styles.price}>ETB {Number(service.price).toLocaleString()}</Text>
             </View>
-            <Text style={styles.description}>{service.description}</Text>
+            <Text style={styles.description}>{service.description || "Professional service delivered by certified equipment and trained technicians."}</Text>
           </BlurView>
         </Animated.View>
 

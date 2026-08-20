@@ -18,6 +18,9 @@ return new class extends Migration
             if (!Schema::hasColumn('services', 'category')) {
                 $table->string('category')->default('car-washing')->after('duration');
             }
+            if (!Schema::hasColumn('services', 'sub_center')) {
+                $table->string('sub_center')->nullable()->after('category');
+            }
         });
     }
 

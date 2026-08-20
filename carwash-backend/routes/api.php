@@ -110,17 +110,6 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
 
     // System Broadcasts
     Route::post('/super-admin/broadcast',          [SuperAdminController::class, 'broadcast']);
-
-    // Subscription Request Approvals (Super Admin)
-    Route::get('/super-admin/subscription-requests',               [\App\Http\Controllers\API\SubscriptionRequestController::class, 'index']);
-    Route::patch('/super-admin/subscription-requests/{id}/approve', [\App\Http\Controllers\API\SubscriptionRequestController::class, 'approve']);
-    Route::patch('/super-admin/subscription-requests/{id}/reject',  [\App\Http\Controllers\API\SubscriptionRequestController::class, 'reject']);
-});
-
-// ─── TENANT ADMIN SUBSCRIPTION REQUESTS ───────────────────────────────────────
-Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-    Route::post('/tenant/subscription-request', [\App\Http\Controllers\API\SubscriptionRequestController::class, 'apply']);
-    Route::get('/tenant/subscription-status',  [\App\Http\Controllers\API\SubscriptionRequestController::class, 'myStatus']);
 });
 
 // ─── VEHICLES (customer-owned) ────────────────────────────────────────────────

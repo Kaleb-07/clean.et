@@ -248,24 +248,26 @@ export default function AdminStaff() {
             ) : null}
           </View>
 
-          <TouchableOpacity
-            style={[styles.addBtn, !isSuperAdmin && { backgroundColor: "#059669" }]}
-            onPress={() => {
-              setEditingStaff(null);
-              setForm({
-                name: "",
-                email: "",
-                phone: "",
-                password: "",
-                role_title: "Lead Technician",
-                qualifications: ["car-washing"],
-              });
-              setModalVisible(true);
-            }}
-          >
-            <Ionicons name="person-add" size={18} color="#FFF" />
-            <Text style={styles.addBtnText}>{isSuperAdmin ? "+ Add Staff" : "+ Add Technician"}</Text>
-          </TouchableOpacity>
+          {!isSuperAdmin && (
+            <TouchableOpacity
+              style={[styles.addBtn, { backgroundColor: "#059669" }]}
+              onPress={() => {
+                setEditingStaff(null);
+                setForm({
+                  name: "",
+                  email: "",
+                  phone: "",
+                  password: "",
+                  role_title: "Lead Technician",
+                  qualifications: ["car-washing"],
+                });
+                setModalVisible(true);
+              }}
+            >
+              <Ionicons name="person-add" size={18} color="#FFF" />
+              <Text style={styles.addBtnText}>+ Add Technician</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* ── STAFF ROSTER LIST ── */}
@@ -315,42 +317,44 @@ export default function AdminStaff() {
                     ))}
                   </View>
 
-                  {/* Actions */}
-                  <View style={styles.cardActions}>
-                    <TouchableOpacity
-                      style={[styles.miniActionBtn, { backgroundColor: "#F59E0B22", borderColor: "#F59E0B55" }]}
-                      onPress={() => {
-                        setEditingStaff(s);
-                        setForm({
-                          name: s.user?.name || "",
-                          email: s.user?.email || "",
-                          phone: s.user?.phone || "",
-                          password: "",
-                          role_title: s.role_title || "Lead Technician",
-                          qualifications: s.qualifications || ["car-washing"],
-                        });
-                        setModalVisible(true);
-                      }}
-                    >
-                      <Ionicons name="create-outline" size={14} color="#FBBF24" />
-                      <Text style={{ color: "#FBBF24", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
-                        Edit Qualifications
-                      </Text>
-                    </TouchableOpacity>
+                  {/* Actions (Tenant Admin Only) */}
+                  {!isSuperAdmin && (
+                    <View style={styles.cardActions}>
+                      <TouchableOpacity
+                        style={[styles.miniActionBtn, { backgroundColor: "#F59E0B22", borderColor: "#F59E0B55" }]}
+                        onPress={() => {
+                          setEditingStaff(s);
+                          setForm({
+                            name: s.user?.name || "",
+                            email: s.user?.email || "",
+                            phone: s.user?.phone || "",
+                            password: "",
+                            role_title: s.role_title || "Lead Technician",
+                            qualifications: s.qualifications || ["car-washing"],
+                          });
+                          setModalVisible(true);
+                        }}
+                      >
+                        <Ionicons name="create-outline" size={14} color="#FBBF24" />
+                        <Text style={{ color: "#FBBF24", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+                          Edit Qualifications
+                        </Text>
+                      </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={[styles.miniActionBtn, { backgroundColor: "#EF444422", borderColor: "#EF444455" }]}
-                      onPress={() => {
-                        setSelectedDeleteId(s.id);
-                        setDeleteModal(true);
-                      }}
-                    >
-                      <Ionicons name="trash-outline" size={14} color="#F87171" />
-                      <Text style={{ color: "#F87171", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
-                        Remove
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                      <TouchableOpacity
+                        style={[styles.miniActionBtn, { backgroundColor: "#EF444422", borderColor: "#EF444455" }]}
+                        onPress={() => {
+                          setSelectedDeleteId(s.id);
+                          setDeleteModal(true);
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={14} color="#F87171" />
+                        <Text style={{ color: "#F87171", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+                          Remove
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
               </Animated.View>
             );
