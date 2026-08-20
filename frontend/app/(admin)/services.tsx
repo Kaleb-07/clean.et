@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../contexts/AuthContext";
 
 /* ================= TYPES ================= */
 interface Service {
@@ -157,11 +158,22 @@ export default function AdminServices() {
     }
   };
 
+  const [sectorCategories, setSectorCategories] = useState(SECTOR_CATEGORIES);
+
   const loadSettingsPlans = async () => {
     try {
       const res = await API.get("/super-admin/settings");
       if (res.data?.data?.subscription_plans) {
         setPlans(res.data.data.subscription_plans);
+      }
+      if (res.data?.data?.sector_categories && res.data.data.sector_categories.length > 0) {
+        const mapped = res.data.data.sector_categories.map((c: any) => ({
+          id: c.id,
+          name: c.title || c.name,
+          icon: c.icon || "sparkles",
+          color: c.color || "#3B82F6",
+        }));
+        setSectorCategories(mapped);
       }
     } catch (e) {
       console.log("Settings load error:", e);
@@ -374,6 +386,14 @@ export default function AdminServices() {
     return name.includes(q) || desc.includes(q);
   });
 
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
+
+  const tenantCategories = user?.tenant?.categories_enabled || ["car-washing"];
+  const availableSectors = isSuperAdmin
+    ? sectorCategories
+    : sectorCategories.filter((cat) => tenantCategories.includes(cat.id));
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── HEADER ── */}
@@ -389,9 +409,13 @@ export default function AdminServices() {
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Services & Subscriptions</Text>
+          <Text style={styles.headerTitle}>
+            {isSuperAdmin ? "Services & Subscriptions Setup" : "Company Service Catalog"}
+          </Text>
           <Text style={styles.headerSubtitle}>
-            Platform Multi-Sector Catalogs & Tenant Tier Setup
+            {isSuperAdmin
+              ? "Platform Multi-Sector Catalogs & Subscription Tier Setup"
+              : "Post & Manage Services Visible to Client Mobile App"}
           </Text>
         </View>
 
@@ -400,36 +424,38 @@ export default function AdminServices() {
         </TouchableOpacity>
       </View>
 
-      {/* ── NAVIGATION TABS ── */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tabItem, activeTab === "services" && styles.activeTabItem]}
-          onPress={() => setActiveTab("services")}
-        >
-          <Ionicons
-            name="cut-outline"
-            size={18}
-            color={activeTab === "services" ? "#60A5FA" : "#9CA3AF"}
-          />
-          <Text style={[styles.tabText, activeTab === "services" && styles.activeTabText]}>
-            Service Catalog ({services.length})
-          </Text>
-        </TouchableOpacity>
+      {/* ── NAVIGATION TABS (SUPER ADMIN ONLY) ── */}
+      {isSuperAdmin && (
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tabItem, activeTab === "services" && styles.activeTabItem]}
+            onPress={() => setActiveTab("services")}
+          >
+            <Ionicons
+              name="cut-outline"
+              size={18}
+              color={activeTab === "services" ? "#60A5FA" : "#9CA3AF"}
+            />
+            <Text style={[styles.tabText, activeTab === "services" && styles.activeTabText]}>
+              Service Catalog ({services.length})
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabItem, activeTab === "subscriptions" && styles.activeTabItem]}
-          onPress={() => setActiveTab("subscriptions")}
-        >
-          <Ionicons
-            name="card-outline"
-            size={18}
-            color={activeTab === "subscriptions" ? "#60A5FA" : "#9CA3AF"}
-          />
-          <Text style={[styles.tabText, activeTab === "subscriptions" && styles.activeTabText]}>
-            Subscription Plans ({plans.length})
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.tabItem, activeTab === "subscriptions" && styles.activeTabItem]}
+            onPress={() => setActiveTab("subscriptions")}
+          >
+            <Ionicons
+              name="card-outline"
+              size={18}
+              color={activeTab === "subscriptions" ? "#60A5FA" : "#9CA3AF"}
+            />
+            <Text style={[styles.tabText, activeTab === "subscriptions" && styles.activeTabText]}>
+              Subscription Plans ({plans.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -504,7 +530,7 @@ export default function AdminServices() {
               </View>
             ) : (
               filteredServices.map((s, index) => {
-                const categoryObj = SECTOR_CATEGORIES.find((c) => c.id === s.category) || SECTOR_CATEGORIES[0];
+                const categoryObj = sectorCategories.find((c) => c.id === s.category) || sectorCategories[0];
 
                 return (
                   <Animated.View key={s.id} entering={FadeInDown.delay(index * 40)}>
@@ -748,31 +774,43 @@ export default function AdminServices() {
                 />
               </View>
 
-              {/* Sector Category Selector Cards */}
-              <Text style={styles.inputLabel}>Select Authorized Service Sector *</Text>
-              <View style={{ gap: 8, marginBottom: 14 }}>
-                {SECTOR_CATEGORIES.map((cat) => {
-                  const isSel = serviceForm.category === cat.id;
-                  return (
-                    <TouchableOpacity
-                      key={cat.id}
-                      onPress={() => setServiceForm({ ...serviceForm, category: cat.id })}
-                      style={[
-                        styles.sectorCategoryOption,
-                        isSel && { borderColor: cat.color, backgroundColor: `${cat.color}15` },
-                      ]}
-                    >
-                      <Ionicons name={cat.icon as any} size={20} color={cat.color} style={{ marginRight: 8 }} />
-                      <Text style={{ color: "#FFF", fontSize: 13, flex: 1, fontWeight: "700" }}>{cat.name}</Text>
-                      <Ionicons
-                        name={isSel ? "radio-button-on" : "radio-button-off"}
-                        size={20}
-                        color={isSel ? cat.color : "#64748B"}
-                      />
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              {/* Sector Category Selector Cards (Only shown if Super Admin or multi-sector tenant) */}
+              {(!isSuperAdmin && availableSectors.length <= 1) ? (
+                // Single Sector Tenant: Auto-assigned badge, no redundant selection needed!
+                <View style={{ marginBottom: 14, backgroundColor: "#0F172A", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#334155" }}>
+                  <Text style={{ color: "#94A3B8", fontSize: 11, fontWeight: "700" }}>COMPANY BUSINESS SECTOR</Text>
+                  <Text style={{ color: "#34D399", fontSize: 14, fontWeight: "800", marginTop: 2 }}>
+                    🏢 {availableSectors[0]?.name || "Car Washing & Detailing"}
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.inputLabel}>Select Authorized Service Sector *</Text>
+                  <View style={{ gap: 8, marginBottom: 14 }}>
+                    {availableSectors.map((cat) => {
+                      const isSel = serviceForm.category === cat.id;
+                      return (
+                        <TouchableOpacity
+                          key={cat.id}
+                          onPress={() => setServiceForm({ ...serviceForm, category: cat.id })}
+                          style={[
+                            styles.sectorCategoryOption,
+                            isSel && { borderColor: cat.color, backgroundColor: `${cat.color}15` },
+                          ]}
+                        >
+                          <Ionicons name={cat.icon as any} size={20} color={cat.color} style={{ marginRight: 8 }} />
+                          <Text style={{ color: "#FFF", fontSize: 13, flex: 1, fontWeight: "700" }}>{cat.name}</Text>
+                          <Ionicons
+                            name={isSel ? "radio-button-on" : "radio-button-off"}
+                            size={20}
+                            color={isSel ? cat.color : "#64748B"}
+                          />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
 
               {/* ── LOCAL STORAGE DEVICE IMAGE PICKER ── */}
               <Text style={styles.inputLabel}>Service Cover Image (Device Storage / Gallery)</Text>

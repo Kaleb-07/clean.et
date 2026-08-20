@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import API from "../../src/api/client";
+import { useAuth } from "../../contexts/AuthContext";
 
 /* ================= TYPES ================= */
 interface Customer {
@@ -33,6 +34,8 @@ interface Customer {
 export default function AdminCustomers() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -92,7 +95,7 @@ export default function AdminCustomers() {
           email: form.email.trim().toLowerCase(),
           phone: form.phone.trim(),
         });
-        Alert.alert("Updated", "Customer account profile updated successfully.");
+        Alert.alert("Updated", "Client account profile updated successfully.");
       } else {
         await API.post("/customers", {
           name: form.name.trim(),
@@ -100,7 +103,7 @@ export default function AdminCustomers() {
           phone: form.phone.trim(),
           password: form.password ? form.password.trim() : "password123",
         });
-        Alert.alert("🎉 Success", "New customer account created successfully!");
+        Alert.alert("🎉 Success", isSuperAdmin ? "New platform customer account created!" : "Walk-in client registered successfully!");
       }
 
       setModalVisible(false);
@@ -108,7 +111,7 @@ export default function AdminCustomers() {
       setForm({ name: "", email: "", phone: "", password: "" });
       loadCustomers();
     } catch (e: any) {
-      Alert.alert("Error", e?.response?.data?.message || "Failed to save customer.");
+      Alert.alert("Error", e?.response?.data?.message || "Failed to save client.");
     } finally {
       setIsSubmitting(false);
     }
@@ -123,10 +126,10 @@ export default function AdminCustomers() {
       await API.delete(`/customers/${selectedDeleteId}`);
       setDeleteModal(false);
       setSelectedDeleteId(null);
-      Alert.alert("Deleted", "Customer account removed successfully.");
+      Alert.alert("Deleted", "Client account removed successfully.");
       loadCustomers();
     } catch (e: any) {
-      Alert.alert("Delete Error", e?.response?.data?.message || "Failed to delete customer.");
+      Alert.alert("Delete Error", e?.response?.data?.message || "Failed to delete client.");
     } finally {
       setIsDeleting(false);
     }
@@ -166,39 +169,48 @@ export default function AdminCustomers() {
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Global Customer Directory</Text>
+          <Text style={styles.headerTitle}>
+            {isSuperAdmin ? "Global Customer Directory" : "🏢 Company Client Directory"}
+          </Text>
           <Text style={styles.headerSubtitle}>
-            {customers.length} Registered Customer Accounts
+            {isSuperAdmin
+              ? `${customers.length} Platform Customer Accounts`
+              : `${customers.length} Registered Clients for ${user?.tenant?.business_name || "Company"}`}
           </Text>
         </View>
 
         <TouchableOpacity style={styles.refreshBtn} onPress={loadCustomers}>
-          <Ionicons name="refresh" size={18} color="#60A5FA" />
+          <Ionicons name="refresh" size={18} color={isSuperAdmin ? "#60A5FA" : "#34D399"} />
         </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={isSuperAdmin ? "#3B82F6" : "#10B981"} />
         }
       >
         {/* ── HERO METRICS BAR ── */}
-        <LinearGradient colors={["#1E1B4B", "#312E81"]} style={styles.heroCard}>
+        <LinearGradient
+          colors={isSuperAdmin ? ["#1E1B4B", "#312E81"] : ["#064E3B", "#047857"]}
+          style={styles.heroCard}
+        >
           <View style={styles.heroRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.heroLabel}>Platform Customers Overview</Text>
-              <Text style={styles.heroValue}>{customers.length} Active Accounts</Text>
+              <Text style={styles.heroLabel}>
+                {isSuperAdmin ? "Platform Customers Overview" : "Company Clients & Walk-in Records"}
+              </Text>
+              <Text style={styles.heroValue}>{customers.length} Registered Clients</Text>
             </View>
-            <View style={styles.heroIconBox}>
+            <View style={[styles.heroIconBox, !isSuperAdmin && { backgroundColor: "rgba(52, 211, 153, 0.2)", borderColor: "rgba(52, 211, 153, 0.4)" }]}>
               <Ionicons name="people" size={24} color="#34D399" />
             </View>
           </View>
 
           <View style={styles.heroSubRow}>
             <View style={styles.subStatPill}>
-              <Text style={styles.subStatLabel}>Account Status:</Text>
-              <Text style={styles.subStatValue}>100% Verified Users</Text>
+              <Text style={styles.subStatLabel}>Client Status:</Text>
+              <Text style={styles.subStatValue}>100% Active Client Profiles</Text>
             </View>
           </View>
         </LinearGradient>
@@ -209,7 +221,7 @@ export default function AdminCustomers() {
             <Ionicons name="search" size={18} color="#94A3B8" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search customer by name, email, or phone..."
+              placeholder="Search client by name, email, or phone..."
               placeholderTextColor="#64748B"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -222,7 +234,7 @@ export default function AdminCustomers() {
           </View>
 
           <TouchableOpacity
-            style={styles.addBtn}
+            style={[styles.addBtn, !isSuperAdmin && { backgroundColor: "#059669" }]}
             onPress={() => {
               setEditingCustomer(null);
               setForm({ name: "", email: "", phone: "", password: "" });
@@ -230,19 +242,19 @@ export default function AdminCustomers() {
             }}
           >
             <Ionicons name="person-add" size={18} color="#FFF" />
-            <Text style={styles.addBtnText}>+ Add Customer</Text>
+            <Text style={styles.addBtnText}>{isSuperAdmin ? "+ Add Customer" : "+ Register Walk-in"}</Text>
           </TouchableOpacity>
         </View>
 
         {/* ── CUSTOMER LIST ── */}
         {loading && customers.length === 0 ? (
-          <ActivityIndicator color="#3B82F6" size="large" style={{ marginTop: 40 }} />
+          <ActivityIndicator color={isSuperAdmin ? "#3B82F6" : "#10B981"} size="large" style={{ marginTop: 40 }} />
         ) : filteredCustomers.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={48} color="#475569" />
-            <Text style={styles.emptyTitle}>No Customers Found</Text>
+            <Text style={styles.emptyTitle}>No Clients Found</Text>
             <Text style={styles.emptySub}>
-              {searchQuery ? "Try refining your search term." : 'Tap "+ Add Customer" to register a new account.'}
+              {searchQuery ? "Try refining your search term." : 'Tap "+ Register Walk-in" to add a new client record.'}
             </Text>
           </View>
         ) : (
@@ -254,8 +266,8 @@ export default function AdminCustomers() {
                 style={styles.card}
               >
                 <View style={styles.cardHeader}>
-                  <View style={styles.avatarBox}>
-                    <Text style={styles.avatarText}>
+                  <View style={[styles.avatarBox, !isSuperAdmin && { backgroundColor: "#10B98122", borderColor: "#10B98155" }]}>
+                    <Text style={[styles.avatarText, !isSuperAdmin && { color: "#34D399" }]}>
                       {c.name.charAt(0).toUpperCase()}
                     </Text>
                   </View>
@@ -263,9 +275,7 @@ export default function AdminCustomers() {
                   <View style={{ flex: 1, paddingRight: 8 }}>
                     <Text style={styles.customerName}>{c.name}</Text>
                     <Text style={styles.customerEmail}>{c.email}</Text>
-                    {c.phone && (
-                      <Text style={styles.customerPhone}>📞 {c.phone}</Text>
-                    )}
+                    {c.phone && <Text style={styles.customerPhone}>📞 {c.phone}</Text>}
                   </View>
 
                   <View style={styles.verifiedBadge}>
@@ -315,15 +325,15 @@ export default function AdminCustomers() {
         )}
       </ScrollView>
 
-      {/* ── 👁️ INSPECT CUSTOMER MODAL ── */}
+      {/* ── 👁️ INSPECT CLIENT MODAL ── */}
       <Modal visible={!!inspectCustomer} transparent animationType="fade" onRequestClose={() => setInspectCustomer(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>{inspectCustomer?.name}</Text>
-                <Text style={{ color: "#60A5FA", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
-                  Customer ID #{inspectCustomer?.id}
+                <Text style={{ color: isSuperAdmin ? "#60A5FA" : "#34D399", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
+                  Client ID #{inspectCustomer?.id}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setInspectCustomer(null)}>
@@ -333,12 +343,12 @@ export default function AdminCustomers() {
 
             <ScrollView style={{ maxHeight: 360 }}>
               <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Email Address (Login ID)</Text>
+                <Text style={styles.detailLabel}>Email Address</Text>
                 <Text style={styles.detailValue}>{inspectCustomer?.email}</Text>
               </View>
 
               <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Phone Number</Text>
+                <Text style={styles.detailLabel}>Phone Contact</Text>
                 <Text style={styles.detailValue}>{inspectCustomer?.phone || "No phone registered"}</Text>
               </View>
 
@@ -358,15 +368,23 @@ export default function AdminCustomers() {
         </View>
       </Modal>
 
-      {/* ── ✏️ ADD / EDIT CUSTOMER MODAL ── */}
+      {/* ── ✏️ ADD / EDIT CLIENT MODAL ── */}
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>{editingCustomer ? "Edit Customer Account" : "Add Customer Account"}</Text>
+                <Text style={styles.modalTitle}>
+                  {editingCustomer
+                    ? "Edit Client Profile"
+                    : isSuperAdmin
+                    ? "Add Customer Account"
+                    : "Register Walk-in Client"}
+                </Text>
                 <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
-                  Register or update customer profile details
+                  {isSuperAdmin
+                    ? "Register platform customer profile details"
+                    : `Register walk-in client for ${user?.tenant?.business_name || "Company"}`}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -376,7 +394,7 @@ export default function AdminCustomers() {
 
             <ScrollView style={{ maxHeight: 380 }}>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Full Name *</Text>
+                <Text style={styles.inputLabel}>Client Full Name *</Text>
                 <TextInput
                   placeholder="e.g. Abebe Bikila"
                   placeholderTextColor="#64748B"
@@ -432,7 +450,7 @@ export default function AdminCustomers() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]}
+                style={[styles.submitBtn, !isSuperAdmin && { backgroundColor: "#059669" }, isSubmitting && { opacity: 0.7 }]}
                 onPress={handleSave}
                 disabled={isSubmitting}
               >
@@ -440,7 +458,7 @@ export default function AdminCustomers() {
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
-                    {editingCustomer ? "Save Updates" : "Create Account"}
+                    {editingCustomer ? "Save Updates" : "Register Client"}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -456,10 +474,10 @@ export default function AdminCustomers() {
             <View style={{ alignItems: "center", paddingVertical: 10 }}>
               <Ionicons name="warning-outline" size={36} color="#EF4444" style={{ marginBottom: 8 }} />
               <Text style={{ fontSize: 18, fontWeight: "800", color: "#FFF", textAlign: "center" }}>
-                Delete Customer Account?
+                Delete Client Account?
               </Text>
               <Text style={{ color: "#94A3B8", fontSize: 12, textAlign: "center", marginTop: 4 }}>
-                This will permanently erase this customer account from the platform.
+                This will permanently erase this client account from records.
               </Text>
             </View>
 

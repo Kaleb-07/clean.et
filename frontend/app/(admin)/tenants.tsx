@@ -132,6 +132,7 @@ export default function SuperAdminTenantsScreen() {
     auditLogs,
     settings,
     payouts,
+    subscriptionRequests,
     impersonatedTenant,
     impersonateTenant,
     isLoading,
@@ -145,6 +146,8 @@ export default function SuperAdminTenantsScreen() {
     generatePayouts,
     updatePayoutStatus,
     sendBroadcast,
+    approveSubRequest,
+    rejectSubRequest,
   } = useSuperAdmin();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
