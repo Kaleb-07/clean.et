@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   confirmBtnText: {
     color: '#ffffff',
     fontWeight: 'bold',
-    fontSize: 13,           // Smaller text
+    fontSize: 13,           // Smaller texts
   },
   cancelBtn: {
     flex: 1,
