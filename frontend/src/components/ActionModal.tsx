@@ -43,7 +43,7 @@ export default function ActionModal({
       <View style={styles.overlay}>
         <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
 
-        {/* Compact Card Container */}
+        {/* Compact Card Containers */}
         <View style={styles.content}>
           <View style={[styles.iconContainer, { backgroundColor: `${colors[type]}15` }]}>
             <Icon color={colors[type]} size={22} />
