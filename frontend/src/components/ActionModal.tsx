@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   content: {
-    width: '80%',           // Use percentage instead of Dimensions
+    width: '80%',           // Use to percentage instead of Dimensions
     maxWidth: 280,          // Hard cap the size on large screens
     backgroundColor: '#1e1e2d', // Solid background for reliable rendering
     borderRadius: 20,
