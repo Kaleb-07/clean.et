@@ -110,11 +110,17 @@ export default function ProfileScreen() {
         {/* ── HEADER ── */}
         <View style={styles.header}>
           <LinearGradient colors={["#4F46E5", "#10B981"]} style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>{getInitials(user?.name || "Super Admin")}</Text>
+            <Text style={styles.avatarText}>{getInitials(user?.name || (user?.role === "super_admin" ? "Super Admin" : "User"))}</Text>
           </LinearGradient>
 
-          <Text style={styles.name}>{user?.name || "Platform Super Admin"}</Text>
-          <Text style={styles.email}>{user?.email || "superadmin@clean.et"}</Text>
+          {user?.role === "super_admin" && (
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleBadgeText}>👑 SUPER ADMIN EXECUTIVE</Text>
+            </View>
+          )}
+
+          <Text style={styles.name}>{user?.name || (user?.role === "super_admin" ? "Platform Super Admin" : "User Account")}</Text>
+          <Text style={styles.email}>{user?.email || (user?.role === "super_admin" ? "superadmin@clean.et" : "No email")}</Text>
 
           <Pressable style={styles.editButton} onPress={() => handleItemPress("Edit Profile")}>
             <Text style={styles.editButtonText}>Edit Profile</Text>
@@ -198,6 +204,21 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: "bold",
     color: "#FFFFFF",
+  },
+  roleBadge: {
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
+    marginBottom: 8,
+  },
+  roleBadgeText: {
+    color: "#34D399",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
   },
   name: {
     fontSize: 24,

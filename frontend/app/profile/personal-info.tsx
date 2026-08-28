@@ -14,9 +14,9 @@ export default function PersonalInfoScreen() {
 
   const isSuperAdmin = user?.role === "super_admin";
   
-  const [name, setName] = useState(user?.name || "Platform Super Admin");
-  const [email, setEmail] = useState(user?.email || "superadmin@clean.et");
-  const [phone, setPhone] = useState(user?.phone || "+251 91 123 4567");
+  const [name, setName] = useState(user?.name || (isSuperAdmin ? "Platform Super Admin" : ""));
+  const [email, setEmail] = useState(user?.email || (isSuperAdmin ? "superadmin@clean.et" : ""));
+  const [phone, setPhone] = useState(user?.phone || "");
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
