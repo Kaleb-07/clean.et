@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,13 +17,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown, FadeInRight, FadeOutUp } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   useSuperAdmin,
   Tenant,
   CreateTenantPayload,
 } from "../../hooks/useSuperAdmin";
 
-type ActiveTab = "overview" | "divisions" | "payouts";
+type ActiveTab = "overview" | "divisions" | "sectors" | "payouts";
 
 interface SectorCategoryOption {
   id: string;
@@ -32,6 +33,27 @@ interface SectorCategoryOption {
   icon: string;
   color: string;
 }
+
+const SECTOR_ICON_OPTIONS = [
+  { icon: "car-sport", color: "#3B82F6", label: "Automotive & Fleet" },
+  { icon: "business", color: "#10B981", label: "Building & Office" },
+  { icon: "shirt", color: "#8B5CF6", label: "Laundry & Textiles" },
+  { icon: "sunny", color: "#F59E0B", label: "Solar & Energy" },
+  { icon: "home", color: "#6366F1", label: "Residential Cleaning" },
+  { icon: "medkit", color: "#EF4444", label: "Medical Sanitization" },
+  { icon: "water", color: "#06B6D4", label: "Pool & Water Tank" },
+  { icon: "bug", color: "#84CC16", label: "Pest & Fumigation" },
+  { icon: "trash-bin", color: "#64748B", label: "Janitorial & Waste" },
+  { icon: "construct", color: "#F97316", label: "Post-Construction" },
+  { icon: "restaurant", color: "#EAB308", label: "Kitchen & Dining" },
+  { icon: "sparkles", color: "#EC4899", label: "Glass & Deep Polish" },
+  { icon: "leaf", color: "#14B8A6", label: "Eco-Friendly Care" },
+  { icon: "grid", color: "#A855F7", label: "Tile & Carpet" },
+  { icon: "shield-checkmark", color: "#0284C7", label: "Disinfection & Safety" },
+  { icon: "snow", color: "#38BDF8", label: "HVAC & Air Duct" },
+];
+
+const SECTORS_STORAGE_KEY = "@clean_et_custom_sectors";
 
 const DEFAULT_SECTOR_OPTIONS: SectorCategoryOption[] = [
   {
@@ -47,6 +69,20 @@ const DEFAULT_SECTOR_OPTIONS: SectorCategoryOption[] = [
     subtitle: "Exterior Facade Glass & Deep Interior Building Sanitization",
     icon: "business",
     color: "#10B981",
+  },
+  {
+    id: "commercial-laundry",
+    title: "Commercial Laundry & Dry Cleaning",
+    subtitle: "Enterprise Linen, Uniforms & Heavy Textile Sanitization",
+    icon: "shirt",
+    color: "#8B5CF6",
+  },
+  {
+    id: "solar-panel-cleaning",
+    title: "Solar Panel & Renewable Maintenance",
+    subtitle: "Photovoltaic Panel Washing & Efficiency Restoration",
+    icon: "sunny",
+    color: "#F59E0B",
   },
 ];
 
@@ -107,6 +143,146 @@ export default function SuperAdminTenants() {
     setTimeout(() => {
       setToast((curr) => (curr?.message === message ? null : curr));
     }, 4000);
+  };
+
+  // Dynamic Sector Options & Custom Sector Creator State
+  const [sectorOptions, setSectorOptions] = useState<SectorCategoryOption[]>(DEFAULT_SECTOR_OPTIONS);
+  const [showAddSectorInput, setShowAddSectorInput] = useState(false);
+  const [customSectorName, setCustomSectorName] = useState("");
+  const [selectedCustomIcon, setSelectedCustomIcon] = useState(SECTOR_ICON_OPTIONS[0]);
+
+  const saveSectorsToStorage = async (updatedSectors: SectorCategoryOption[]) => {
+    try {
+      await AsyncStorage.setItem(SECTORS_STORAGE_KEY, JSON.stringify(updatedSectors));
+    } catch (e) {
+      console.warn("Failed to persist sectors to AsyncStorage:", e);
+    }
+  };
+
+  // Load custom sectors from AsyncStorage on mount
+  useEffect(() => {
+    const loadStoredSectors = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(SECTORS_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const combinedMap = new Map<string, SectorCategoryOption>();
+            DEFAULT_SECTOR_OPTIONS.forEach((sec) => combinedMap.set(sec.id, sec));
+            parsed.forEach((sec: SectorCategoryOption) => {
+              if (sec && sec.id) combinedMap.set(sec.id, sec);
+            });
+            setSectorOptions(Array.from(combinedMap.values()));
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load sectors from AsyncStorage:", e);
+      }
+    };
+    loadStoredSectors();
+  }, []);
+
+  // Sync sector options with any custom categories in backend tenants data
+  useEffect(() => {
+    if (tenants && tenants.length > 0) {
+      setSectorOptions((prevOptions) => {
+        let hasNew = false;
+        const newOptions = [...prevOptions];
+        tenants.forEach((tenant) => {
+          (tenant.categories_enabled || []).forEach((catSlug) => {
+            const exists = newOptions.some((s) => s.id === catSlug);
+            if (!exists) {
+              hasNew = true;
+              const title = catSlug
+                .split("-")
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(" ");
+              newOptions.push({
+                id: catSlug,
+                title,
+                subtitle: "Enterprise Cleaning Division Sector",
+                icon: "sparkles",
+                color: "#6366F1",
+              });
+            }
+          });
+        });
+        if (hasNew) {
+          saveSectorsToStorage(newOptions);
+          return newOptions;
+        }
+        return prevOptions;
+      });
+    }
+  }, [tenants]);
+
+  // Dedicated Sector Creation Modal State (For Sectors Tab)
+  const [createSectorModalVisible, setCreateSectorModalVisible] = useState(false);
+  const [sectorForm, setSectorForm] = useState({
+    title: "",
+    subtitle: "",
+    icon: "sparkles",
+    color: "#3B82F6",
+  });
+
+  const handleCreateSectorFromTab = async () => {
+    if (!sectorForm.title.trim()) {
+      showToast("error", "Sector Title is required.");
+      return;
+    }
+    const slug = sectorForm.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    if (!slug) return;
+
+    if (sectorOptions.some((s) => s.id === slug)) {
+      showToast("info", "A sector with this name already exists.");
+      return;
+    }
+
+    const newSector: SectorCategoryOption = {
+      id: slug,
+      title: sectorForm.title.trim(),
+      subtitle: sectorForm.subtitle.trim() || "Custom Enterprise Cleaning Sector",
+      icon: sectorForm.icon || "sparkles",
+      color: sectorForm.color || "#3B82F6",
+    };
+
+    const updated = [...sectorOptions, newSector];
+    setSectorOptions(updated);
+    await saveSectorsToStorage(updated);
+    setCreateSectorModalVisible(false);
+    setSectorForm({ title: "", subtitle: "", icon: "sparkles", color: "#3B82F6" });
+    showToast("success", `Sector "${newSector.title}" created & saved!`);
+  };
+
+  const handleAddCustomSector = async () => {
+    if (!customSectorName.trim()) return;
+    const slug = customSectorName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    if (!slug) return;
+
+    const exists = sectorOptions.some((s) => s.id === slug);
+    if (exists) {
+      showToast("info", "Sector already exists in options.");
+      return;
+    }
+
+    const newOption: SectorCategoryOption = {
+      id: slug,
+      title: customSectorName.trim(),
+      subtitle: "Custom Enterprise Cleaning Sector",
+      icon: selectedCustomIcon.icon,
+      color: selectedCustomIcon.color,
+    };
+
+    const updated = [...sectorOptions, newOption];
+    setSectorOptions(updated);
+    await saveSectorsToStorage(updated);
+    setForm((prev) => ({
+      ...prev,
+      categories_enabled: [...prev.categories_enabled, slug],
+    }));
+    setCustomSectorName("");
+    setShowAddSectorInput(false);
+    showToast("success", `Custom sector "${newOption.title}" created & saved!`);
   };
 
   /* ─── TOGGLE SECTOR ─── */
@@ -307,33 +483,49 @@ export default function SuperAdminTenants() {
         </View>
       )}
 
-      {/* ── TOP NAV TABS ── */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tabItem, activeTab === "overview" && styles.tabItemActive]}
-          onPress={() => setActiveTab("overview")}
+      {/* ── TOP NAV TABS (SCROLLABLE & RESPONSIVE) ── */}
+      <View style={styles.tabBarOuterContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabBarContentContainer}
         >
-          <Ionicons name="stats-chart" size={16} color={activeTab === "overview" ? "#60A5FA" : "#94A3B8"} />
-          <Text style={[styles.tabText, activeTab === "overview" && styles.tabTextActive]}>Overview</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabItem, activeTab === "overview" && styles.tabItemActive]}
+            onPress={() => setActiveTab("overview")}
+          >
+            <Ionicons name="stats-chart" size={16} color={activeTab === "overview" ? "#60A5FA" : "#94A3B8"} />
+            <Text style={[styles.tabText, activeTab === "overview" && styles.tabTextActive]}>Overview</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabItem, activeTab === "divisions" && styles.tabItemActive]}
-          onPress={() => setActiveTab("divisions")}
-        >
-          <Ionicons name="business" size={16} color={activeTab === "divisions" ? "#60A5FA" : "#94A3B8"} />
-          <Text style={[styles.tabText, activeTab === "divisions" && styles.tabTextActive]}>
-            Divisions ({tenants.length})
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabItem, activeTab === "divisions" && styles.tabItemActive]}
+            onPress={() => setActiveTab("divisions")}
+          >
+            <Ionicons name="business" size={16} color={activeTab === "divisions" ? "#60A5FA" : "#94A3B8"} />
+            <Text style={[styles.tabText, activeTab === "divisions" && styles.tabTextActive]}>
+              Divisions ({tenants.length})
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabItem, activeTab === "payouts" && styles.tabItemActive]}
-          onPress={() => setActiveTab("payouts")}
-        >
-          <Ionicons name="cash" size={16} color={activeTab === "payouts" ? "#60A5FA" : "#94A3B8"} />
-          <Text style={[styles.tabText, activeTab === "payouts" && styles.tabTextActive]}>Payouts</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabItem, activeTab === "sectors" && styles.tabItemActive]}
+            onPress={() => setActiveTab("sectors")}
+          >
+            <Ionicons name="layers" size={16} color={activeTab === "sectors" ? "#60A5FA" : "#94A3B8"} />
+            <Text style={[styles.tabText, activeTab === "sectors" && styles.tabTextActive]}>
+              Sectors ({sectorOptions.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabItem, activeTab === "payouts" && styles.tabItemActive]}
+            onPress={() => setActiveTab("payouts")}
+          >
+            <Ionicons name="cash" size={16} color={activeTab === "payouts" ? "#60A5FA" : "#94A3B8"} />
+            <Text style={[styles.tabText, activeTab === "payouts" && styles.tabTextActive]}>Payouts</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
       <ScrollView
@@ -477,12 +669,12 @@ export default function SuperAdminTenants() {
                 <Animated.View key={t.id} entering={FadeInRight.delay(idx * 50)}>
                   <View style={styles.card}>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1, marginRight: 8 }}>
                         <View style={styles.avatarBox}>
                           <Ionicons name="business" size={20} color="#60A5FA" />
                         </View>
-                        <View>
-                          <Text style={styles.cardTitle}>{t.business_name}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.cardTitle} numberOfLines={1}>{t.business_name || `Division #${t.id}`}</Text>
                           <Text style={styles.cardSub}>Division ID #{t.id}</Text>
                         </View>
                       </View>
@@ -581,7 +773,73 @@ export default function SuperAdminTenants() {
           </Animated.View>
         )}
 
-        {/* ── TAB 3: PAYOUTS ── */}
+        {/* ── TAB 3: SECTORS ── */}
+        {activeTab === "sectors" && (
+          <Animated.View entering={FadeInDown.duration(400)}>
+            {/* Header & Create Button */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <View>
+                <Text style={styles.sectionHeaderTitle}>✨ Enterprise Cleaning Sectors</Text>
+                <Text style={{ color: "#94A3B8", fontSize: 11 }}>
+                  Platform Service Domains & Division Operational Licensing
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={{ backgroundColor: "#2563EB", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 6 }}
+                onPress={() => setCreateSectorModalVisible(true)}
+              >
+                <Ionicons name="add-circle" size={16} color="#FFF" />
+                <Text style={{ color: "#FFF", fontSize: 11, fontWeight: "800" }}>+ Create Sector</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Sector Cards Roster */}
+            {sectorOptions.map((sec) => {
+              const operatingDivisions = tenants.filter((t) =>
+                (t.categories_enabled || []).includes(sec.id)
+              );
+
+              return (
+                <View key={sec.id} style={styles.sectorRosterCard}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <View style={[styles.sectorRosterIconBox, { backgroundColor: `${sec.color}22`, borderColor: `${sec.color}55` }]}>
+                      <Ionicons name={sec.icon as any} size={24} color={sec.color} />
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
+                          {sec.title}
+                        </Text>
+                        <View style={styles.slugBadge}>
+                          <Text style={styles.slugBadgeText}>{sec.id}</Text>
+                        </View>
+                      </View>
+                      <Text style={{ color: "#94A3B8", fontSize: 12, marginTop: 2 }}>
+                        {sec.subtitle}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Divisions operating in this sector */}
+                  <View style={styles.sectorDivisionsFooter}>
+                    <Text style={{ color: "#CBD5E1", fontSize: 11, fontWeight: "700" }}>
+                      OPERATING DIVISIONS ({operatingDivisions.length}):
+                    </Text>
+                    <Text style={{ color: "#60A5FA", fontSize: 11, fontWeight: "600", marginTop: 2 }}>
+                      {operatingDivisions.length > 0
+                        ? operatingDivisions.map((d) => d.business_name).join(" • ")
+                        : "No divisions currently licensed"}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </Animated.View>
+        )}
+
+        {/* ── TAB 4: PAYOUTS ── */}
         {activeTab === "payouts" && (
           <Animated.View entering={FadeInDown.duration(400)}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -749,7 +1007,7 @@ export default function SuperAdminTenants() {
 
               <Text style={styles.inputLabel}>Select Authorized Cleaning Sectors *</Text>
               <View style={{ gap: 8, marginBottom: 14 }}>
-                {DEFAULT_SECTOR_OPTIONS.map((sec) => {
+                {sectorOptions.map((sec) => {
                   const isSel = form.categories_enabled.includes(sec.id);
                   return (
                     <TouchableOpacity
@@ -773,6 +1031,72 @@ export default function SuperAdminTenants() {
                     </TouchableOpacity>
                   );
                 })}
+
+                {/* + Define Custom Cleaning Sector */}
+                {showAddSectorInput ? (
+                  <View style={[styles.customSectorInputCard, { flexDirection: "column", alignItems: "stretch" }]}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <TextInput
+                        placeholder="e.g. Hospital & Medical Sanitization"
+                        placeholderTextColor="#64748B"
+                        value={customSectorName}
+                        onChangeText={setCustomSectorName}
+                        style={[styles.textInput, { flex: 1, marginBottom: 0 }]}
+                      />
+                      <TouchableOpacity
+                        style={{ padding: 8 }}
+                        onPress={() => {
+                          setShowAddSectorInput(false);
+                          setCustomSectorName("");
+                        }}
+                      >
+                        <Ionicons name="close" size={18} color="#94A3B8" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700", marginTop: 8, marginBottom: 4 }}>
+                      SELECT ICON FOR NEW SECTOR:
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        {SECTOR_ICON_OPTIONS.map((item) => {
+                          const isSel = selectedCustomIcon.icon === item.icon;
+                          return (
+                            <TouchableOpacity
+                              key={item.icon}
+                              onPress={() => setSelectedCustomIcon(item)}
+                              style={[
+                                styles.miniIconPill,
+                                isSel && { borderColor: item.color, backgroundColor: `${item.color}25` },
+                              ]}
+                            >
+                              <Ionicons name={item.icon as any} size={16} color={item.color} />
+                              <Text style={{ color: isSel ? item.color : "#94A3B8", fontSize: 9, fontWeight: "700" }}>
+                                {item.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
+
+                    <TouchableOpacity style={styles.addCustomSectorBtn} onPress={handleAddCustomSector}>
+                      <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12, textAlign: "center" }}>
+                        + Add Custom Sector ({selectedCustomIcon.label})
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.showAddSectorCard}
+                    onPress={() => setShowAddSectorInput(true)}
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color="#60A5FA" />
+                    <Text style={{ color: "#60A5FA", fontSize: 12, fontWeight: "700" }}>
+                      + Define New Custom Cleaning Sector
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* Manager Credentials Form */}
@@ -970,6 +1294,86 @@ export default function SuperAdminTenants() {
           </Animated.View>
         </View>
       </Modal>
+
+      {/* ── ✨ DEDICATED SECTOR CREATION MODAL (FOR SECTORS TAB) ── */}
+      <Modal
+        visible={createSectorModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCreateSectorModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>✨ Create Cleaning Sector</Text>
+                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                  Define a new enterprise service category for Clean.et platform
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setCreateSectorModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Sector Title *</Text>
+              <TextInput
+                placeholder="e.g. Hospital & Medical Sanitization"
+                placeholderTextColor="#64748B"
+                value={sectorForm.title}
+                onChangeText={(t) => setSectorForm({ ...sectorForm, title: t })}
+                style={styles.textInput}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Description / Subtitle</Text>
+              <TextInput
+                placeholder="e.g. Sterilization, Biohazard & Medical Floor Care"
+                placeholderTextColor="#64748B"
+                value={sectorForm.subtitle}
+                onChangeText={(t) => setSectorForm({ ...sectorForm, subtitle: t })}
+                style={styles.textInput}
+              />
+            </View>
+
+            <Text style={styles.inputLabel}>Select Sector Icon & Color Theme *</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              <View style={{ flexDirection: "row", gap: 10, paddingVertical: 4 }}>
+                {SECTOR_ICON_OPTIONS.map((item) => {
+                  const isSel = sectorForm.icon === item.icon;
+                  return (
+                    <TouchableOpacity
+                      key={item.icon}
+                      onPress={() => setSectorForm({ ...sectorForm, icon: item.icon, color: item.color })}
+                      style={[
+                        styles.iconColorPill,
+                        isSel && { borderColor: item.color, backgroundColor: `${item.color}25` },
+                      ]}
+                    >
+                      <Ionicons name={item.icon as any} size={20} color={item.color} />
+                      <Text style={[styles.iconPillLabel, isSel && { color: item.color }]}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+              <TouchableOpacity style={styles.closeBtn} onPress={() => setCreateSectorModalVisible(false)}>
+                <Text style={styles.closeBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.submitBtn} onPress={handleCreateSectorFromTab}>
+                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>Create Sector</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1008,22 +1412,27 @@ const styles = StyleSheet.create({
   },
   impersonateText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
   exitImpersonateBtn: { backgroundColor: "#1D4ED8", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  tabBar: {
-    flexDirection: "row",
+  tabBarOuterContainer: {
     backgroundColor: "#1E293B",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#334155",
+    zIndex: 10,
+  },
+  tabBarContentContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     gap: 8,
   },
   tabItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     gap: 6,
+    flexShrink: 0,
   },
   tabItemActive: { backgroundColor: "#334155" },
   tabText: { color: "#94A3B8", fontSize: 12, fontWeight: "700" },
@@ -1202,5 +1611,100 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
+  },
+  customSectorInputCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0F172A",
+    borderRadius: 10,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#3B82F6",
+    gap: 8,
+  },
+  addCustomSectorBtn: {
+    backgroundColor: "#2563EB",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  showAddSectorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#0F172A",
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#3B82F688",
+    gap: 6,
+  },
+  sectorRosterCard: {
+    backgroundColor: "#1E293B",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  sectorRosterIconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  slugBadge: {
+    backgroundColor: "#0F172A",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  slugBadgeText: {
+    color: "#94A3B8",
+    fontSize: 10,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    fontWeight: "700",
+  },
+  sectorDivisionsFooter: {
+    backgroundColor: "#0F172A",
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  iconColorPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "#0F172A",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#334155",
+    gap: 4,
+    minWidth: 90,
+  },
+  iconPillLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#94A3B8",
+    textAlign: "center",
+  },
+  miniIconPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#0F172A",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#334155",
   },
 });
