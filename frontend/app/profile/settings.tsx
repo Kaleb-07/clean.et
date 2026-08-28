@@ -8,6 +8,8 @@ import {
   Platform,
   Switch,
   Modal,
+  TouchableOpacity,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,6 +22,9 @@ import {
   ChevronRight,
   Check,
   Sun,
+  Shield,
+  Sliders,
+  CheckCircle2,
 } from "lucide-react-native";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
@@ -35,23 +40,21 @@ const LANGUAGE_CODE_MAP: Record<string, string> = {
   English: "en",
   Amharic: "am",
   Oromo: "om",
-  French: "en",
-  Spanish: "en",
+  French: "fr",
+  Spanish: "es",
 };
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-
-  // ─── Real contexts ────────────────────────────────────────────────────────
   const { isDark, toggleDark } = useTheme();
   const { language, setLanguage } = useLanguage();
   const { user, updateUser } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
 
-  // ─── Local UI state ───────────────────────────────────────────────────────
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [confirmClearVisible, setConfirmClearVisible] = useState(false);
   const [showCacheSuccess, setShowCacheSuccess] = useState(false);
-  const [saveToast, setSaveToast] = useState(false);
+  const [successToast, setSuccessToast] = useState<{ title: string; message: string } | null>(null);
 
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
     if (Platform.OS !== "web") {
@@ -59,266 +62,201 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleToggleDark = async (val: boolean) => {
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(admin)/(tabs)/Profile");
+    }
+  };
+
+  const handleToggleDarkMode = async (val: boolean) => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     await toggleDark(val);
-    // Brief inline save toast
-    setSaveToast(true);
-    setTimeout(() => setSaveToast(false), 2000);
   };
 
   const handleSelectLanguage = async (lang: string) => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-    await setLanguage(lang as any);
-
-    if (user && updateUser) {
-      try {
-        const code = LANGUAGE_CODE_MAP[lang] || "en";
-        await updateUser({ language: code as any });
-      } catch (err) {
-        console.log("Failed to sync language setting with backend", err);
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await setLanguage(lang as any);
+      const code = LANGUAGE_CODE_MAP[lang] || "en";
+      if (updateUser) {
+        await updateUser({ language: code });
       }
+      setLangModalVisible(false);
+      setSuccessToast({
+        title: "Language Preference Updated",
+        message: `App language set to ${lang} and synced with your backend profile.`,
+      });
+    } catch (e: any) {
+      Alert.alert("Error", e?.message || "Failed to update language setting.");
     }
-
-    setLangModalVisible(false);
-    setSaveToast(true);
-    setTimeout(() => setSaveToast(false), 2000);
   };
 
   const handleClearCache = async () => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
     try {
       const keys = await AsyncStorage.getAllKeys();
-      const keysToRemove = keys.filter((k) => k !== "auth_token");
-      await AsyncStorage.multiRemove(keysToRemove);
-      // Re-apply defaults through contexts
-      await toggleDark(true);
-      await setLanguage("English" as any);
+      const cacheKeys = keys.filter(
+        (k) => k !== "@clean_auth_token" && k !== "@app_language" && k !== "@app_dark_mode"
+      );
+      if (cacheKeys.length > 0) {
+        await AsyncStorage.multiRemove(cacheKeys);
+      }
     } catch (e) {
-      console.error("Failed to clear cache", e);
+      console.error("Clear cache failed", e);
     }
     setConfirmClearVisible(false);
     setShowCacheSuccess(true);
   };
 
-  // Theme-aware background gradient
-  const gradientColors: [string, string] = isDark
-    ? ["#0b0b1f", "#1a1b3a"]
-    : ["#f0f4ff", "#e8eeff"];
-
   return (
-    <LinearGradient colors={gradientColors} style={styles.container}>
-      {/* ── Header ── */}
+    <LinearGradient colors={["#0B0F19", "#111827", "#1E1B4B"]} style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable
-          onPress={() =>
-            router.canGoBack()
-              ? router.back()
-              : router.replace("/(tabs)/profile")
-          }
-          style={styles.backButton}
-        >
-          <ChevronLeft color={isDark ? "#ffffff" : "#1e293b"} size={28} />
+        <Pressable onPress={handleBack} style={styles.backButton}>
+          <ChevronLeft color="#ffffff" size={28} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: isDark ? "#fff" : "#0f172a" }]}>
-          App Settings
-        </Text>
+        <Text style={styles.headerTitle}>App & System Settings</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* ── Appearance ── */}
-        <Text style={[styles.sectionTitle, { color: isDark ? "#64748b" : "#94a3b8" }]}>
-          Appearance
-        </Text>
-        <BlurView
-          intensity={isDark ? 20 : 60}
-          tint={isDark ? "dark" : "light"}
-          style={[styles.section, { borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }]}
-        >
-          <View style={styles.item}>
-            <View style={styles.itemLeft}>
-              <View
-                style={[
-                  styles.iconBox,
-                  { backgroundColor: isDark ? "rgba(139,92,246,0.15)" : "rgba(139,92,246,0.1)" },
-                ]}
-              >
-                {isDark ? (
-                  <Moon size={20} color="#8b5cf6" />
-                ) : (
-                  <Sun size={20} color="#f59e0b" />
-                )}
-              </View>
-              <View>
-                <Text style={[styles.label, { color: isDark ? "#fff" : "#0f172a" }]}>
-                  Dark Mode
+        {/* SUPER ADMIN GOVERNANCE BANNER */}
+        {isSuperAdmin && (
+          <View style={styles.govBanner}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <Sliders size={24} color="#8B5CF6" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16 }}>
+                  Platform Infrastructure Governance
                 </Text>
-                <Text style={styles.sublabel}>
-                  {isDark ? "Currently dark" : "Currently light"}
+                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 1 }}>
+                  Commission Rate (10.0%) &bull; Default Currency (ETB) &bull; Security Log Audit
                 </Text>
               </View>
             </View>
-            <Switch
-              value={isDark}
-              onValueChange={handleToggleDark}
-              trackColor={{ false: "#cbd5e1", true: "#6d28d9" }}
-              thumbColor="#ffffff"
-            />
-          </View>
-        </BlurView>
 
-        {/* ── Language ── */}
-        <Text
-          style={[
-            styles.sectionTitle,
-            { marginTop: 28, color: isDark ? "#64748b" : "#94a3b8" },
-          ]}
-        >
-          Language
-        </Text>
-        <BlurView
-          intensity={isDark ? 20 : 60}
-          tint={isDark ? "dark" : "light"}
-          style={[styles.section, { borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }]}
-        >
-          <Pressable
-            style={styles.item}
-            onPress={() => {
-              triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-              setLangModalVisible(true);
-            }}
-          >
-            <View style={styles.itemLeft}>
-              <View
-                style={[
-                  styles.iconBox,
-                  { backgroundColor: "rgba(59,130,246,0.12)" },
-                ]}
-              >
-                <Globe size={20} color="#3b82f6" />
-              </View>
-              <View>
-                <Text style={[styles.label, { color: isDark ? "#fff" : "#0f172a" }]}>
-                  Language
-                </Text>
-                <Text style={styles.sublabel}>Tap to change</Text>
-              </View>
-            </View>
-            <View style={styles.itemRight}>
-              <Text style={[styles.value, { color: isDark ? "#94a3b8" : "#475569" }]}>
-                {language}
-              </Text>
-              <ChevronRight size={18} color="#475569" />
-            </View>
-          </Pressable>
-        </BlurView>
-
-        {/* ── System ── */}
-        <Text
-          style={[
-            styles.sectionTitle,
-            { marginTop: 28, color: isDark ? "#64748b" : "#94a3b8" },
-          ]}
-        >
-          System
-        </Text>
-        <BlurView
-          intensity={isDark ? 20 : 60}
-          tint={isDark ? "dark" : "light"}
-          style={[styles.section, { borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }]}
-        >
-          <Pressable
-            style={styles.item}
-            onPress={() => {
-              triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
-              setConfirmClearVisible(true);
-            }}
-          >
-            <View style={styles.itemLeft}>
-              <View
-                style={[
-                  styles.iconBox,
-                  { backgroundColor: "rgba(16,185,129,0.12)" },
-                ]}
-              >
-                <Database size={20} color="#10b981" />
-              </View>
-              <View>
-                <Text style={[styles.label, { color: isDark ? "#fff" : "#0f172a" }]}>
-                  Clear Cache
-                </Text>
-                <Text style={styles.sublabel}>Remove all locally saved data</Text>
-              </View>
-            </View>
-            <ChevronRight size={18} color="#475569" />
-          </Pressable>
-        </BlurView>
-
-        {/* Save indicator */}
-        {saveToast && (
-          <View style={styles.saveIndicator}>
-            <Check size={14} color="#10b981" />
-            <Text style={styles.saveIndicatorText}>Saved!</Text>
+            <TouchableOpacity
+              style={styles.govBtn}
+              onPress={() => router.push("/(admin)/system")}
+            >
+              <Shield size={16} color="#FFF" />
+              <Text style={styles.govBtnText}>Open Platform Infrastructure Controls</Text>
+            </TouchableOpacity>
           </View>
         )}
+
+        <Text style={styles.sectionTitle}>App Preferences</Text>
+
+        <View style={styles.settingGroup}>
+          <BlurView intensity={20} tint="dark" style={styles.settingItem}>
+            <Pressable style={styles.pressableItem} onPress={() => setLangModalVisible(true)}>
+              <View style={styles.itemLeft}>
+                <View style={[styles.iconBox, { backgroundColor: "rgba(59,130,246,0.15)" }]}>
+                  <Globe size={20} color="#3b82f6" />
+                </View>
+                <View>
+                  <Text style={styles.itemTitle}>Language</Text>
+                  <Text style={styles.itemSubtitle}>{language || "English"}</Text>
+                </View>
+              </View>
+              <ChevronRight size={18} color="#64748b" />
+            </Pressable>
+          </BlurView>
+
+          <BlurView intensity={20} tint="dark" style={styles.settingItem}>
+            <View style={styles.pressableItem}>
+              <View style={styles.itemLeft}>
+                <View style={[styles.iconBox, { backgroundColor: "rgba(139,92,246,0.15)" }]}>
+                  {isDark ? <Moon size={20} color="#8b5cf6" /> : <Sun size={20} color="#f59e0b" />}
+                </View>
+                <View>
+                  <Text style={styles.itemTitle}>Dark Mode</Text>
+                  <Text style={styles.itemSubtitle}>{isDark ? "Enabled" : "Disabled"}</Text>
+                </View>
+              </View>
+              <Switch
+                value={isDark}
+                onValueChange={handleToggleDarkMode}
+                trackColor={{ false: "#334155", true: "#8b5cf6" }}
+              />
+            </View>
+          </BlurView>
+        </View>
+
+        <Text style={styles.sectionTitle}>Storage & Maintenance</Text>
+
+        <View style={styles.settingGroup}>
+          <BlurView intensity={20} tint="dark" style={styles.settingItem}>
+            <Pressable style={styles.pressableItem} onPress={() => setConfirmClearVisible(true)}>
+              <View style={styles.itemLeft}>
+                <View style={[styles.iconBox, { backgroundColor: "rgba(239,68,68,0.15)" }]}>
+                  <Database size={20} color="#ef4444" />
+                </View>
+                <View>
+                  <Text style={styles.itemTitle}>Clear Cache & Temporary Files</Text>
+                  <Text style={styles.itemSubtitle}>Frees storage space while keeping auth tokens safe</Text>
+                </View>
+              </View>
+            </Pressable>
+          </BlurView>
+        </View>
       </ScrollView>
 
-      {/* ── Language Modal ── */}
-      <Modal visible={langModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.langContainer}>
-            <BlurView intensity={90} tint="dark" style={styles.langContent}>
-              <Text style={styles.modalTitle}>Select Language</Text>
-              {LANGUAGES.map((lang) => (
-                <Pressable
-                  key={lang}
-                  style={styles.langOption}
-                  onPress={() => handleSelectLanguage(lang)}
-                >
-                  <Text
-                    style={[
-                      styles.langText,
-                      language === lang && styles.langTextActive,
-                    ]}
-                  >
-                    {lang}
-                  </Text>
-                  {language === lang && <Check size={20} color="#6d28d9" />}
-                </Pressable>
-              ))}
-              <Pressable
-                style={styles.cancelBtn}
-                onPress={() => setLangModalVisible(false)}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-            </BlurView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── Confirm Clear Cache ── */}
+      {/* Clear Cache Confirmation */}
       <ActionModal
         visible={confirmClearVisible}
-        type="warning"
+        type="danger"
         title="Clear Cache?"
-        message="This will remove all locally saved settings and data. Your account will not be affected."
-        confirmText="Clear Now"
-        cancelText="Cancel"
+        message="This will clear cached data from local storage without logging you out."
+        confirmText="Clear Cache"
         onConfirm={handleClearCache}
         onCancel={() => setConfirmClearVisible(false)}
       />
 
+      {/* Cache Cleared Toast */}
       <ActionModal
         visible={showCacheSuccess}
         type="success"
         title="Cache Cleared"
-        message="All locally stored data has been removed successfully."
+        message="Temporary application files have been successfully cleared."
         confirmText="Done"
         onConfirm={() => setShowCacheSuccess(false)}
       />
+
+      {/* Success Toast Modal */}
+      {successToast && (
+        <ActionModal
+          visible={!!successToast}
+          type="success"
+          title={successToast.title}
+          message={successToast.message}
+          confirmText="Great"
+          onConfirm={() => setSuccessToast(null)}
+        />
+      )}
+
+      {/* Language Selector Modal */}
+      <Modal visible={langModalVisible} transparent animationType="slide" onRequestClose={() => setLangModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Select Language</Text>
+            {LANGUAGES.map((lang) => (
+              <Pressable
+                key={lang}
+                style={styles.langOption}
+                onPress={() => handleSelectLanguage(lang)}
+              >
+                <Text style={styles.langText}>{lang}</Text>
+                {language === lang && <Check size={20} color="#10b981" />}
+              </Pressable>
+            ))}
+            <Pressable style={styles.closeBtn} onPress={() => setLangModalVisible(false)}>
+              <Text style={styles.closeBtnText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -332,86 +270,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
-  headerTitle: { fontSize: 20, fontWeight: "bold" },
+  headerTitle: { fontSize: 18, fontWeight: "bold", color: "#ffffff" },
   backButton: { padding: 8 },
-  content: { padding: 20, paddingBottom: 60 },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    marginBottom: 12,
-    marginLeft: 12,
-    letterSpacing: 1,
-  },
-  section: {
-    borderRadius: 24,
-    overflow: "hidden",
-    borderWidth: 1,
-  },
-  item: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  content: { padding: 20 },
+  govBanner: {
+    backgroundColor: "#0F172A",
+    borderRadius: 16,
     padding: 16,
-  },
-  itemLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
-  itemRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  iconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  label: { fontSize: 16, fontWeight: "600" },
-  sublabel: { color: "#64748b", fontSize: 12, marginTop: 2 },
-  value: { fontSize: 14 },
-  separator: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    marginHorizontal: 16,
-  },
-
-  saveIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 24,
-    justifyContent: "center",
-  },
-  saveIndicatorText: {
-    color: "#10b981",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  // ── Language modal ────────────────────────────────────────────
-  modalOverlay: { flex: 1, justifyContent: "flex-end" },
-  langContainer: {
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    overflow: "hidden",
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "#334155",
   },
-  langContent: { padding: 32, paddingBottom: 50 },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#ffffff",
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  langOption: {
+  govBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.05)",
+    justifyContent: "center",
+    backgroundColor: "#7C3AED",
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+    marginTop: 6,
   },
-  langText: { fontSize: 18, color: "#94a3b8" },
-  langTextActive: { color: "#ffffff", fontWeight: "bold" },
-  cancelBtn: { marginTop: 24, padding: 16, alignItems: "center" },
-  cancelBtnText: { color: "#ef4444", fontWeight: "bold", fontSize: 16 },
+  govBtnText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
+  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: 12 },
+  settingGroup: { gap: 10, marginBottom: 24 },
+  settingItem: { borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+  pressableItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16 },
+  itemLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
+  iconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  itemTitle: { fontSize: 15, fontWeight: "600", color: "#ffffff" },
+  itemSubtitle: { fontSize: 12, color: "#64748b", marginTop: 2 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "center", padding: 20 },
+  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, borderWidth: 1, borderColor: "#334155" },
+  modalTitle: { fontSize: 18, fontWeight: "bold", color: "#ffffff", marginBottom: 16, textAlign: "center" },
+  langOption: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#334155" },
+  langText: { fontSize: 16, color: "#ffffff" },
+  closeBtn: { marginTop: 16, paddingVertical: 12, alignItems: "center" },
+  closeBtnText: { color: "#94a3b8", fontWeight: "600", fontSize: 15 },
 });
