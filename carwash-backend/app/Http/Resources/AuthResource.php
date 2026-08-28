@@ -27,6 +27,13 @@ class AuthResource extends JsonResource
                 'language'            => $this->language,
                 'subscription_tier'   => $this->customer?->subscription_tier ?? 'none',
                 'active_subscription' => $activeSub,
+                'tenant'              => $this->tenant ? [
+                    'id'                 => $this->tenant->id,
+                    'business_name'      => $this->tenant->business_name,
+                    'categories_enabled' => $this->tenant->categories_enabled,
+                    'plan'               => $this->tenant->plan,
+                    'status'             => $this->tenant->status,
+                ] : null,
             ],
             'active_subscription' => $activeSub,
             'token'               => $this->token ?? null,

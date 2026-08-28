@@ -10,7 +10,6 @@ import {
   RefreshControl,
   Switch,
   Platform,
-  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,10 +20,9 @@ import {
   useSuperAdmin,
   AuditLogItem,
   SystemSettings,
-  BroadcastPayload,
 } from "../../hooks/useSuperAdmin";
 
-type SystemTab = "health" | "audit" | "broadcast" | "settings";
+type SystemTab = "health" | "audit" | "settings";
 
 export default function SuperAdminSystem() {
   const router = useRouter();
@@ -37,7 +35,6 @@ export default function SuperAdminSystem() {
     isLoading,
     onRefresh,
     updateSystemSettings,
-    sendBroadcast,
   } = useSuperAdmin();
 
   const [activeTab, setActiveTab] = useState<SystemTab>("health");
@@ -61,44 +58,6 @@ export default function SuperAdminSystem() {
     const matchesUser = (log.user?.name || "").toLowerCase().includes(q) || (log.user?.email || "").toLowerCase().includes(q);
     return matchesAction || matchesDesc || matchesUser;
   });
-
-  /* ─── BROADCAST COMPOSER STATE ─── */
-  const [broadcastForm, setBroadcastForm] = useState<BroadcastPayload>({
-    title: "",
-    message: "",
-    target: "all",
-  });
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [sentBroadcasts, setSentBroadcasts] = useState<
-    Array<{ id: string; title: string; target: string; date: string; recipientsCount: number }>
-  >([]);
-
-  const handleSendBroadcast = async () => {
-    if (!broadcastForm.title.trim() || !broadcastForm.message.trim()) {
-      showToast("error", "Broadcast Title and Message body are required.");
-      return;
-    }
-
-    setIsBroadcasting(true);
-    try {
-      const res = await sendBroadcast(broadcastForm);
-      const newEntry = {
-        id: String(Date.now()),
-        title: broadcastForm.title,
-        target: broadcastForm.target,
-        date: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        recipientsCount: res?.user_count || 12,
-      };
-
-      setSentBroadcasts((prev) => [newEntry, ...prev]);
-      setBroadcastForm({ title: "", message: "", target: "all" });
-      showToast("success", `🎉 Broadcast sent to ${res?.user_count ?? "target"} accounts!`);
-    } catch (e: any) {
-      showToast("error", e?.message || "Failed to transmit broadcast.");
-    } finally {
-      setIsBroadcasting(false);
-    }
-  };
 
   /* ─── SYSTEM SETTINGS STATE ─── */
   const [settingsForm, setSettingsForm] = useState<Partial<SystemSettings>>({
@@ -179,9 +138,17 @@ export default function SuperAdminSystem() {
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>⚙️ System Operations & Infrastructure</Text>
           <Text style={styles.headerSubtitle}>
-            Platform Health, Security Audit Logs, Broadcast Push & Global Settings
+            Platform Health, Security Audit Logs & Global Settings
           </Text>
         </View>
+
+        <TouchableOpacity style={styles.refreshBtn} onPress={() => router.push("/(admin)/notifications")}>
+          <Ionicons name="notifications-outline" size={18} color="#F472B6" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.refreshBtn} onPress={() => router.push("/(admin)/broadcast")}>
+          <Ionicons name="megaphone-outline" size={18} color="#F59E0B" />
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.refreshBtn} onPress={onRefresh}>
           <Ionicons name="refresh" size={18} color="#60A5FA" />
@@ -211,14 +178,6 @@ export default function SuperAdminSystem() {
             <Text style={[styles.tabText, activeTab === "audit" && styles.tabTextActive]}>
               Audit Logs ({auditLogs.length})
             </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, activeTab === "broadcast" && styles.tabItemActive]}
-            onPress={() => setActiveTab("broadcast")}
-          >
-            <Ionicons name="megaphone" size={16} color={activeTab === "broadcast" ? "#F59E0B" : "#94A3B8"} />
-            <Text style={[styles.tabText, activeTab === "broadcast" && styles.tabTextActive]}>Push Broadcast</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -297,6 +256,25 @@ export default function SuperAdminSystem() {
                 <Text style={styles.specVal}>Active Redis/Database Driver</Text>
               </View>
             </View>
+
+            {/* Quick Link to Dedicated Broadcast Center */}
+            <TouchableOpacity
+              style={styles.broadcastBannerBtn}
+              onPress={() => router.push("/(admin)/broadcast")}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <Ionicons name="megaphone" size={20} color="#F59E0B" />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
+                    Open Broadcast & Push Sender Suite
+                  </Text>
+                  <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 1 }}>
+                    Dispatch push notifications, emails & SMS alerts to accounts
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+              </View>
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -370,106 +348,7 @@ export default function SuperAdminSystem() {
           </Animated.View>
         )}
 
-        {/* ── TAB 3: PUSH BROADCAST CENTER ── */}
-        {activeTab === "broadcast" && (
-          <Animated.View entering={FadeInDown.duration(400)}>
-            <View style={styles.broadcastCard}>
-              <Text style={styles.sectionTitle}>📢 Transmit Platform Announcement</Text>
-              <Text style={{ color: "#94A3B8", fontSize: 11, marginBottom: 14 }}>
-                Send instant notification broadcasts across Clean.et enterprise user groups.
-              </Text>
-
-              {/* Target Selector */}
-              <Text style={styles.inputLabel}>Select Recipient Target Group *</Text>
-              <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
-                {[
-                  { key: "all", label: "🌐 All Users" },
-                  { key: "tenant_admins", label: "🏢 Division Heads" },
-                  { key: "customers", label: "👥 Clients Only" },
-                ].map((tg) => (
-                  <TouchableOpacity
-                    key={tg.key}
-                    onPress={() => setBroadcastForm({ ...broadcastForm, target: tg.key as any })}
-                    style={[
-                      styles.targetChip,
-                      broadcastForm.target === tg.key && styles.targetChipActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.targetChipText,
-                        broadcastForm.target === tg.key && styles.targetChipTextActive,
-                      ]}
-                    >
-                      {tg.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Broadcast Headline Title *</Text>
-                <TextInput
-                  placeholder="e.g. Scheduled System Maintenance & Sector Updates"
-                  placeholderTextColor="#64748B"
-                  value={broadcastForm.title}
-                  onChangeText={(t) => setBroadcastForm({ ...broadcastForm, title: t })}
-                  style={styles.textInput}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Message Announcement Body *</Text>
-                <TextInput
-                  placeholder="Enter detailed message text to be dispatched to selected accounts..."
-                  placeholderTextColor="#64748B"
-                  multiline
-                  numberOfLines={4}
-                  value={broadcastForm.message}
-                  onChangeText={(t) => setBroadcastForm({ ...broadcastForm, message: t })}
-                  style={[styles.textInput, { height: 90, textAlignVertical: "top" }]}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.submitBtn, isBroadcasting && { opacity: 0.7 }]}
-                onPress={handleSendBroadcast}
-                disabled={isBroadcasting}
-              >
-                {isBroadcasting ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <>
-                    <Ionicons name="send" size={16} color="#FFF" style={{ marginRight: 6 }} />
-                    <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
-                      Dispatch Broadcast Announcement
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Broadcast History */}
-            {sentBroadcasts.length > 0 && (
-              <View style={{ marginTop: 20 }}>
-                <Text style={styles.sectionTitle}>📜 Dispatched Broadcast History</Text>
-                {sentBroadcasts.map((b) => (
-                  <View key={b.id} style={styles.broadcastHistoryCard}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                      <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>{b.title}</Text>
-                      <Text style={{ color: "#34D399", fontSize: 11, fontWeight: "700" }}>{b.date}</Text>
-                    </View>
-                    <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 4 }}>
-                      Target: {b.target.toUpperCase()} • Delivered to {b.recipientsCount} accounts
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </Animated.View>
-        )}
-
-        {/* ── TAB 4: GLOBAL SETTINGS ── */}
+        {/* ── TAB 3: GLOBAL SETTINGS ── */}
         {activeTab === "settings" && (
           <Animated.View entering={FadeInDown.duration(400)}>
             <View style={styles.broadcastCard}>
@@ -634,6 +513,7 @@ const styles = StyleSheet.create({
   specRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   specKey: { flex: 1, color: "#94A3B8", fontSize: 12, fontWeight: "700" },
   specVal: { color: "#FFF", fontSize: 12, fontWeight: "800" },
+  broadcastBannerBtn: { backgroundColor: "#1E293B", padding: 14, borderRadius: 14, borderWidth: 1, borderColor: "#F59E0B55", marginTop: 14 },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -659,14 +539,9 @@ const styles = StyleSheet.create({
   emptyTitle: { color: "#FFF", fontSize: 16, fontWeight: "800", marginTop: 10 },
   emptySub: { color: "#94A3B8", fontSize: 12, marginTop: 4 },
   broadcastCard: { backgroundColor: "#1E293B", borderRadius: 16, padding: 18, borderWidth: 1, borderColor: "#334155" },
-  targetChip: { flex: 1, backgroundColor: "#0F172A", paddingVertical: 8, borderRadius: 8, alignItems: "center", borderWidth: 1, borderColor: "#334155" },
-  targetChipActive: { backgroundColor: "#2563EB", borderColor: "#3B82F6" },
-  targetChipText: { color: "#94A3B8", fontSize: 11, fontWeight: "700" },
-  targetChipTextActive: { color: "#FFF" },
   inputGroup: { marginBottom: 14 },
   inputLabel: { fontSize: 12, fontWeight: "700", color: "#CBD5E1", marginBottom: 6 },
   textInput: { backgroundColor: "#0F172A", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: "#F8FAFC", borderWidth: 1, borderColor: "#334155" },
   submitBtn: { flexDirection: "row", backgroundColor: "#059669", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
-  broadcastHistoryCard: { backgroundColor: "#0F172A", padding: 12, borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: "#334155" },
   maintenanceRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#0F172A", padding: 12, borderRadius: 12, borderWidth: 1, borderColor: "#EF444455", marginTop: 10 },
 });

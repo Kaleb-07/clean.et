@@ -465,6 +465,10 @@ export default function SuperAdminTenants() {
           </Text>
         </View>
 
+        <TouchableOpacity style={styles.refreshBtn} onPress={() => router.push("/(admin)/notifications")}>
+          <Ionicons name="notifications-outline" size={18} color="#F472B6" />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.refreshBtn} onPress={() => router.push("/(admin)/system")}>
           <Ionicons name="hardware-chip-outline" size={18} color="#F59E0B" />
         </TouchableOpacity>

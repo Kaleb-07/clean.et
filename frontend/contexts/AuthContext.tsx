@@ -12,6 +12,13 @@ export interface User {
   role: "super_admin" | "tenant_admin" | "staff" | "customer";
   language: string;
   push_token?: string | null;
+  tenant?: {
+    id: number | string;
+    business_name?: string;
+    categories_enabled?: string[];
+    plan?: string;
+    status?: string;
+  } | null;
 }
 
 // ─── Helpers to check roles without scattering string comparisons ──────────

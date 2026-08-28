@@ -135,6 +135,10 @@ export default function AdminDashboard() {
           </Text>
         </View>
 
+        <TouchableOpacity onPress={() => router.push("/(admin)/notifications")} style={styles.iconBtn}>
+          <Ionicons name="notifications-outline" size={18} color="#F472B6" />
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={loadData} style={styles.iconBtn}>
           <Ionicons name="refresh" size={18} color="#60A5FA" />
         </TouchableOpacity>
@@ -259,6 +263,14 @@ export default function AdminDashboard() {
             <Text style={styles.actionTileTitle}>Dispatch Queue</Text>
             <Text style={styles.actionTileSub}>View & Assign Technicians</Text>
           </TouchableOpacity>
+
+          {isSuperAdmin && (
+            <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/broadcast")}>
+              <Ionicons name="megaphone" size={22} color="#F59E0B" />
+              <Text style={styles.actionTileTitle}>Broadcast Center</Text>
+              <Text style={styles.actionTileSub}>Push & Email Announcements</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* ── LIVE BOOKINGS DISPATCH QUEUE ── */}

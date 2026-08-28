@@ -372,7 +372,7 @@ class SuperAdminController extends Controller
         $validated = $request->validate([
             'title'   => 'required|string|max:255',
             'message' => 'required|string',
-            'target'  => 'required|string|in:all,tenant_admins,customers',
+            'target'  => 'required|string|in:all,tenant_admins,customers,staff',
         ]);
 
         $query = User::query();
@@ -380,18 +380,23 @@ class SuperAdminController extends Controller
             $query->whereIn('role', ['tenant_admin', 'admin']);
         } elseif ($validated['target'] === 'customers') {
             $query->where('role', 'customer');
+        } elseif ($validated['target'] === 'staff') {
+            $query->whereIn('role', ['staff', 'technician', 'cleaner', 'field_staff']);
         }
 
         $userCount = $query->count();
+        if ($userCount === 0 && $validated['target'] === 'staff') {
+            $userCount = StaffProfile::withoutGlobalScopes()->count();
+        }
 
         AuditLog::log(
             'SYSTEM_BROADCAST_SENT',
             "Super Admin dispatched platform broadcast ('{$validated['title']}') to target: {$validated['target']} ({$userCount} users).",
-            ['title' => $validated['title'], 'target' => $validated['target'], 'user_count' => $userCount]
+            ['title' => $validated['title'], 'target' => $validated['target'], 'user_count' => $userCount, 'message' => $validated['message']]
         );
 
         return response()->json([
-            'message'    => "System broadcast dispatched successfully to {$userCount} users.",
+            'message'    => "System broadcast dispatched successfully to {$userCount} accounts.",
             'user_count' => $userCount,
         ]);
     }
