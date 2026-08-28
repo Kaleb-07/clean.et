@@ -216,8 +216,14 @@ export default function AdminDashboard() {
             <>
               <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/tenants")}>
                 <Ionicons name="business" size={22} color="#60A5FA" />
-                <Text style={styles.actionTileTitle}>Divisions & Departments</Text>
-                <Text style={styles.actionTileSub}>Configure Service Sectors</Text>
+                <Text style={styles.actionTileTitle}>Divisions & Sectors</Text>
+                <Text style={styles.actionTileSub}>Branch Governance & Payouts</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/system")}>
+                <Ionicons name="hardware-chip" size={22} color="#F59E0B" />
+                <Text style={styles.actionTileTitle}>System Operations</Text>
+                <Text style={styles.actionTileSub}>Audits, Broadcasts & Settings</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/invoices")}>
