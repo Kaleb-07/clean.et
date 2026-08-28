@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { FadeInDown, FadeInRight } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInRight, FadeOutUp } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -89,8 +89,25 @@ export default function SuperAdminTenants() {
   // Inspect Division Modal
   const [inspectTenant, setInspectTenant] = useState<Tenant | null>(null);
 
-  // Status Toggle Loading State
+  // Status Toggle Loading & Custom Confirmation Modal State
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
+  const [statusConfirmModal, setStatusConfirmModal] = useState<{
+    tenant: Tenant;
+    nextStatus: "active" | "suspended";
+  } | null>(null);
+
+  // Toast Notification Banner State
+  const [toast, setToast] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
+
+  const showToast = (type: "success" | "error" | "info", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => {
+      setToast((curr) => (curr?.message === message ? null : curr));
+    }, 4000);
+  };
 
   /* ─── TOGGLE SECTOR ─── */
   const toggleSector = (sectorId: string) => {
@@ -188,42 +205,30 @@ export default function SuperAdminTenants() {
     }
   };
 
-  /* ─── TOGGLE DIVISION STATUS (WEB & NATIVE SAFE) ─── */
-  const handleToggleStatus = async (tenant: Tenant) => {
+  /* ─── TOGGLE DIVISION STATUS ─── */
+  const handleToggleStatus = (tenant: Tenant) => {
     const nextStatus = tenant.status === "active" ? "suspended" : "active";
+    setStatusConfirmModal({ tenant, nextStatus });
+  };
 
-    const executeToggle = async () => {
-      setUpdatingStatusId(tenant.id);
-      try {
-        await updateTenantStatus(tenant.id, nextStatus);
-        if (Platform.OS === "web") {
-          window.alert(`Division "${tenant.business_name}" status changed to ${nextStatus.toUpperCase()}.`);
-        } else {
-          Alert.alert("Updated", `Division status changed to ${nextStatus.toUpperCase()}.`);
-        }
-      } catch (err: any) {
-        Alert.alert("Error", err?.response?.data?.message || err.message || "Failed to update status.");
-      } finally {
-        setUpdatingStatusId(null);
-      }
-    };
-
-    if (Platform.OS === "web") {
-      const confirmWeb = window.confirm(
-        `Are you sure you want to change "${tenant.business_name}" status to ${nextStatus.toUpperCase()}?`
+  const executeStatusToggle = async () => {
+    if (!statusConfirmModal) return;
+    const { tenant, nextStatus } = statusConfirmModal;
+    setUpdatingStatusId(tenant.id);
+    try {
+      await updateTenantStatus(tenant.id, nextStatus);
+      showToast(
+        "success",
+        `Division "${tenant.business_name}" is now ${nextStatus.toUpperCase()}.`
       );
-      if (confirmWeb) {
-        executeToggle();
-      }
-    } else {
-      Alert.alert(
-        "Confirm Status Update",
-        `Are you sure you want to change "${tenant.business_name}" status to ${nextStatus.toUpperCase()}?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Confirm Update", onPress: executeToggle },
-        ]
+      setStatusConfirmModal(null);
+    } catch (err: any) {
+      showToast(
+        "error",
+        err?.response?.data?.message || err.message || "Failed to update division status."
       );
+    } finally {
+      setUpdatingStatusId(null);
     }
   };
 
@@ -236,6 +241,35 @@ export default function SuperAdminTenants() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* ── 🔔 TOAST NOTIFICATION BANNER ── */}
+      {toast && (
+        <Animated.View
+          entering={FadeInDown.duration(300)}
+          exiting={FadeOutUp.duration(300)}
+          style={[
+            styles.toastContainer,
+            toast.type === "success" && { backgroundColor: "#064E3B", borderColor: "#10B981" },
+            toast.type === "error" && { backgroundColor: "#7F1D1D", borderColor: "#EF4444" },
+            toast.type === "info" && { backgroundColor: "#1E3A8A", borderColor: "#3B82F6" },
+          ]}
+        >
+          <Ionicons
+            name={
+              toast.type === "success"
+                ? "checkmark-circle"
+                : toast.type === "error"
+                ? "alert-circle"
+                : "information-circle"
+            }
+            size={18}
+            color="#FFF"
+          />
+          <Text style={styles.toastText}>{toast.message}</Text>
+          <TouchableOpacity onPress={() => setToast(null)} style={{ padding: 2 }}>
+            <Ionicons name="close" size={16} color="#94A3B8" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
       {/* ── HEADER ── */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -823,6 +857,119 @@ export default function SuperAdminTenants() {
           </View>
         </View>
       </Modal>
+
+      {/* ── 🛡️ CUSTOM DIVISION STATUS TOGGLE CONFIRMATION MODAL ── */}
+      <Modal
+        visible={!!statusConfirmModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStatusConfirmModal(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <Animated.View entering={FadeInDown.duration(300)} style={styles.confirmModalCard}>
+            <View
+              style={[
+                styles.confirmIconContainer,
+                {
+                  backgroundColor:
+                    statusConfirmModal?.nextStatus === "suspended" ? "#EF444420" : "#10B98120",
+                  borderColor:
+                    statusConfirmModal?.nextStatus === "suspended" ? "#EF444450" : "#10B98150",
+                },
+              ]}
+            >
+              <Ionicons
+                name={
+                  statusConfirmModal?.nextStatus === "suspended"
+                    ? "warning-outline"
+                    : "checkmark-circle-outline"
+                }
+                size={32}
+                color={statusConfirmModal?.nextStatus === "suspended" ? "#F87171" : "#34D399"}
+              />
+            </View>
+
+            <Text style={styles.confirmModalTitle}>
+              {statusConfirmModal?.nextStatus === "suspended"
+                ? "Suspend Cleaning Division?"
+                : "Reactivate Cleaning Division?"}
+            </Text>
+
+            <Text style={styles.confirmModalSubtitle}>
+              {statusConfirmModal?.nextStatus === "suspended"
+                ? `Suspending "${statusConfirmModal.tenant.business_name}" will temporarily disable manager access and active service operations.`
+                : `Reactivating "${statusConfirmModal?.tenant.business_name}" will restore full department operations and manager access.`}
+            </Text>
+
+            <View style={styles.confirmStatusDetailBox}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700" }}>DIVISION</Text>
+                <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "800", marginTop: 2 }} numberOfLines={1}>
+                  {statusConfirmModal?.tenant.business_name}
+                </Text>
+              </View>
+
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700" }}>ACTION</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: "800",
+                      color: statusConfirmModal?.tenant.status === "active" ? "#34D399" : "#F87171",
+                    }}
+                  >
+                    {statusConfirmModal?.tenant.status.toUpperCase()}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={10} color="#94A3B8" />
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: "800",
+                      color: statusConfirmModal?.nextStatus === "active" ? "#34D399" : "#F87171",
+                    }}
+                  >
+                    {statusConfirmModal?.nextStatus.toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 20, width: "100%" }}>
+              <TouchableOpacity
+                style={styles.cancelConfirmBtn}
+                onPress={() => setStatusConfirmModal(null)}
+                disabled={!!updatingStatusId}
+              >
+                <Text style={{ color: "#94A3B8", fontWeight: "700", fontSize: 13 }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.submitConfirmBtn,
+                  {
+                    backgroundColor:
+                      statusConfirmModal?.nextStatus === "suspended" ? "#DC2626" : "#059669",
+                  },
+                  updatingStatusId === statusConfirmModal?.tenant.id && { opacity: 0.7 },
+                ]}
+                onPress={executeStatusToggle}
+                disabled={!!updatingStatusId}
+              >
+                {updatingStatusId === statusConfirmModal?.tenant.id ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
+                    {statusConfirmModal?.nextStatus === "suspended"
+                      ? "Yes, Suspend"
+                      : "Yes, Activate"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -857,7 +1004,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    justify.content: "space-between" as any,
+    justifyContent: "space-between",
   },
   impersonateText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
   exitImpersonateBtn: { backgroundColor: "#1D4ED8", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
@@ -971,4 +1118,89 @@ const styles = StyleSheet.create({
   closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   closeBtnText: { color: "#FFF", fontWeight: "700" },
   submitBtn: { flex: 1, backgroundColor: "#059669", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  toastContainer: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    right: 20,
+    zIndex: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  toastText: { flex: 1, color: "#FFF", fontSize: 13, fontWeight: "700" },
+  confirmModalCard: {
+    backgroundColor: "#1E293B",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 420,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#334155",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  confirmIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  confirmModalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#F8FAFC",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  confirmModalSubtitle: {
+    fontSize: 13,
+    color: "#94A3B8",
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  confirmStatusDetailBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#0F172A",
+    borderRadius: 12,
+    padding: 12,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  cancelConfirmBtn: {
+    flex: 1,
+    backgroundColor: "#334155",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  submitConfirmBtn: {
+    flex: 1.2,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

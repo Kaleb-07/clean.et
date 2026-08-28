@@ -266,6 +266,11 @@ export function useSuperAdmin() {
     });
   }, []);
 
+  const stopImpersonation = useCallback(() => {
+    setImpersonatedTenant(null);
+    setImpersonatedTenantId(null);
+  }, []);
+
   return {
     tenants,
     analytics,
@@ -275,6 +280,10 @@ export function useSuperAdmin() {
     payouts,
     impersonatedTenant,
     impersonateTenant,
+    stopImpersonation,
+    impersonatingId: impersonatedTenant?.id ?? null,
+    refreshing: isLoading,
+    onRefresh: loadAllData,
     isLoading,
     error,
     reload: loadAllData,
