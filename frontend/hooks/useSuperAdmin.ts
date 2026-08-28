@@ -266,38 +266,6 @@ export function useSuperAdmin() {
     });
   }, []);
 
-  const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
-
-  const loadSubRequests = useCallback(async () => {
-    try {
-      const res = await apiFetch<{ data: any[] }>("/super-admin/subscription-requests");
-      setSubscriptionRequests(res.data ?? []);
-    } catch (e) {
-      console.log("Error loading sub requests:", e);
-    }
-  }, []);
-
-  const approveSubRequest = useCallback(async (id: number) => {
-    const res = await apiFetch<any>(`/super-admin/subscription-requests/${id}/approve`, {
-      method: "PATCH",
-    });
-    await loadAllData();
-    await loadSubRequests();
-    return res;
-  }, [loadAllData, loadSubRequests]);
-
-  const rejectSubRequest = useCallback(async (id: number) => {
-    const res = await apiFetch<any>(`/super-admin/subscription-requests/${id}/reject`, {
-      method: "PATCH",
-    });
-    await loadSubRequests();
-    return res;
-  }, [loadSubRequests]);
-
-  useEffect(() => {
-    loadSubRequests();
-  }, [loadSubRequests]);
-
   return {
     tenants,
     analytics,
@@ -305,12 +273,12 @@ export function useSuperAdmin() {
     auditLogs,
     settings,
     payouts,
-    subscriptionRequests,
     impersonatedTenant,
     impersonateTenant,
     isLoading,
     error,
     reload: loadAllData,
+    createTenant: createTenantWithAdmin,
     createTenantWithAdmin,
     updateTenantStatus,
     updateTenant,
@@ -319,7 +287,5 @@ export function useSuperAdmin() {
     generatePayouts,
     updatePayoutStatus,
     sendBroadcast,
-    approveSubRequest,
-    rejectSubRequest,
   };
 }
