@@ -108,6 +108,15 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::post('/super-admin/payouts/generate',   [SuperAdminController::class, 'generatePayouts']);
     Route::patch('/super-admin/payouts/{id}/status', [SuperAdminController::class, 'updatePayoutStatus']);
 
+    // Financial Statement Exports & Receipts
+    Route::get('/super-admin/export/payouts',            [SuperAdminController::class, 'exportPayouts']);
+    Route::get('/super-admin/export/financial-summary', [SuperAdminController::class, 'exportFinancialSummary']);
+    Route::get('/super-admin/payouts/{id}/receipt',      [SuperAdminController::class, 'getPayoutReceipt']);
+
+    // Advanced Filtered Reports
+    Route::get('/super-admin/reports/generate', [SuperAdminController::class, 'generateReport']);
+    Route::get('/super-admin/reports/export',   [SuperAdminController::class, 'exportReport']);
+
     // System Broadcasts
     Route::post('/super-admin/broadcast',          [SuperAdminController::class, 'broadcast']);
 });

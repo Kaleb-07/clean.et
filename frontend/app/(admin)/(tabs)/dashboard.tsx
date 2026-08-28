@@ -135,6 +135,12 @@ export default function AdminDashboard() {
           </Text>
         </View>
 
+        {isSuperAdmin && (
+          <TouchableOpacity onPress={() => router.push("/(admin)/reports")} style={styles.iconBtn}>
+            <Ionicons name="bar-chart-outline" size={18} color="#34D399" />
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity onPress={() => router.push("/(admin)/notifications")} style={styles.iconBtn}>
           <Ionicons name="notifications-outline" size={18} color="#F472B6" />
         </TouchableOpacity>

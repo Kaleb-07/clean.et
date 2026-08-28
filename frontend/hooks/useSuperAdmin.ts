@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { apiFetch, setImpersonatedTenantId } from "../src/api/client";
+import API, { apiFetch, setImpersonatedTenantId } from "../src/api/client";
 
 export interface TenantAdminUser {
   id: number;
@@ -266,6 +266,39 @@ export function useSuperAdmin() {
     });
   }, []);
 
+  const exportPayoutsCsv = useCallback(async (): Promise<string> => {
+    const res = await API.get("/super-admin/export/payouts", { responseType: "text" });
+    return res.data;
+  }, []);
+
+  const exportFinancialSummaryCsv = useCallback(async (): Promise<string> => {
+    const res = await API.get("/super-admin/export/financial-summary", { responseType: "text" });
+    return res.data;
+  }, []);
+
+  const getPayoutReceipt = useCallback(async (id: number) => {
+    return await apiFetch<{ data: { receipt: TenantPayout; currency: string; html: string } }>(
+      `/super-admin/payouts/${id}/receipt`
+    );
+  }, []);
+
+  const generateFilteredReport = useCallback(async (params: any) => {
+    const query = new URLSearchParams(params).toString();
+    return await apiFetch<{ data: any }>(`/super-admin/reports/generate?${query}`);
+  }, []);
+
+  const exportFilteredReportCsv = useCallback(async (params: any): Promise<string> => {
+    const query = new URLSearchParams({ ...params, format: "csv" }).toString();
+    const res = await API.get(`/super-admin/reports/export?${query}`, { responseType: "text" });
+    return res.data;
+  }, []);
+
+  const getFilteredReportHtml = useCallback(async (params: any): Promise<string> => {
+    const query = new URLSearchParams({ ...params, format: "html" }).toString();
+    const res = await apiFetch<{ data: { html: string } }>(`/super-admin/reports/export?${query}`);
+    return res.data.html;
+  }, []);
+
   const stopImpersonation = useCallback(() => {
     setImpersonatedTenant(null);
     setImpersonatedTenantId(null);
@@ -296,5 +329,11 @@ export function useSuperAdmin() {
     generatePayouts,
     updatePayoutStatus,
     sendBroadcast,
+    exportPayoutsCsv,
+    exportFinancialSummaryCsv,
+    getPayoutReceipt,
+    generateFilteredReport,
+    exportFilteredReportCsv,
+    getFilteredReportHtml,
   };
 }

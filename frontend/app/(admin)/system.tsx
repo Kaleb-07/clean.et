@@ -21,6 +21,7 @@ import {
   AuditLogItem,
   SystemSettings,
 } from "../../hooks/useSuperAdmin";
+import { downloadCsvFile } from "../../src/utils/exportHelpers";
 
 type SystemTab = "health" | "audit" | "settings";
 
@@ -35,7 +36,10 @@ export default function SuperAdminSystem() {
     isLoading,
     onRefresh,
     updateSystemSettings,
+    exportFinancialSummaryCsv,
   } = useSuperAdmin();
+
+  const [isExporting, setIsExporting] = useState(false);
 
   const [activeTab, setActiveTab] = useState<SystemTab>("health");
   const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
@@ -141,6 +145,10 @@ export default function SuperAdminSystem() {
             Platform Health, Security Audit Logs & Global Settings
           </Text>
         </View>
+
+        <TouchableOpacity style={styles.refreshBtn} onPress={() => router.push("/(admin)/reports")}>
+          <Ionicons name="bar-chart-outline" size={18} color="#34D399" />
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.refreshBtn} onPress={() => router.push("/(admin)/notifications")}>
           <Ionicons name="notifications-outline" size={18} color="#F472B6" />
@@ -273,6 +281,41 @@ export default function SuperAdminSystem() {
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Financial Statements Export Banner */}
+            <TouchableOpacity
+              style={[styles.broadcastBannerBtn, { backgroundColor: "#064E3B", borderColor: "#10B98155", marginTop: 10 }]}
+              onPress={async () => {
+                setIsExporting(true);
+                try {
+                  const csv = await exportFinancialSummaryCsv();
+                  downloadCsvFile(csv, `cleanet_financial_summary_${Date.now()}.csv`);
+                  setToast({ type: "success", message: "🎉 Financial statement CSV exported successfully!" });
+                } catch (e: any) {
+                  setToast({ type: "error", message: e?.message || "Export failed." });
+                } finally {
+                  setIsExporting(false);
+                }
+              }}
+              disabled={isExporting}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                {isExporting ? (
+                  <ActivityIndicator color="#34D399" size="small" />
+                ) : (
+                  <Ionicons name="document-text" size={20} color="#34D399" />
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
+                    Export Financial Summary Statement (CSV)
+                  </Text>
+                  <Text style={{ color: "#A7F3D0", fontSize: 11, marginTop: 1 }}>
+                    Download monthly GMV, platform commissions & department totals
+                  </Text>
+                </View>
+                <Ionicons name="download-outline" size={18} color="#34D399" />
               </View>
             </TouchableOpacity>
           </Animated.View>
