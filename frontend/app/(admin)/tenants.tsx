@@ -9,8 +9,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  Switch,
   RefreshControl,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,7 +21,6 @@ import {
   useSuperAdmin,
   Tenant,
   CreateTenantPayload,
-  TenantPayout,
 } from "../../hooks/useSuperAdmin";
 
 type ActiveTab = "overview" | "divisions" | "payouts";
@@ -59,24 +58,24 @@ export default function SuperAdminTenants() {
     analytics,
     tenants,
     payouts,
-    loading,
     refreshing,
     onRefresh,
     createTenant,
+    updateTenant,
     updateTenantStatus,
     impersonateTenant,
     stopImpersonation,
     impersonatingId,
     generatePayouts,
-    processPayout,
   } = useSuperAdmin();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "suspended">("ALL");
 
-  // Create Division Modal State
+  // Create / Edit Division Modal State
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     business_name: "",
@@ -89,6 +88,9 @@ export default function SuperAdminTenants() {
 
   // Inspect Division Modal
   const [inspectTenant, setInspectTenant] = useState<Tenant | null>(null);
+
+  // Status Toggle Loading State
+  const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
 
   /* ─── TOGGLE SECTOR ─── */
   const toggleSector = (sectorId: string) => {
@@ -108,12 +110,41 @@ export default function SuperAdminTenants() {
     });
   };
 
-  /* ─── SAVE DIVISION ─── */
-  const handleCreateDivision = async () => {
+  /* ─── OPEN ADD / EDIT MODAL ─── */
+  const openAddModal = () => {
+    setEditingTenant(null);
+    setForm({
+      business_name: "",
+      admin_name: "",
+      admin_email: "",
+      admin_phone: "",
+      admin_password: "",
+      categories_enabled: ["car-washing"],
+    });
+    setModalVisible(true);
+  };
+
+  const openEditModal = (t: Tenant) => {
+    const manager = t.users && t.users.length > 0 ? t.users[0] : null;
+    setEditingTenant(t);
+    setForm({
+      business_name: t.business_name || "",
+      admin_name: manager?.name || "",
+      admin_email: manager?.email || "",
+      admin_phone: manager?.phone || "",
+      admin_password: "",
+      categories_enabled: t.categories_enabled || ["car-washing"],
+    });
+    setModalVisible(true);
+  };
+
+  /* ─── SAVE DIVISION (CREATE / EDIT) ─── */
+  const handleSaveDivision = async () => {
     if (!form.business_name.trim()) {
       return Alert.alert("Required", "Division Name is required.");
     }
-    if (!form.admin_name.trim() || !form.admin_email.trim() || !form.admin_password.trim()) {
+
+    if (!editingTenant && (!form.admin_name.trim() || !form.admin_email.trim() || !form.admin_password.trim())) {
       return Alert.alert("Required", "Division Manager Name, Email, and Initial Password are required.");
     }
 
@@ -123,19 +154,25 @@ export default function SuperAdminTenants() {
         business_name: form.business_name.trim(),
         plan: "enterprise",
         categories_enabled: form.categories_enabled,
-        admin_name: form.admin_name.trim(),
-        admin_email: form.admin_email.trim(),
+        admin_name: form.admin_name.trim() || undefined,
+        admin_email: form.admin_email.trim() || undefined,
         admin_phone: form.admin_phone.trim() || undefined,
-        admin_password: form.admin_password.trim(),
+        admin_password: form.admin_password.trim() || undefined,
       };
 
-      await createTenant(payload);
-      Alert.alert(
-        "🎉 Success",
-        `New Cleaning Division "${form.business_name}" created!\n\nManager Account Credentials:\nEmail: ${form.admin_email}\nPassword: ${form.admin_password}`
-      );
+      if (editingTenant) {
+        await updateTenant(editingTenant.id, payload);
+        Alert.alert("Updated", `Cleaning Division "${form.business_name}" updated successfully.`);
+      } else {
+        await createTenant(payload);
+        Alert.alert(
+          "🎉 Success",
+          `New Cleaning Division "${form.business_name}" created!\n\nManager Account Credentials:\nEmail: ${form.admin_email}\nPassword: ${form.admin_password}`
+        );
+      }
 
       setModalVisible(false);
+      setEditingTenant(null);
       setForm({
         business_name: "",
         admin_name: "",
@@ -145,33 +182,49 @@ export default function SuperAdminTenants() {
         categories_enabled: ["car-washing"],
       });
     } catch (e: any) {
-      Alert.alert("Creation Error", e?.response?.data?.message || e.message || "Failed to create division.");
+      Alert.alert("Error", e?.response?.data?.message || e.message || "Failed to save division.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  /* ─── TOGGLE STATUS ─── */
+  /* ─── TOGGLE DIVISION STATUS (WEB & NATIVE SAFE) ─── */
   const handleToggleStatus = async (tenant: Tenant) => {
     const nextStatus = tenant.status === "active" ? "suspended" : "active";
-    Alert.alert(
-      "Confirm Status Update",
-      `Are you sure you want to change "${tenant.business_name}" status to ${nextStatus.toUpperCase()}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Confirm Update",
-          onPress: async () => {
-            try {
-              await updateTenantStatus(tenant.id, nextStatus);
-              Alert.alert("Updated", `Division status changed to ${nextStatus}.`);
-            } catch (err: any) {
-              Alert.alert("Error", err.message || "Failed to update status.");
-            }
-          },
-        },
-      ]
-    );
+
+    const executeToggle = async () => {
+      setUpdatingStatusId(tenant.id);
+      try {
+        await updateTenantStatus(tenant.id, nextStatus);
+        if (Platform.OS === "web") {
+          window.alert(`Division "${tenant.business_name}" status changed to ${nextStatus.toUpperCase()}.`);
+        } else {
+          Alert.alert("Updated", `Division status changed to ${nextStatus.toUpperCase()}.`);
+        }
+      } catch (err: any) {
+        Alert.alert("Error", err?.response?.data?.message || err.message || "Failed to update status.");
+      } finally {
+        setUpdatingStatusId(null);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      const confirmWeb = window.confirm(
+        `Are you sure you want to change "${tenant.business_name}" status to ${nextStatus.toUpperCase()}?`
+      );
+      if (confirmWeb) {
+        executeToggle();
+      }
+    } else {
+      Alert.alert(
+        "Confirm Status Update",
+        `Are you sure you want to change "${tenant.business_name}" status to ${nextStatus.toUpperCase()}?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Confirm Update", onPress: executeToggle },
+        ]
+      );
+    }
   };
 
   const filteredTenants = tenants.filter((t) => {
@@ -283,7 +336,7 @@ export default function SuperAdminTenants() {
               <TouchableOpacity
                 style={[styles.quickActionCard, { backgroundColor: "#059669" }]}
                 onPress={() => {
-                  setModalVisible(true);
+                  openAddModal();
                   setActiveTab("divisions");
                 }}
               >
@@ -352,7 +405,7 @@ export default function SuperAdminTenants() {
                 />
               </View>
 
-              <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
+              <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
                 <Ionicons name="add" size={18} color="#FFF" />
                 <Text style={styles.addBtnText}>+ Division</Text>
               </TouchableOpacity>
@@ -384,6 +437,7 @@ export default function SuperAdminTenants() {
             {/* Divisions Roster Cards */}
             {filteredTenants.map((t, idx) => {
               const manager = t.users && t.users.length > 0 ? t.users[0] : null;
+              const isUpdatingStatus = updatingStatusId === t.id;
 
               return (
                 <Animated.View key={t.id} entering={FadeInRight.delay(idx * 50)}>
@@ -430,7 +484,7 @@ export default function SuperAdminTenants() {
                       </Text>
                     </View>
 
-                    {/* Actions */}
+                    {/* Actions: Inspect, Edit, Suspend/Activate */}
                     <View style={styles.cardActions}>
                       <TouchableOpacity
                         style={[styles.actionBtn, { backgroundColor: "#3B82F622", borderColor: "#3B82F655" }]}
@@ -443,6 +497,16 @@ export default function SuperAdminTenants() {
                       </TouchableOpacity>
 
                       <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: "#F59E0B22", borderColor: "#F59E0B55" }]}
+                        onPress={() => openEditModal(t)}
+                      >
+                        <Ionicons name="create-outline" size={14} color="#FBBF24" />
+                        <Text style={{ color: "#FBBF24", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+                          Edit
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
                         style={[
                           styles.actionBtn,
                           {
@@ -451,22 +515,29 @@ export default function SuperAdminTenants() {
                           },
                         ]}
                         onPress={() => handleToggleStatus(t)}
+                        disabled={isUpdatingStatus}
                       >
-                        <Ionicons
-                          name={t.status === "active" ? "pause-circle-outline" : "play-circle-outline"}
-                          size={14}
-                          color={t.status === "active" ? "#F87171" : "#34D399"}
-                        />
-                        <Text
-                          style={{
-                            color: t.status === "active" ? "#F87171" : "#34D399",
-                            fontSize: 11,
-                            fontWeight: "700",
-                            marginLeft: 4,
-                          }}
-                        >
-                          {t.status === "active" ? "Suspend" : "Activate"}
-                        </Text>
+                        {isUpdatingStatus ? (
+                          <ActivityIndicator size="small" color={t.status === "active" ? "#F87171" : "#34D399"} />
+                        ) : (
+                          <>
+                            <Ionicons
+                              name={t.status === "active" ? "pause-circle-outline" : "play-circle-outline"}
+                              size={14}
+                              color={t.status === "active" ? "#F87171" : "#34D399"}
+                            />
+                            <Text
+                              style={{
+                                color: t.status === "active" ? "#F87171" : "#34D399",
+                                fontSize: 11,
+                                fontWeight: "700",
+                                marginLeft: 4,
+                              }}
+                            >
+                              {t.status === "active" ? "Suspend" : "Activate"}
+                            </Text>
+                          </>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -491,7 +562,10 @@ export default function SuperAdminTenants() {
                 style={{ backgroundColor: "#2563EB", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}
                 onPress={async () => {
                   try {
-                    await generatePayouts();
+                    await generatePayouts({
+                      period_start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+                      period_end: new Date().toISOString().split("T")[0],
+                    });
                     Alert.alert("Generated", "Monthly payout reports generated.");
                   } catch (e: any) {
                     Alert.alert("Error", e.message || "Failed to generate payouts.");
@@ -607,15 +681,19 @@ export default function SuperAdminTenants() {
         </View>
       </Modal>
 
-      {/* ── ➕ REGISTER CLEANING DIVISION MODAL ── */}
+      {/* ── ✏️ REGISTER / EDIT CLEANING DIVISION MODAL ── */}
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>+ Register Cleaning Division</Text>
+                <Text style={styles.modalTitle}>
+                  {editingTenant ? "✏️ Edit Cleaning Division" : "+ Register Cleaning Division"}
+                </Text>
                 <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
-                  Set up new internal department and assign primary Division Manager credentials
+                  {editingTenant
+                    ? "Update division business details, authorized sectors, and manager contact"
+                    : "Set up new internal department and assign primary Division Manager credentials"}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -670,7 +748,7 @@ export default function SuperAdminTenants() {
                 </Text>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Manager Full Name *</Text>
+                  <Text style={styles.inputLabel}>Manager Full Name {editingTenant ? "" : "*"}</Text>
                   <TextInput
                     placeholder="e.g. Abebe Bikila"
                     placeholderTextColor="#64748B"
@@ -682,7 +760,7 @@ export default function SuperAdminTenants() {
 
                 <View style={{ flexDirection: "row", gap: 10 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.inputLabel}>Manager Email *</Text>
+                    <Text style={styles.inputLabel}>Manager Email {editingTenant ? "" : "*"}</Text>
                     <TextInput
                       placeholder="manager@clean.et"
                       placeholderTextColor="#64748B"
@@ -708,9 +786,11 @@ export default function SuperAdminTenants() {
                 </View>
 
                 <View style={[styles.inputGroup, { marginTop: 10 }]}>
-                  <Text style={styles.inputLabel}>Initial Account Password *</Text>
+                  <Text style={styles.inputLabel}>
+                    {editingTenant ? "New Password (Leave blank to keep current)" : "Initial Account Password *"}
+                  </Text>
                   <TextInput
-                    placeholder="Enter initial login password"
+                    placeholder={editingTenant ? "Enter new password if changing" : "Enter initial login password"}
                     placeholderTextColor="#64748B"
                     secureTextEntry
                     value={form.admin_password}
@@ -728,14 +808,14 @@ export default function SuperAdminTenants() {
 
               <TouchableOpacity
                 style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]}
-                onPress={handleCreateDivision}
+                onPress={handleSaveDivision}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
-                    Register Division
+                    {editingTenant ? "Save Changes" : "Register Division"}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -777,7 +857,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    justifyContent: "space-between",
+    justify.content: "space-between" as any,
   },
   impersonateText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
   exitImpersonateBtn: { backgroundColor: "#1D4ED8", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },

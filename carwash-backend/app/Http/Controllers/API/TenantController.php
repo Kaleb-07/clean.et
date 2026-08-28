@@ -109,7 +109,7 @@ class TenantController extends Controller
     // ─────────────────────────────────────────────
     public function update(Request $request, $id): JsonResponse
     {
-        $tenant = Tenant::findOrFail($id);
+        $tenant = Tenant::withoutGlobalScopes()->findOrFail($id);
 
         $validated = $request->validate([
             'business_name'        => 'sometimes|required|string|max:255',
@@ -174,7 +174,7 @@ class TenantController extends Controller
     // ─────────────────────────────────────────────
     public function updateStatus(Request $request, $id): JsonResponse
     {
-        $tenant = Tenant::findOrFail($id);
+        $tenant = Tenant::withoutGlobalScopes()->findOrFail($id);
 
         $validated = $request->validate([
             'status' => 'required|string|in:active,suspended',
