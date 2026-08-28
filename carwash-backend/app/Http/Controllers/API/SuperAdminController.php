@@ -45,13 +45,6 @@ class SuperAdminController extends Controller
             'cancelled'   => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_CANCELLED)->count(),
         ];
 
-        // Subscription Plans distribution
-        $planDistribution = [
-            'starter'    => Tenant::withoutGlobalScopes()->where('plan', 'starter')->count(),
-            'growth'     => Tenant::withoutGlobalScopes()->where('plan', 'growth')->count(),
-            'enterprise' => Tenant::withoutGlobalScopes()->where('plan', 'enterprise')->count(),
-        ];
-
         // Categories / Services distribution across tenants
         $allTenants = Tenant::withoutGlobalScopes()->get();
         $categoryCounts = [];
@@ -101,7 +94,6 @@ class SuperAdminController extends Controller
                     'total'     => $totalBookings,
                     'breakdown' => $bookingStatusBreakdown,
                 ],
-                'plan_distribution'        => $planDistribution,
                 'category_distribution'    => $categoryCounts,
                 'revenue_trends'           => $revenueTrends,
                 'total_customers'          => $totalCustomers,
@@ -164,38 +156,6 @@ class SuperAdminController extends Controller
         $commission = SystemSetting::getByKey('platform_commission_rate', 10.0);
         $supportEmail = SystemSetting::getByKey('support_email', 'support@clean.et');
         $maintenance = SystemSetting::getByKey('maintenance_mode', false);
-        $defaultPlans = [
-            [
-                'id'          => 'starter',
-                'name'        => 'Starter Business',
-                'badge'       => '5% Fee',
-                'commission'  => '5% Commission',
-                'staffLimit'  => 'Max 5 Staff Members',
-                'features'    => ['Standard Bay Wash / Clean', 'Basic Invoicing & Billing', 'Mobile App Access'],
-                'colors'      => ['#0F172A', '#1E293B'],
-                'borderColor' => '#334155',
-            ],
-            [
-                'id'          => 'growth',
-                'name'        => 'Growth Tier',
-                'badge'       => 'RECOMMENDED (8% Fee)',
-                'commission'  => '8% Commission',
-                'staffLimit'  => 'Max 20 Staff Members',
-                'features'    => ['Multi-Sector Enabled', 'Automated Dispatch Queue', 'Customer Accounts & Fleets'],
-                'colors'      => ['#1E1B4B', '#312E81'],
-                'borderColor' => '#6366F1',
-            ],
-            [
-                'id'          => 'enterprise',
-                'name'        => 'Enterprise Core',
-                'badge'       => 'FULL ACCESS (10% Fee)',
-                'commission'  => '10% Platform Rate',
-                'staffLimit'  => 'Unlimited Staff & Techs',
-                'features'    => ['Full Multi-Sector Schemas', 'IRATA Rope Access High-Rise', 'Priority API & Dedicated Manager'],
-                'colors'      => ['#064E3B', '#047857'],
-                'borderColor' => '#10B981',
-            ],
-        ];
 
         $defaultSectors = [
             [
@@ -236,10 +196,6 @@ class SuperAdminController extends Controller
             ],
         ];
 
-        $plans = SystemSetting::getByKey('tenant_subscription_plans')
-            ?? SystemSetting::getByKey('subscription_plans')
-            ?? $defaultPlans;
-
         $sectors = SystemSetting::getByKey('platform_sector_categories')
             ?? SystemSetting::getByKey('sector_categories')
             ?? $defaultSectors;
@@ -250,7 +206,6 @@ class SuperAdminController extends Controller
                 'platform_commission_rate' => (float) $commission,
                 'support_email'            => $supportEmail,
                 'maintenance_mode'         => (bool) $maintenance,
-                'subscription_plans'       => $plans,
                 'sector_categories'        => $sectors,
             ]
         ]);
@@ -266,13 +221,11 @@ class SuperAdminController extends Controller
             'platform_commission_rate' => 'sometimes|numeric|min:0|max:100',
             'support_email'            => 'sometimes|email|max:255',
             'maintenance_mode'         => 'sometimes|boolean',
-            'subscription_plans'       => 'sometimes|array',
             'sector_categories'        => 'sometimes|array',
         ]);
 
         foreach ($validated as $key => $val) {
             $dbKey = match ($key) {
-                'subscription_plans' => 'tenant_subscription_plans',
                 'sector_categories'  => 'platform_sector_categories',
                 default              => $key,
             };

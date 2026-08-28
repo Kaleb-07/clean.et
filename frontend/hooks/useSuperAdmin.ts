@@ -44,11 +44,6 @@ export interface SuperAdminAnalytics {
       cancelled: number;
     };
   };
-  plan_distribution: {
-    starter: number;
-    growth: number;
-    enterprise: number;
-  };
   category_distribution: Record<string, number>;
   revenue_trends?: MonthlyRevenueTrend[];
   total_customers: number;
@@ -85,7 +80,6 @@ export interface SystemSettings {
   platform_commission_rate: number;
   support_email: string;
   maintenance_mode: boolean;
-  subscription_plans?: any;
   sector_categories?: any;
 }
 
