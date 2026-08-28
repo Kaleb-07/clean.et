@@ -5,6 +5,7 @@ export interface Service {
   price: number;
   duration: number;
   imageKey: string;
+  sub_center?: string;
 }
 
 export const getServiceImage = (key: string) => {

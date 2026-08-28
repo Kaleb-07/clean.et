@@ -9,6 +9,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -23,12 +25,12 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 
   try {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
+    const permResponse: any = await Notifications.getPermissionsAsync();
+    let finalStatus = permResponse?.status;
 
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    if (finalStatus !== "granted") {
+      const reqResponse: any = await Notifications.requestPermissionsAsync();
+      finalStatus = reqResponse?.status;
     }
 
     if (finalStatus !== "granted") {

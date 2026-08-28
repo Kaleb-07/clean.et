@@ -811,4 +811,5 @@ const styles = StyleSheet.create({
   closeBtnText: { color: "#FFF", fontWeight: "700" },
   submitBtn: { flex: 1, backgroundColor: "#059669", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
   deleteModalBtn: { flex: 1, backgroundColor: "#EF4444", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  serviceImagePreview: { width: "100%", height: 160, borderRadius: 10, marginBottom: 12 },
 });

@@ -58,6 +58,7 @@ export interface Booking {
     name: string;
     phone: string | null;
   } | null;
+  completion_proofs?: any[];
 }
 
 
@@ -216,5 +217,6 @@ export function useBookings() {
     deleteBooking,
     getBooking,
     reload: loadBookings,
+    refreshBookings: loadBookings,
   };
 }

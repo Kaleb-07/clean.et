@@ -70,7 +70,7 @@ export default function BookingStatusScreen() {
   const [uploading, setUploading] = useState(false);
   const [proofs, setProofs] = useState<any[]>([]);
 
-  const isStaff = user?.is_admin || user?.role === "staff";
+  const isStaff = user?.role === "super_admin" || user?.role === "tenant_admin" || user?.role === "staff";
 
   const pickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
