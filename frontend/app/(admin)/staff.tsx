@@ -112,9 +112,31 @@ export default function AdminStaff() {
 
   /* ================= SAVE ================= */
   const handleSave = async () => {
-    if (!form.name.trim()) {
-      triggerNotification("Technician Full Name is required.", "danger");
+    const trimmedName = form.name.trim();
+    if (!trimmedName || trimmedName.length < 2) {
+      triggerNotification("Technician Full Name is required (minimum 2 characters).", "danger");
       return;
+    }
+
+    if (!form.role_title.trim() || form.role_title.trim().length < 2) {
+      triggerNotification("Role Title / Designation is required.", "danger");
+      return;
+    }
+
+    if (form.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email.trim())) {
+        triggerNotification("Please enter a valid email address.", "danger");
+        return;
+      }
+    }
+
+    if (form.phone.trim()) {
+      const cleanPhone = form.phone.trim().replace(/[^0-9+]/g, "");
+      if (cleanPhone.length < 6) {
+        triggerNotification("Phone number must contain at least 6 digits.", "danger");
+        return;
+      }
     }
 
     setIsSubmitting(true);

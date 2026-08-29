@@ -58,6 +58,16 @@ export default function AdminCustomers() {
     password: "",
   });
 
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "danger" } | null>(null);
+
+  const triggerNotification = (message: string, type: "success" | "danger" = "success") => {
+    setNotification({ message, type });
+    Alert.alert(type === "success" ? "Success" : "Notification", message);
+    setTimeout(() => {
+      setNotification(null);
+    }, 4500);
+  };
+
   useEffect(() => {
     loadCustomers();
   }, []);
@@ -67,7 +77,8 @@ export default function AdminCustomers() {
     setLoading(true);
     try {
       const res = await API.get("/customers");
-      setCustomers(res.data.data ?? []);
+      const payload = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+      setCustomers(payload);
     } catch (e) {
       console.log("Error loading customers:", e);
     } finally {
@@ -83,8 +94,26 @@ export default function AdminCustomers() {
 
   /* ================= SAVE ================= */
   const handleSave = async () => {
-    if (!form.name.trim() || !form.email.trim()) {
-      return Alert.alert("Required", "Customer Name and Email address are required.");
+    const trimmedName = form.name.trim();
+    if (!trimmedName || trimmedName.length < 2) {
+      triggerNotification("Client Full Name is required (minimum 2 characters).", "danger");
+      return;
+    }
+
+    if (form.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email.trim())) {
+        triggerNotification("Please enter a valid email address.", "danger");
+        return;
+      }
+    }
+
+    if (form.phone.trim()) {
+      const cleanPhone = form.phone.trim().replace(/[^0-9+]/g, "");
+      if (cleanPhone.length < 6) {
+        triggerNotification("Phone number must contain at least 6 digits.", "danger");
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -92,18 +121,18 @@ export default function AdminCustomers() {
       if (editingCustomer) {
         await API.put(`/customers/${editingCustomer.id}`, {
           name: form.name.trim(),
-          email: form.email.trim().toLowerCase(),
-          phone: form.phone.trim(),
+          email: form.email ? form.email.trim().toLowerCase() : undefined,
+          phone: form.phone ? form.phone.trim() : undefined,
         });
-        Alert.alert("Updated", "Client account profile updated successfully.");
+        triggerNotification(`✨ Client profile "${form.name.trim()}" updated successfully!`, "success");
       } else {
         await API.post("/customers", {
           name: form.name.trim(),
-          email: form.email.trim().toLowerCase(),
-          phone: form.phone.trim(),
+          email: form.email ? form.email.trim().toLowerCase() : undefined,
+          phone: form.phone ? form.phone.trim() : undefined,
           password: form.password ? form.password.trim() : "password123",
         });
-        Alert.alert("🎉 Success", isSuperAdmin ? "New platform customer account created!" : "Walk-in client registered successfully!");
+        triggerNotification(`🎉 Client account "${form.name.trim()}" created successfully!`, "success");
       }
 
       setModalVisible(false);
@@ -111,7 +140,10 @@ export default function AdminCustomers() {
       setForm({ name: "", email: "", phone: "", password: "" });
       loadCustomers();
     } catch (e: any) {
-      Alert.alert("Error", e?.response?.data?.message || "Failed to save client.");
+      const errorMsg = e?.response?.data?.errors
+        ? Object.values(e.response.data.errors).flat().join("\n")
+        : e?.response?.data?.message || "Failed to save client.";
+      triggerNotification(`Error: ${errorMsg}`, "danger");
     } finally {
       setIsSubmitting(false);
     }
@@ -126,10 +158,10 @@ export default function AdminCustomers() {
       await API.delete(`/customers/${selectedDeleteId}`);
       setDeleteModal(false);
       setSelectedDeleteId(null);
-      Alert.alert("Deleted", "Client account removed successfully.");
+      triggerNotification("🗑️ Client account removed from directory.", "danger");
       loadCustomers();
     } catch (e: any) {
-      Alert.alert("Delete Error", e?.response?.data?.message || "Failed to delete client.");
+      triggerNotification(`Delete Error: ${e?.response?.data?.message || "Failed to delete client."}`, "danger");
     } finally {
       setIsDeleting(false);
     }
@@ -183,6 +215,17 @@ export default function AdminCustomers() {
           <Ionicons name="refresh" size={18} color={isSuperAdmin ? "#60A5FA" : "#34D399"} />
         </TouchableOpacity>
       </View>
+
+      {/* ── 🔔 ACTION NOTIFICATION TOAST BANNER ── */}
+      {notification && (
+        <Animated.View entering={FadeInDown} style={[styles.toastBanner, notification.type === "danger" ? styles.toastBannerDanger : styles.toastBannerSuccess]}>
+          <Ionicons name={notification.type === "danger" ? "alert-circle" : "checkmark-circle"} size={20} color="#FFF" />
+          <Text style={styles.toastText}>{notification.message}</Text>
+          <TouchableOpacity onPress={() => setNotification(null)}>
+            <Ionicons name="close" size={18} color="#FFF" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -639,4 +682,26 @@ const styles = StyleSheet.create({
   closeBtnText: { color: "#FFF", fontWeight: "700" },
   submitBtn: { flex: 1, backgroundColor: "#2563EB", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
   deleteModalBtn: { flex: 1, backgroundColor: "#EF4444", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  toastBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 10,
+    gap: 10,
+    elevation: 3,
+  },
+  toastBannerSuccess: {
+    backgroundColor: "#059669",
+  },
+  toastBannerDanger: {
+    backgroundColor: "#DC2626",
+  },
+  toastText: {
+    flex: 1,
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 12,
+  },
 });

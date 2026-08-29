@@ -193,13 +193,23 @@ export default function AdminServices() {
 
   /* ─── SAVE SERVICE ITEM ─── */
   const handleSaveService = async () => {
-    if (!serviceForm.name.trim() || !serviceForm.price.trim()) {
-      return Alert.alert("Required", "Service Name and Base Price are required.");
+    const trimmedName = serviceForm.name.trim();
+    if (!trimmedName || trimmedName.length < 2) {
+      return Alert.alert("Required", "Service Offering Name is required (minimum 2 characters).");
+    }
+
+    if (!serviceForm.price.trim()) {
+      return Alert.alert("Required", "Service Base Price is required.");
     }
 
     const parsedPrice = parseFloat(serviceForm.price);
     if (isNaN(parsedPrice) || parsedPrice < 0) {
       return Alert.alert("Invalid Price", "Please enter a valid numeric price (e.g. 450.00).");
+    }
+
+    const parsedDuration = parseInt(serviceForm.duration, 10);
+    if (isNaN(parsedDuration) || parsedDuration < 1) {
+      return Alert.alert("Invalid Duration", "Please enter a valid service duration in minutes (e.g. 45).");
     }
 
     setIsSubmitting(true);

@@ -53,9 +53,11 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 
 // ─── CUSTOMERS (admin only) ───────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-    Route::get('/customers',       [CustomerController::class, 'index']);
-    Route::get('/customers/{id}',  [CustomerController::class, 'show']);
-    Route::post('/customers',      [CustomerController::class, 'store']);
+    Route::get('/customers',          [CustomerController::class, 'index']);
+    Route::get('/customers/{id}',     [CustomerController::class, 'show']);
+    Route::post('/customers',         [CustomerController::class, 'store']);
+    Route::put('/customers/{id}',      [CustomerController::class, 'update']);
+    Route::delete('/customers/{id}',  [CustomerController::class, 'destroy']);
 });
 
 // ─── BOOKINGS ─────────────────────────────────────────────────────────────────

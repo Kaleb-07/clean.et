@@ -29,13 +29,20 @@ class StaffController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'                  => 'required|string|max:255',
-            'phone'                 => 'nullable|string|max:30',
-            'email'                 => 'nullable|email',
+            'name'                  => 'required|string|min:2|max:255',
+            'phone'                 => 'nullable|string|min:6|max:30',
+            'email'                 => 'nullable|email|max:255',
             'password'              => 'nullable|string|min:4',
-            'role_title'            => 'required|string|max:100',
+            'role_title'            => 'required|string|min:2|max:100',
             'qualifications'        => 'nullable|array',
             'sector_qualifications' => 'nullable|array',
+        ], [
+            'name.required'       => 'Technician Full Name is required.',
+            'name.min'            => 'Technician Full Name must be at least 2 characters.',
+            'role_title.required' => 'Role Title / Designation is required.',
+            'role_title.min'      => 'Role Title / Designation must be at least 2 characters.',
+            'email.email'         => 'Please enter a valid email address.',
+            'phone.min'           => 'Phone number must be at least 6 digits.',
         ]);
 
         $phone = $request->phone ? trim($request->phone) : null;

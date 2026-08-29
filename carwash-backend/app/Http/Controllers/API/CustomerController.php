@@ -44,4 +44,11 @@ class CustomerController extends Controller
         $customer = $this->customerService->update($id, $request->validated());
         return new CustomerResource($customer);
     }
+
+    // DELETE /customers/{id}
+    public function destroy($id)
+    {
+        $this->customerService->delete($id);
+        return response()->json(['message' => 'Customer account removed successfully.']);
+    }
 }
