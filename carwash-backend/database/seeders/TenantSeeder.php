@@ -109,10 +109,10 @@ class TenantSeeder extends Seeder
         ];
 
         foreach ($carServices as $cs) {
-            Service::firstOrCreate(
+            Service::updateOrCreate(
                 [
-                    'tenant_id' => $carWashDivision->id,
-                    'name'      => $cs['name'],
+                    'tenant_id'  => $carWashDivision->id,
+                    'sub_center' => $cs['sub_center'],
                 ],
                 $cs
             );
@@ -121,28 +121,28 @@ class TenantSeeder extends Seeder
         // ── 4. Create Sub-Center Services for Building Cleaning Division ─────
         $buildingServices = [
             [
-                'name'        => 'Exterior Facade & High-Rise Glass Cleaning',
+                'name'        => 'Exterior Facade & High-Rise Glass Center',
                 'category'    => 'building-cleaning',
                 'sub_center'  => 'exterior-facade',
-                'price'       => 3500.00,
+                'price'       => 2500.00,
                 'duration'    => 180,
                 'description' => 'Specialized facade and window washing using certified safety equipment & IRATA rope access.',
             ],
             [
-                'name'        => 'Interior Building Deep Sanitization',
+                'name'        => 'Interior Building Deep Sanitization Center',
                 'category'    => 'building-cleaning',
                 'sub_center'  => 'interior-deep',
-                'price'       => 2200.00,
+                'price'       => 1800.00,
                 'duration'    => 120,
                 'description' => 'Deep interior building sanitization, carpet vacuuming, surface cleaning, and dust elimination.',
             ],
         ];
 
         foreach ($buildingServices as $bs) {
-            Service::firstOrCreate(
+            Service::updateOrCreate(
                 [
-                    'tenant_id' => $buildingDivision->id,
-                    'name'      => $bs['name'],
+                    'tenant_id'  => $buildingDivision->id,
+                    'sub_center' => $bs['sub_center'],
                 ],
                 $bs
             );

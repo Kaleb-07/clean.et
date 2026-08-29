@@ -19,6 +19,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../contexts/AuthContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /* ================= TYPES ================= */
 interface Service {
@@ -84,13 +85,47 @@ export default function AdminServices() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
 
+  // Custom Sub-Center Branch State
+  const [customCenters, setCustomCenters] = useState<{ id: string; name: string; icon: string }[]>([]);
+  const [createCenterModal, setCreateCenterModal] = useState(false);
+  const [newCenterName, setNewCenterName] = useState("");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadServices();
     loadSettingsSectors();
-  }, []);
+    loadCustomCenters();
+  }, [user?.tenant_id]);
+
+  const loadCustomCenters = async () => {
+    try {
+      const key = `@custom_sub_centers_${user?.tenant_id || "global"}`;
+      const stored = await AsyncStorage.getItem(key);
+      if (stored) {
+        setCustomCenters(JSON.parse(stored));
+      }
+    } catch (e) {}
+  };
+
+  const handleCreateCustomCenter = async () => {
+    if (!newCenterName.trim()) {
+      return Alert.alert("Required", "Please enter a name for the new sub-center station.");
+    }
+    const newId = `center-${Date.now().toString().slice(-4)}`;
+    const newObj = { id: newId, name: `🏢 ${newCenterName.trim()}`, icon: "business" };
+    const updated = [...customCenters, newObj];
+    setCustomCenters(updated);
+    try {
+      const key = `@custom_sub_centers_${user?.tenant_id || "global"}`;
+      await AsyncStorage.setItem(key, JSON.stringify(updated));
+    } catch (e) {}
+    setCreateCenterModal(false);
+    setNewCenterName("");
+    setServiceForm((prev) => ({ ...prev, sub_center: newId }));
+    Alert.alert("🎉 Center Created", `Sub-Center "${newObj.name}" created and added to dynamic centers!`);
+  };
 
   const loadServices = async () => {
     setLoading(true);
@@ -162,14 +197,19 @@ export default function AdminServices() {
       return Alert.alert("Required", "Service Name and Base Price are required.");
     }
 
+    const parsedPrice = parseFloat(serviceForm.price);
+    if (isNaN(parsedPrice) || parsedPrice < 0) {
+      return Alert.alert("Invalid Price", "Please enter a valid numeric price (e.g. 450.00).");
+    }
+
     setIsSubmitting(true);
     try {
       const payload = {
         name: serviceForm.name.trim(),
-        category: serviceForm.category,
-        sub_center: serviceForm.sub_center,
-        description: serviceForm.description.trim(),
-        price: parseFloat(serviceForm.price),
+        category: serviceForm.category || availableSectors[0]?.id || "car-washing",
+        sub_center: serviceForm.sub_center || "corporate-fleet",
+        description: serviceForm.description ? serviceForm.description.trim() : "",
+        price: parsedPrice,
         duration: parseInt(serviceForm.duration, 10) || 45,
         image: serviceForm.image || null,
       };
@@ -195,7 +235,10 @@ export default function AdminServices() {
       });
       loadServices();
     } catch (e: any) {
-      Alert.alert("Error", e?.response?.data?.message || "Failed to save service.");
+      const errorMsg = e?.response?.data?.errors
+        ? Object.values(e.response.data.errors).flat().join("\n")
+        : e?.response?.data?.message || "Failed to save service.";
+      Alert.alert("Error", errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -224,9 +267,10 @@ export default function AdminServices() {
     ? sectorCategories
     : sectorCategories.filter((cat) => tenantCategories.includes(cat.id));
 
-  const activeDivisionSubCenters = DIVISION_SUB_CENTERS[availableSectors[0]?.id || "car-washing"] || [
+  const defaultSubCenters = DIVISION_SUB_CENTERS[availableSectors[0]?.id || "car-washing"] || [
     { id: "general", name: "General Division Center", icon: "sparkles" },
   ];
+  const activeDivisionSubCenters = [...defaultSubCenters, ...customCenters];
 
   const filteredServices = services.filter((s) => {
     const q = searchQuery.toLowerCase();
@@ -290,25 +334,35 @@ export default function AdminServices() {
           </View>
 
           {!isSuperAdmin && (
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => {
-                setEditingService(null);
-                setServiceForm({
-                  name: "",
-                  category: availableSectors[0]?.id || "car-washing",
-                  sub_center: activeDivisionSubCenters[0]?.id || "general",
-                  description: "",
-                  price: "",
-                  duration: "45",
-                  image: "",
-                });
-                setServiceModalVisible(true);
-              }}
-            >
-              <Ionicons name="add" size={18} color="#FFF" />
-              <Text style={styles.addBtnText}>+ Add Service</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              <TouchableOpacity
+                style={[styles.addBtn, { backgroundColor: "#059669" }]}
+                onPress={() => setCreateCenterModal(true)}
+              >
+                <Ionicons name="business" size={16} color="#FFF" />
+                <Text style={styles.addBtnText}>+ Center</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.addBtn}
+                onPress={() => {
+                  setEditingService(null);
+                  setServiceForm({
+                    name: "",
+                    category: availableSectors[0]?.id || "car-washing",
+                    sub_center: activeDivisionSubCenters[0]?.id || "general",
+                    description: "",
+                    price: "",
+                    duration: "45",
+                    image: "",
+                  });
+                  setServiceModalVisible(true);
+                }}
+              >
+                <Ionicons name="add" size={18} color="#FFF" />
+                <Text style={styles.addBtnText}>+ Service</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -323,6 +377,17 @@ export default function AdminServices() {
                 ALL CENTERS ({services.length})
               </Text>
             </TouchableOpacity>
+
+            {!isSuperAdmin && (
+              <TouchableOpacity
+                onPress={() => setCreateCenterModal(true)}
+                style={[styles.filterChip, { backgroundColor: "#10B98122", borderColor: "#10B98155" }]}
+              >
+                <Text style={[styles.filterChipText, { color: "#34D399" }]}>
+                  🏬 + Create Center
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {activeDivisionSubCenters.map((center) => {
               const isSel = selectedSubCenterFilter === center.id;
@@ -536,7 +601,17 @@ export default function AdminServices() {
               </View>
 
               {/* Service Sub-Center Selector Cards */}
-              <Text style={styles.inputLabel}>Assign Service Center Branch / Type *</Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <Text style={[styles.inputLabel, { marginBottom: 0 }]}>Assign Service Center Branch / Type *</Text>
+                <TouchableOpacity
+                  onPress={() => setCreateCenterModal(true)}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#10B98122", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "#10B98155" }}
+                >
+                  <Ionicons name="add" size={14} color="#34D399" />
+                  <Text style={{ color: "#34D399", fontSize: 11, fontWeight: "800" }}>+ Add Center</Text>
+                </TouchableOpacity>
+              </View>
+
               <View style={{ gap: 8, marginBottom: 14 }}>
                 {activeDivisionSubCenters.map((sc) => {
                   const isSel = serviceForm.sub_center === sc.id;
@@ -684,6 +759,46 @@ export default function AdminServices() {
 
               <TouchableOpacity style={styles.deleteModalBtn} onPress={confirmDeleteService} disabled={isDeleting}>
                 {isDeleting ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: "#FFF", fontWeight: "800" }}>🗑️ Yes, Delete</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── ➕ CREATE DYNAMIC CUSTOM SUB-CENTER MODAL ── */}
+      <Modal visible={createCenterModal} transparent animationType="slide" onRequestClose={() => setCreateCenterModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>➕ Add Dynamic Sub-Center Station</Text>
+                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                  Create a new station branch (e.g. Bole Station, Kazanchis Facade Hub)
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setCreateCenterModal(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>New Sub-Center Station Name *</Text>
+              <TextInput
+                placeholder="e.g. Bole Express Detailing Station"
+                placeholderTextColor="#64748B"
+                value={newCenterName}
+                onChangeText={setNewCenterName}
+                style={styles.textInput}
+              />
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+              <TouchableOpacity style={styles.closeBtn} onPress={() => setCreateCenterModal(false)}>
+                <Text style={styles.closeBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.submitBtn, { backgroundColor: "#10B981" }]} onPress={handleCreateCustomCenter}>
+                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>Create Station Center</Text>
               </TouchableOpacity>
             </View>
           </View>
