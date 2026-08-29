@@ -30,28 +30,43 @@ class StaffController extends Controller
     {
         $request->validate([
             'name'                  => 'required|string|max:255',
-            'phone'                 => 'required|string|max:20|unique:users,phone',
-            'email'                 => 'nullable|email|unique:users,email',
-            'password'              => 'required|string|min:6',
-            'role_title'            => 'required|string|max:50',
+            'phone'                 => 'nullable|string|max:30',
+            'email'                 => 'nullable|email',
+            'password'              => 'nullable|string|min:4',
+            'role_title'            => 'required|string|max:100',
+            'qualifications'        => 'nullable|array',
             'sector_qualifications' => 'nullable|array',
-            'sector_qualifications.*' => 'integer|exists:sectors,id',
         ]);
 
-        $staffProfile = DB::transaction(function () use ($request) {
+        $phone = $request->phone ? trim($request->phone) : null;
+        if (!$phone || User::where('phone', $phone)->exists()) {
+            $phone = '+2519' . rand(10000000, 99999999);
+        }
+
+        $email = $request->email ? trim($request->email) : null;
+        if (!$email || User::where('email', $email)->exists()) {
+            $email = 'tech_' . time() . '_' . rand(100, 999) . '@clean.et';
+        }
+
+        $password = $request->password ? $request->password : 'password123';
+        $quals = $request->qualifications ?? $request->sector_qualifications ?? [];
+
+        $staffProfile = DB::transaction(function () use ($request, $phone, $email, $password, $quals) {
+            $tenantId = $request->user()?->tenant_id;
+
             $user = User::create([
-                'name'      => $request->name,
-                'phone'     => $request->phone,
-                'email'     => $request->email,
-                'password'  => Hash::make($request->password),
+                'name'      => trim($request->name),
+                'phone'     => $phone,
+                'email'     => $email,
+                'password'  => Hash::make($password),
                 'role'      => 'staff',
-                'tenant_id' => $request->user()->tenant_id,
+                'tenant_id' => $tenantId,
             ]);
 
             return $user->staffProfile()->create([
-                'tenant_id'             => $request->user()->tenant_id,
-                'role_title'            => $request->role_title,
-                'sector_qualifications' => $request->sector_qualifications ?? [],
+                'tenant_id'             => $tenantId,
+                'role_title'            => trim($request->role_title),
+                'sector_qualifications' => $quals,
             ]);
         });
 
@@ -81,6 +96,43 @@ class StaffController extends Controller
     {
         $staff = StaffProfile::with(['user', 'certifications'])->findOrFail($id);
         return response()->json($staff);
+    }
+
+    // PUT /api/staff/{id}
+    public function update(Request $request, $id)
+    {
+        $staffProfile = StaffProfile::with('user')->findOrFail($id);
+
+        $request->validate([
+            'name'                  => 'nullable|string|max:255',
+            'phone'                 => 'nullable|string|max:30',
+            'email'                 => 'nullable|email',
+            'role_title'            => 'nullable|string|max:100',
+            'qualifications'        => 'nullable|array',
+            'sector_qualifications' => 'nullable|array',
+        ]);
+
+        DB::transaction(function () use ($request, $staffProfile) {
+            if ($staffProfile->user) {
+                $userUpdate = [];
+                if ($request->filled('name')) $userUpdate['name'] = trim($request->name);
+                if ($request->filled('phone')) $userUpdate['phone'] = trim($request->phone);
+                if ($request->filled('email')) $userUpdate['email'] = trim($request->email);
+                if (!empty($userUpdate)) {
+                    $staffProfile->user->update($userUpdate);
+                }
+            }
+
+            $quals = $request->qualifications ?? $request->sector_qualifications ?? $staffProfile->sector_qualifications;
+            $roleTitle = $request->role_title ? trim($request->role_title) : $staffProfile->role_title;
+
+            $staffProfile->update([
+                'role_title'            => $roleTitle,
+                'sector_qualifications' => $quals,
+            ]);
+        });
+
+        return response()->json($staffProfile->load(['user', 'certifications']));
     }
 
     // DELETE /api/staff/{id}

@@ -35,7 +35,13 @@ interface StaffMember {
 
 const SECTOR_QUALIFICATIONS = [
   { id: "car-washing", label: "Car Washing & Auto Detailing" },
+  { id: "corporate-fleet", label: "🚛 Corporate Fleet Wash Specialist" },
+  { id: "mobile-doorstep", label: "🏠 Mobile Doorstep Rig Operator" },
+  { id: "valet-pickup", label: "🚗 Valet Pickup & Return Specialist" },
+  { id: "bay-wash", label: "🧼 Standard Station Bay Technician" },
   { id: "building-cleaning", label: "High-Rise Window & Glass Sanitation" },
+  { id: "exterior-facade", label: "🏙️ IRATA Certified Rope Access Specialist" },
+  { id: "interior-deep", label: "🧹 Interior Building Deep Sanitizer" },
   { id: "laundry", label: "Commercial Fabric & Linen Care" },
   { id: "maintenance", label: "Facility Maintenance & HVAC Sanitizing" },
 ];
@@ -79,7 +85,8 @@ export default function AdminStaff() {
     setLoading(true);
     try {
       const res = await API.get("/staff");
-      setStaff(res.data.data ?? []);
+      const payload = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+      setStaff(payload);
     } catch (e) {
       console.log("Error loading staff:", e);
     } finally {
@@ -93,30 +100,44 @@ export default function AdminStaff() {
     setRefreshing(false);
   };
 
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "danger" } | null>(null);
+
+  const triggerNotification = (message: string, type: "success" | "danger" = "success") => {
+    setNotification({ message, type });
+    Alert.alert(type === "success" ? "Success" : "Notification", message);
+    setTimeout(() => {
+      setNotification(null);
+    }, 4500);
+  };
+
   /* ================= SAVE ================= */
   const handleSave = async () => {
-    if (!form.name.trim() || !form.email.trim()) {
-      return Alert.alert("Required", "Technician Name and Email are required.");
+    if (!form.name.trim()) {
+      triggerNotification("Technician Full Name is required.", "danger");
+      return;
     }
 
     setIsSubmitting(true);
     try {
       if (editingStaff) {
         await API.put(`/staff/${editingStaff.id}`, {
+          name: form.name.trim(),
+          email: form.email ? form.email.trim().toLowerCase() : undefined,
+          phone: form.phone ? form.phone.trim() : undefined,
           role_title: form.role_title.trim(),
           qualifications: form.qualifications,
         });
-        Alert.alert("Updated", "Technician qualifications and title updated.");
+        triggerNotification(`✨ Technician "${form.name.trim()}" profile & qualifications updated!`, "success");
       } else {
         await API.post("/staff", {
           name: form.name.trim(),
-          email: form.email.trim().toLowerCase(),
-          phone: form.phone.trim(),
+          email: form.email ? form.email.trim().toLowerCase() : undefined,
+          phone: form.phone ? form.phone.trim() : undefined,
           password: form.password ? form.password.trim() : "password123",
           role_title: form.role_title.trim(),
           qualifications: form.qualifications,
         });
-        Alert.alert("🎉 Success", isSuperAdmin ? "Staff member registered on platform!" : "Technician registered to company roster!");
+        triggerNotification(`🎉 Technician "${form.name.trim()}" registered to company roster!`, "success");
       }
 
       setModalVisible(false);
@@ -131,7 +152,10 @@ export default function AdminStaff() {
       });
       loadStaff();
     } catch (e: any) {
-      Alert.alert("Error", e?.response?.data?.message || "Failed to save technician.");
+      const errorMsg = e?.response?.data?.errors
+        ? Object.values(e.response.data.errors).flat().join("\n")
+        : e?.response?.data?.message || "Failed to save technician.";
+      triggerNotification(`Error: ${errorMsg}`, "danger");
     } finally {
       setIsSubmitting(false);
     }
@@ -146,10 +170,10 @@ export default function AdminStaff() {
       await API.delete(`/staff/${selectedDeleteId}`);
       setDeleteModal(false);
       setSelectedDeleteId(null);
-      Alert.alert("Removed", "Technician removed from roster.");
+      triggerNotification("🗑️ Technician removed from company roster.", "danger");
       loadStaff();
     } catch (e: any) {
-      Alert.alert("Delete Error", e?.response?.data?.message || "Failed to remove staff member.");
+      triggerNotification(`Delete Error: ${e?.response?.data?.message || "Failed to remove staff member."}`, "danger");
     } finally {
       setIsDeleting(false);
     }
@@ -171,10 +195,23 @@ export default function AdminStaff() {
     return name.includes(q) || role.includes(q) || email.includes(q);
   });
 
+  const CAR_WASH_QUALS = ["car-washing", "corporate-fleet", "mobile-doorstep", "valet-pickup", "bay-wash"];
+  const BUILDING_CLEAN_QUALS = ["building-cleaning", "exterior-facade", "interior-deep"];
+
   const tenantCategories = user?.tenant?.categories_enabled || ["car-washing"];
-  const availableQualifications = isSuperAdmin
-    ? SECTOR_QUALIFICATIONS
-    : SECTOR_QUALIFICATIONS.filter((sq) => tenantCategories.includes(sq.id));
+  const allowedQualIds = new Set<string>();
+
+  if (isSuperAdmin) {
+    SECTOR_QUALIFICATIONS.forEach((sq) => allowedQualIds.add(sq.id));
+  } else {
+    tenantCategories.forEach((cat) => {
+      if (cat === "car-washing") CAR_WASH_QUALS.forEach((q) => allowedQualIds.add(q));
+      if (cat === "building-cleaning") BUILDING_CLEAN_QUALS.forEach((q) => allowedQualIds.add(q));
+      allowedQualIds.add(cat);
+    });
+  }
+
+  const availableQualifications = SECTOR_QUALIFICATIONS.filter((sq) => allowedQualIds.has(sq.id));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -205,6 +242,17 @@ export default function AdminStaff() {
           <Ionicons name="refresh" size={18} color={isSuperAdmin ? "#60A5FA" : "#34D399"} />
         </TouchableOpacity>
       </View>
+
+      {/* ── 🔔 ACTION NOTIFICATION TOAST BANNER ── */}
+      {notification && (
+        <Animated.View entering={FadeInDown} style={[styles.toastBanner, notification.type === "danger" ? styles.toastBannerDanger : styles.toastBannerSuccess]}>
+          <Ionicons name={notification.type === "danger" ? "alert-circle" : "checkmark-circle"} size={20} color="#FFF" />
+          <Text style={styles.toastText}>{notification.message}</Text>
+          <TouchableOpacity onPress={() => setNotification(null)}>
+            <Ionicons name="close" size={18} color="#FFF" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -310,7 +358,12 @@ export default function AdminStaff() {
 
                   {/* Sector Qualifications */}
                   <View style={styles.qualRow}>
-                    {(s.qualifications && s.qualifications.length > 0 ? s.qualifications : ["car-washing"]).map((q) => (
+                    {((s as any).sector_qualifications && (s as any).sector_qualifications.length > 0
+                      ? (s as any).sector_qualifications
+                      : s.qualifications && s.qualifications.length > 0
+                      ? s.qualifications
+                      : ["car-washing"]
+                    ).map((q: string) => (
                       <View key={q} style={styles.qualTag}>
                         <Text style={styles.qualTagText}>{q.replace("-", " ").toUpperCase()}</Text>
                       </View>
@@ -330,7 +383,7 @@ export default function AdminStaff() {
                             phone: s.user?.phone || "",
                             password: "",
                             role_title: s.role_title || "Lead Technician",
-                            qualifications: s.qualifications || ["car-washing"],
+                            qualifications: (s as any).sector_qualifications || s.qualifications || ["car-washing"],
                           });
                           setModalVisible(true);
                         }}
@@ -383,56 +436,54 @@ export default function AdminStaff() {
             </View>
 
             <ScrollView style={{ maxHeight: 400 }}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Technician Full Name *</Text>
+                <TextInput
+                  placeholder="e.g. Samuel Tadesse"
+                  placeholderTextColor="#64748B"
+                  value={form.name}
+                  onChangeText={(t) => setForm({ ...form, name: t })}
+                  style={styles.textInput}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email Address (Login ID)</Text>
+                <TextInput
+                  placeholder="e.g. samuel.tech@clean.et"
+                  placeholderTextColor="#64748B"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={form.email}
+                  onChangeText={(t) => setForm({ ...form, email: t })}
+                  style={styles.textInput}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Phone Number</Text>
+                <TextInput
+                  placeholder="e.g. +251922..."
+                  placeholderTextColor="#64748B"
+                  keyboardType="phone-pad"
+                  value={form.phone}
+                  onChangeText={(t) => setForm({ ...form, phone: t })}
+                  style={styles.textInput}
+                />
+              </View>
+
               {!editingStaff && (
-                <>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Technician Full Name *</Text>
-                    <TextInput
-                      placeholder="e.g. Samuel Tadesse"
-                      placeholderTextColor="#64748B"
-                      value={form.name}
-                      onChangeText={(t) => setForm({ ...form, name: t })}
-                      style={styles.textInput}
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Email Address (Login ID) *</Text>
-                    <TextInput
-                      placeholder="e.g. samuel.tech@clean.et"
-                      placeholderTextColor="#64748B"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      value={form.email}
-                      onChangeText={(t) => setForm({ ...form, email: t })}
-                      style={styles.textInput}
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Phone Number</Text>
-                    <TextInput
-                      placeholder="e.g. +251922..."
-                      placeholderTextColor="#64748B"
-                      keyboardType="phone-pad"
-                      value={form.phone}
-                      onChangeText={(t) => setForm({ ...form, phone: t })}
-                      style={styles.textInput}
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Initial Account Password *</Text>
-                    <TextInput
-                      placeholder="Enter password (default: password123)"
-                      placeholderTextColor="#64748B"
-                      secureTextEntry
-                      value={form.password}
-                      onChangeText={(t) => setForm({ ...form, password: t })}
-                      style={styles.textInput}
-                    />
-                  </View>
-                </>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Initial Account Password</Text>
+                  <TextInput
+                    placeholder="Enter password (default: password123)"
+                    placeholderTextColor="#64748B"
+                    secureTextEntry
+                    value={form.password}
+                    onChangeText={(t) => setForm({ ...form, password: t })}
+                    style={styles.textInput}
+                  />
+                </View>
               )}
 
               <View style={styles.inputGroup}>
@@ -446,38 +497,27 @@ export default function AdminStaff() {
                 />
               </View>
 
-              {/* Authorized Sector Qualifications (Auto-assigned for single sector tenants) */}
-              {(!isSuperAdmin && availableQualifications.length <= 1) ? (
-                <View style={{ marginBottom: 14, backgroundColor: "#0F172A", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#334155" }}>
-                  <Text style={{ color: "#94A3B8", fontSize: 11, fontWeight: "700" }}>DUTY QUALIFICATION</Text>
-                  <Text style={{ color: "#34D399", fontSize: 13, fontWeight: "800", marginTop: 2 }}>
-                    ⚡ {availableQualifications[0]?.label || "Car Washing & Auto Detailing"}
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  <Text style={styles.inputLabel}>Authorized Sector Qualifications *</Text>
-                  <View style={{ gap: 8, marginBottom: 14 }}>
-                    {availableQualifications.map((sq) => {
-                      const isSel = form.qualifications.includes(sq.id);
-                      return (
-                        <TouchableOpacity
-                          key={sq.id}
-                          onPress={() => toggleQualification(sq.id)}
-                          style={[styles.qualSelectItem, isSel && styles.qualSelectItemActive]}
-                        >
-                          <Ionicons
-                            name={isSel ? "checkbox" : "square-outline"}
-                            size={20}
-                            color={isSel ? "#10B981" : "#64748B"}
-                          />
-                          <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "700", marginLeft: 8 }}>{sq.label}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </>
-              )}
+              {/* Sub-Center Branch & Sector Qualifications */}
+              <Text style={styles.inputLabel}>Authorized Sub-Center & Sector Qualifications *</Text>
+              <View style={{ gap: 8, marginBottom: 14 }}>
+                {availableQualifications.map((sq) => {
+                  const isSel = form.qualifications.includes(sq.id);
+                  return (
+                    <TouchableOpacity
+                      key={sq.id}
+                      onPress={() => toggleQualification(sq.id)}
+                      style={[styles.qualSelectItem, isSel && styles.qualSelectItemActive]}
+                    >
+                      <Ionicons
+                        name={isSel ? "checkbox" : "square-outline"}
+                        size={20}
+                        color={isSel ? "#10B981" : "#64748B"}
+                      />
+                      <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "700", marginLeft: 8 }}>{sq.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </ScrollView>
 
             <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
@@ -494,7 +534,7 @@ export default function AdminStaff() {
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
-                    {editingStaff ? "Update Qualifications" : "Register Technician"}
+                    {editingStaff ? "Save Technician Details" : "Register Technician"}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -665,4 +705,26 @@ const styles = StyleSheet.create({
   closeBtnText: { color: "#FFF", fontWeight: "700" },
   submitBtn: { flex: 1, backgroundColor: "#2563EB", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
   deleteModalBtn: { flex: 1, backgroundColor: "#EF4444", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  toastBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 10,
+    gap: 10,
+    elevation: 3,
+  },
+  toastBannerSuccess: {
+    backgroundColor: "#059669",
+  },
+  toastBannerDanger: {
+    backgroundColor: "#DC2626",
+  },
+  toastText: {
+    flex: 1,
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 12,
+  },
 });

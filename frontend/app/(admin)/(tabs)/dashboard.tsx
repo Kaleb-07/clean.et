@@ -216,6 +216,68 @@ export default function AdminDashboard() {
           </View>
         </View>
 
+        {/* ── 🏬 SUB-CENTER REVENUE & PERFORMANCE BREAKDOWN ── */}
+        {!isSuperAdmin && (
+          <View style={styles.subCenterAnalyticsCard}>
+            <View style={styles.subCenterCardHeader}>
+              <Ionicons name="business" size={18} color="#34D399" />
+              <Text style={styles.subCenterCardTitle}>Sub-Center Revenue & Branch Analytics</Text>
+            </View>
+
+            {(() => {
+              const subCenterStats: Record<string, { label: string; icon: string; rev: number; count: number }> = {
+                "corporate-fleet": { label: "Corporate Fleet Wash Center", icon: "car", rev: 0, count: 0 },
+                "mobile-doorstep": { label: "Home-to-Home Doorstep Center", icon: "home", rev: 0, count: 0 },
+                "valet-pickup": { label: "Valet Pickup & Drop Center", icon: "key", rev: 0, count: 0 },
+                "bay-wash": { label: "Standard Bay Station Center", icon: "construct", rev: 0, count: 0 },
+                "exterior-facade": { label: "Exterior High-Rise Glass Center", icon: "business", rev: 0, count: 0 },
+                "interior-deep": { label: "Interior Deep Sanitization Center", icon: "sparkles", rev: 0, count: 0 },
+              };
+
+              bookings.forEach((b) => {
+                const sub = (b.service as any)?.sub_center || "corporate-fleet";
+                if (subCenterStats[sub]) {
+                  subCenterStats[sub].count += 1;
+                  if (b.status === "completed") {
+                    subCenterStats[sub].rev += Number(b.price || b.service?.price || 0);
+                  }
+                }
+              });
+
+              const activeBranches = Object.entries(subCenterStats).filter(
+                ([_, val]) => val.count > 0 || val.rev > 0
+              );
+
+              const branchesToDisplay = activeBranches.length > 0
+                ? activeBranches
+                : Object.entries(subCenterStats).slice(0, 4);
+
+              return (
+                <View style={{ marginTop: 10, gap: 10 }}>
+                  {branchesToDisplay.map(([key, item]) => {
+                    const pct = totalRevenue > 0 ? Math.round((item.rev / totalRevenue) * 100) : 0;
+                    return (
+                      <View key={key} style={styles.branchStatRow}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                            <Text style={styles.branchNameText}>🏢 {item.label}</Text>
+                            <Text style={styles.branchRevText}>
+                              ETB {item.rev.toLocaleString("en-ET")} ({item.count} Jobs)
+                            </Text>
+                          </View>
+                          <View style={styles.branchProgressBarTrack}>
+                            <View style={[styles.branchProgressBarFill, { width: `${Math.max(pct, 8)}%` }]} />
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })()}
+          </View>
+        )}
+
         {/* ── QUICK ACTION HUB TILE GRID ── */}
         <Text style={styles.sectionHeaderTitle}>
           {isSuperAdmin ? "👑 Enterprise Management Suite" : "⚡ Division Operations Control Hub"}
@@ -475,4 +537,50 @@ const styles = StyleSheet.create({
   closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   closeBtnText: { color: "#FFF", fontWeight: "700" },
   submitBtn: { flex: 1, backgroundColor: "#059669", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  subCenterAnalyticsCard: {
+    backgroundColor: "#1E293B",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  subCenterCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#334155",
+    paddingBottom: 10,
+  },
+  subCenterCardTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#F8FAFC",
+  },
+  branchStatRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  branchNameText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#E2E8F0",
+  },
+  branchRevText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#34D399",
+  },
+  branchProgressBarTrack: {
+    height: 6,
+    backgroundColor: "#0F172A",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  branchProgressBarFill: {
+    height: "100%",
+    backgroundColor: "#10B981",
+    borderRadius: 3,
+  },
 });

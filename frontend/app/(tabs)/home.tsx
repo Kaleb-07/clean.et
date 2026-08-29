@@ -71,9 +71,11 @@ export default function HomeScreen() {
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<{ name: string } | null>(null);
+  const [liveServices, setLiveServices] = useState<any[]>([]);
 
   useEffect(() => {
     loadUser();
+    loadLiveServices();
   }, []);
 
   useEffect(() => {
@@ -92,12 +94,21 @@ export default function HomeScreen() {
     }
   };
 
+  const loadLiveServices = async () => {
+    try {
+      const res = await API.get("/services");
+      setLiveServices(res.data.data ?? []);
+    } catch (e) {
+      console.log("Error loading live services:", e);
+    }
+  };
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    await reload();
+    await Promise.all([reload(), loadLiveServices()]);
     setRefreshing(false);
   }, [reload]);
 
@@ -201,8 +212,73 @@ export default function HomeScreen() {
           <Text style={styles.errorText}>{error}</Text>
         )}
 
-        {/* SECTORS */}
+        {/* SECTORS & LIVE DIVISION SERVICES */}
         <View style={styles.servicesList}>
+          {/* Live Division Posted Services */}
+          {liveServices
+            .filter((s) => {
+              const matchesCat = (s.category || "car-washing") === (activeCategory?.slug || "car-washing");
+              const q = search.toLowerCase();
+              return !q || (s.name || "").toLowerCase().includes(q) || (s.description || "").toLowerCase().includes(q);
+            })
+            .map((s, index) => {
+              const defaultImg =
+                activeCategory?.slug === "building-cleaning"
+                  ? require("../../assets/myimage/wash-basic.png")
+                  : require("../../assets/myimage/wash-premium.png");
+              const imgSource = s.image ? { uri: s.image } : defaultImg;
+
+              return (
+                <Animated.View key={`live-service-${s.id}`} entering={FadeInUp.delay(index * 60)}>
+                  <BlurView intensity={25} tint="dark" style={[styles.card, { borderColor: "rgba(16, 185, 129, 0.3)" }]}>
+                    <Image source={imgSource} style={styles.cardImage} resizeMode="cover" />
+
+                    <View style={styles.cardContent}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                        <View style={{ backgroundColor: "#10B98122", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                          <Text style={{ color: "#34D399", fontSize: 11, fontWeight: "700" }}>
+                            {s.sub_center?.toUpperCase() || "DIVISION CENTER"}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.cardHeader}>
+                        <Text style={styles.cardTitle}>{s.name}</Text>
+                        <Text style={styles.cardPrice}>{parseFloat(s.price).toLocaleString()} ETB</Text>
+                      </View>
+
+                      <Text style={styles.cardDescription} numberOfLines={2}>
+                        {s.description || "Official division cleaning service."}
+                      </Text>
+
+                      <View style={styles.cardMeta}>
+                        <View style={styles.metaItem}>
+                          <Clock size={14} color="#a3a3a3" />
+                          <Text style={styles.metaText}>{s.duration || 45} mins</Text>
+                        </View>
+                        <View style={styles.metaItem}>
+                          <Sparkles size={14} color="#10B981" />
+                          <Text style={[styles.metaText, { color: "#34D399" }]}>Verified Division</Text>
+                        </View>
+                      </View>
+
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.bookButton,
+                          { backgroundColor: "#059669" },
+                          pressed && styles.bookButtonPressed,
+                        ]}
+                        onPress={() => handleBook(s.id)}
+                      >
+                        <Text style={styles.bookButtonText}>Book Division Service</Text>
+                        <ChevronRight size={16} color="#ffffff" />
+                      </Pressable>
+                    </View>
+                  </BlurView>
+                </Animated.View>
+              );
+            })}
+
           {filteredSectors.map((item: any, index) => {
             const meta = SECTOR_METADATA[item.slug] || {
               description: "Professional cleaning service custom-tailored to your exact specifications.",
