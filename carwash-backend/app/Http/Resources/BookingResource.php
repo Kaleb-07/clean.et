@@ -29,6 +29,7 @@ class BookingResource extends JsonResource
                 'id' => $this->service->id,
                 'name' => $this->service->name,
                 'price' => $this->service->price,
+                'sub_center' => $this->service->sub_center ?? null,
             ] : null,
 
             // Return sector and category details

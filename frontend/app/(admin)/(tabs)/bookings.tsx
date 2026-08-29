@@ -38,9 +38,9 @@ interface Booking {
   booking_date?: string;
   booking_time?: string;
   address?: string;
-  service?: { name: string; price: number };
+  service?: { name: string; price: number; sub_center?: string };
   tenant?: { id: number; business_name: string; plan?: string };
-  customer?: { name?: string; email?: string; phone?: string; user?: { name: string; phone: string } };
+  customer?: { name?: string; email?: string; phone?: string; user?: { name?: string; phone?: string; email?: string } };
   staff?: { id: number; role_title: string; name?: string; phone?: string; user?: { name: string } };
 }
 
@@ -61,11 +61,21 @@ export default function AdminBookings() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
-
+  const [subCenterFilter, setSubCenterFilter] = useState<string>("ALL");
   const [assignModal, setAssignModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [assigning, setAssigning] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "danger" } | null>(null);
+  const [inspectBooking, setInspectBooking] = useState<Booking | null>(null);
+
+  const triggerNotification = (message: string, type: "success" | "danger" = "success") => {
+    setNotification({ message, type });
+    Alert.alert(type === "success" ? "Success" : "Notification", message);
+    setTimeout(() => {
+      setNotification(null);
+    }, 4500);
+  };
 
   useEffect(() => {
     loadData();
@@ -96,19 +106,22 @@ export default function AdminBookings() {
 
   const handleAssignCrew = async () => {
     if (!selectedBooking || !selectedStaffId) {
-      return Alert.alert("Select Crew", "Please select a field technician to assign.");
+      triggerNotification("Please select a field technician from roster.", "danger");
+      return;
     }
 
     setAssigning(true);
     try {
       await API.post(`/bookings/${selectedBooking.id}/assign`, { staff_id: selectedStaffId });
-      Alert.alert("🎉 Assigned", `Technician assigned to Booking #${selectedBooking.id}!`);
+      const assignedTech = staff.find((s) => s.id === selectedStaffId);
+      const techName = assignedTech?.user?.name || `Tech #${selectedStaffId}`;
+      triggerNotification(`⚡ Crew "${techName}" dispatched to Booking #${selectedBooking.id}!`, "success");
       setAssignModal(false);
       setSelectedBooking(null);
       setSelectedStaffId(null);
       loadData();
     } catch (e: any) {
-      Alert.alert("Assignment Error", e?.response?.data?.message || "Failed to assign crew member.");
+      triggerNotification(`Assignment Error: ${e?.response?.data?.message || "Failed to assign crew member."}`, "danger");
     } finally {
       setAssigning(false);
     }
@@ -116,17 +129,19 @@ export default function AdminBookings() {
 
   const handleUpdateStatus = async (bookingId: number, newStatus: string) => {
     try {
-      await API.put(`/bookings/${bookingId}`, { status: newStatus });
-      Alert.alert("Updated", `Booking #${bookingId} status updated to ${newStatus.toUpperCase()}`);
+      await API.patch(`/bookings/${bookingId}/status`, { status: newStatus });
+      triggerNotification(`Status updated: Job #${bookingId} is now ${newStatus.toUpperCase().replace("_", " ")}!`, "success");
       loadData();
     } catch (e: any) {
-      Alert.alert("Error", e?.response?.data?.message || "Failed to update status.");
+      triggerNotification(`Status Error: ${e?.response?.data?.message || "Failed to update job status."}`, "danger");
     }
   };
 
   const filteredBookings = bookings.filter((b) => {
-    if (filterStatus === "ALL") return true;
-    return (b.status || "").toLowerCase() === filterStatus.toLowerCase();
+    const statusMatch = filterStatus === "ALL" || (b.status || "").toLowerCase() === filterStatus.toLowerCase();
+    const subCenter = (b.service as any)?.sub_center || "";
+    const subCenterMatch = subCenterFilter === "ALL" || subCenter === subCenterFilter;
+    return statusMatch && subCenterMatch;
   });
 
   return (
@@ -159,6 +174,17 @@ export default function AdminBookings() {
         </TouchableOpacity>
       </View>
 
+      {/* ── 🔔 ACTION NOTIFICATION TOAST BANNER ── */}
+      {notification && (
+        <Animated.View entering={FadeInDown} style={[styles.toastBanner, notification.type === "danger" ? styles.toastBannerDanger : styles.toastBannerSuccess]}>
+          <Ionicons name={notification.type === "danger" ? "alert-circle" : "checkmark-circle"} size={20} color="#FFF" />
+          <Text style={styles.toastText}>{notification.message}</Text>
+          <TouchableOpacity onPress={() => setNotification(null)}>
+            <Ionicons name="close" size={18} color="#FFF" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -182,6 +208,39 @@ export default function AdminBookings() {
             </View>
           </View>
         </LinearGradient>
+
+        {/* ── 🏢 SUB-CENTER BRANCH FILTERS ── */}
+        {!isSuperAdmin && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              {[
+                { id: "ALL", label: "ALL SUB-CENTERS" },
+                { id: "corporate-fleet", label: "🚛 Fleet Wash" },
+                { id: "mobile-doorstep", label: "🏠 Doorstep Rig" },
+                { id: "valet-pickup", label: "🚗 Valet Pickup" },
+                { id: "bay-wash", label: "🧼 Station Bay" },
+                { id: "exterior-facade", label: "🏙️ Facade Glass" },
+                { id: "interior-deep", label: "🧹 Deep Sanitizer" },
+              ].map((sub) => {
+                const isSel = subCenterFilter === sub.id;
+                return (
+                  <TouchableOpacity
+                    key={sub.id}
+                    onPress={() => setSubCenterFilter(sub.id)}
+                    style={[
+                      styles.subCenterTab,
+                      isSel && styles.subCenterTabActive,
+                    ]}
+                  >
+                    <Text style={[styles.subCenterTabText, isSel && styles.subCenterTabTextActive]}>
+                      {sub.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+        )}
 
         {/* ── STATUS FILTER TABS ── */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
@@ -214,7 +273,7 @@ export default function AdminBookings() {
           <View style={styles.emptyState}>
             <Ionicons name="calendar-outline" size={48} color="#475569" />
             <Text style={styles.emptyTitle}>No Jobs Found</Text>
-            <Text style={styles.emptySub}>No bookings match the selected status filter.</Text>
+            <Text style={styles.emptySub}>No bookings match the selected status & sub-center filters.</Text>
           </View>
         ) : (
           filteredBookings.map((b, index) => {
@@ -223,13 +282,19 @@ export default function AdminBookings() {
             const staffName = b.staff?.name || b.staff?.user?.name || "UNASSIGNED";
             const serviceName = b.service?.name || "Service Clean";
             const price = b.price || b.service?.price || 0;
+            const subCenterTag = (b.service as any)?.sub_center ? (b.service as any).sub_center.replace("-", " ").toUpperCase() : null;
 
             return (
               <Animated.View key={b.id} entering={FadeInDown.delay(index * 30)}>
-                <View style={styles.card}>
+                <TouchableOpacity activeOpacity={0.9} onPress={() => setInspectBooking(b)} style={styles.card}>
                   <View style={styles.cardHeader}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.jobTitle}>#{b.id} · {serviceName}</Text>
+                      {subCenterTag && (
+                        <View style={{ alignSelf: "flex-start", backgroundColor: "#10B98122", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginVertical: 4, borderWidth: 1, borderColor: "#10B98155" }}>
+                          <Text style={{ color: "#34D399", fontSize: 9, fontWeight: "800" }}>🏢 {subCenterTag}</Text>
+                        </View>
+                      )}
                       <Text style={styles.jobCustomer}>👤 {customerName} {customerPhone ? `(📞 ${customerPhone})` : ""}</Text>
                       {b.address && <Text style={styles.jobAddress}>📍 {b.address}</Text>}
                     </View>
@@ -237,7 +302,7 @@ export default function AdminBookings() {
                     <View style={{ alignItems: "flex-end" }}>
                       <Text style={styles.jobPrice}>ETB {Number(price).toLocaleString("en-ET", { minimumFractionDigits: 2 })}</Text>
                       <View style={[styles.statusPill, !isSuperAdmin && { backgroundColor: "#10B98122", borderColor: "#10B98155" }]}>
-                        <Text style={[styles.statusPillText, !isSuperAdmin && { color: "#34D399" }]}>{(b.status || "pending").toUpperCase()}</Text>
+                        <Text style={[styles.statusPillText, !isSuperAdmin && { color: "#34D399" }]}>{(b.status || "pending").toUpperCase().replace("_", " ")}</Text>
                       </View>
                     </View>
                   </View>
@@ -251,6 +316,14 @@ export default function AdminBookings() {
                     </View>
 
                     <View style={{ flexDirection: "row", gap: 6 }}>
+                      <TouchableOpacity
+                        style={[styles.miniBtn, { backgroundColor: "#3B82F622", borderColor: "#3B82F655" }]}
+                        onPress={() => setInspectBooking(b)}
+                      >
+                        <Ionicons name="eye-outline" size={14} color="#60A5FA" />
+                        <Text style={[styles.miniBtnText, { color: "#60A5FA" }]}>Inspect</Text>
+                      </TouchableOpacity>
+
                       <TouchableOpacity
                         style={[styles.miniBtn, !isSuperAdmin && { backgroundColor: "#059669" }]}
                         onPress={() => {
@@ -274,12 +347,103 @@ export default function AdminBookings() {
                       )}
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               </Animated.View>
             );
           })
         )}
       </ScrollView>
+
+      {/* ── 👁️ INSPECT BOOKING MODAL ── */}
+      <Modal visible={!!inspectBooking} transparent animationType="fade" onRequestClose={() => setInspectBooking(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Order Inspection #{inspectBooking?.id}</Text>
+                <Text style={{ color: isSuperAdmin ? "#60A5FA" : "#34D399", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
+                  Status: {(inspectBooking?.status || "pending").toUpperCase().replace("_", " ")}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setInspectBooking(null)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 360 }}>
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Service Offering</Text>
+                <Text style={styles.detailValue}>{inspectBooking?.service?.name || "Service Clean"}</Text>
+                {(inspectBooking?.service as any)?.sub_center && (
+                  <Text style={{ color: "#34D399", fontSize: 11, fontWeight: "700", marginTop: 2 }}>
+                    🏢 Sub-Center: {(inspectBooking?.service as any).sub_center.replace("-", " ").toUpperCase()}
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Client Account Details</Text>
+                <Text style={styles.detailValue}>
+                  👤 {inspectBooking?.customer?.name || inspectBooking?.customer?.user?.name || "Client Account"}
+                </Text>
+                <Text style={{ color: "#CBD5E1", fontSize: 12, marginTop: 2 }}>
+                  📞 {inspectBooking?.customer?.phone || inspectBooking?.customer?.user?.phone || "No phone listed"}
+                </Text>
+                <Text style={{ color: "#CBD5E1", fontSize: 12, marginTop: 1 }}>
+                  ✉️ {inspectBooking?.customer?.email || inspectBooking?.customer?.user?.email || "No email listed"}
+                </Text>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Fulfillment Schedule & Location</Text>
+                <Text style={styles.detailValue}>
+                  🗓️ {inspectBooking?.booking_date || "Today"} {inspectBooking?.booking_time ? `at ${inspectBooking?.booking_time}` : ""}
+                </Text>
+                <Text style={{ color: "#CBD5E1", fontSize: 12, marginTop: 2 }}>
+                  📍 {inspectBooking?.address || "On-Site Service Station"}
+                </Text>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Assigned Field Crew</Text>
+                <Text style={styles.detailValue}>
+                  👷 {inspectBooking?.staff?.name || inspectBooking?.staff?.user?.name || "UNASSIGNED FIELD CREW"}
+                </Text>
+                {inspectBooking?.staff?.role_title && (
+                  <Text style={{ color: "#A78BFA", fontSize: 11, fontWeight: "700", marginTop: 2 }}>
+                    💼 Designation: {inspectBooking.staff.role_title}
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Order Financial Total</Text>
+                <Text style={{ fontSize: 18, fontWeight: "800", color: "#34D399", marginTop: 2 }}>
+                  ETB {Number(inspectBooking?.price || inspectBooking?.service?.price || 0).toLocaleString("en-ET", { minimumFractionDigits: 2 })}
+                </Text>
+              </View>
+            </ScrollView>
+
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
+              <TouchableOpacity style={styles.closeBtn} onPress={() => setInspectBooking(null)}>
+                <Text style={styles.closeBtnText}>Close Inspection</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.submitBtn, !isSuperAdmin && { backgroundColor: "#059669" }]}
+                onPress={() => {
+                  setSelectedBooking(inspectBooking);
+                  setSelectedStaffId(inspectBooking?.staff?.id || null);
+                  setInspectBooking(null);
+                  setAssignModal(true);
+                }}
+              >
+                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>⚡ Dispatch Crew</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── ⚡ CREW ASSIGNMENT MODAL ── */}
       <Modal visible={assignModal} transparent animationType="slide" onRequestClose={() => setAssignModal(false)}>
@@ -418,4 +582,33 @@ const styles = StyleSheet.create({
   closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   closeBtnText: { color: "#FFF", fontWeight: "700" },
   submitBtn: { flex: 1, backgroundColor: "#2563EB", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  subCenterTab: { backgroundColor: "#0F172A", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: "#334155" },
+  subCenterTabActive: { backgroundColor: "#059669", borderColor: "#34D399" },
+  subCenterTabText: { color: "#94A3B8", fontSize: 10, fontWeight: "700" },
+  subCenterTabTextActive: { color: "#FFF", fontWeight: "800" },
+  toastBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 10,
+    gap: 10,
+    elevation: 3,
+  },
+  toastBannerSuccess: {
+    backgroundColor: "#059669",
+  },
+  toastBannerDanger: {
+    backgroundColor: "#DC2626",
+  },
+  toastText: {
+    flex: 1,
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  detailSection: { backgroundColor: "#0F172A", padding: 12, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: "#334155" },
+  detailLabel: { fontSize: 10, color: "#94A3B8", fontWeight: "700", textTransform: "uppercase" },
+  detailValue: { fontSize: 13, fontWeight: "700", color: "#F8FAFC", marginTop: 2 },
 });
