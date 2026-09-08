@@ -38,6 +38,7 @@ export default function AdminCustomers() {
   const isSuperAdmin = user?.role === "super_admin";
 
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerBookingsMap, setCustomerBookingsMap] = useState<Record<number, any[]>>({});
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,9 +77,29 @@ export default function AdminCustomers() {
   const loadCustomers = async () => {
     setLoading(true);
     try {
-      const res = await API.get("/customers");
-      const payload = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
-      setCustomers(payload);
+      const [cRes, bRes] = await Promise.allSettled([
+        API.get("/customers"),
+        API.get("/bookings"),
+      ]);
+
+      const cData = cRes.status === "fulfilled"
+        ? (Array.isArray(cRes.value.data) ? cRes.value.data : (cRes.value.data?.data ?? []))
+        : [];
+      const bData = bRes.status === "fulfilled"
+        ? (Array.isArray(bRes.value.data) ? bRes.value.data : (bRes.value.data?.data ?? []))
+        : [];
+
+      const map: Record<number, any[]> = {};
+      bData.forEach((b: any) => {
+        const cid = b.customer?.id || b.customer_id;
+        if (cid) {
+          if (!map[cid]) map[cid] = [];
+          map[cid].push(b);
+        }
+      });
+
+      setCustomerBookingsMap(map);
+      setCustomers(cData);
     } catch (e) {
       console.log("Error loading customers:", e);
     } finally {
@@ -301,74 +322,86 @@ export default function AdminCustomers() {
             </Text>
           </View>
         ) : (
-          filteredCustomers.map((c, index) => (
-            <Animated.View key={c.id} entering={FadeInDown.delay(index * 40)}>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => setInspectCustomer(c)}
-                style={styles.card}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={[styles.avatarBox, !isSuperAdmin && { backgroundColor: "#10B98122", borderColor: "#10B98155" }]}>
-                    <Text style={[styles.avatarText, !isSuperAdmin && { color: "#34D399" }]}>
-                      {c.name.charAt(0).toUpperCase()}
-                    </Text>
+          filteredCustomers.map((c, index) => {
+            const customerJobs = customerBookingsMap[c.id] || [];
+            const ordersCount = customerJobs.length || c.bookings_count || 0;
+
+            return (
+              <Animated.View key={c.id} entering={FadeInDown.delay(index * 40)}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setInspectCustomer(c)}
+                  style={styles.card}
+                >
+                  <View style={styles.cardHeader}>
+                    <View style={[styles.avatarBox, !isSuperAdmin && { backgroundColor: "#10B98122", borderColor: "#10B98155" }]}>
+                      <Text style={[styles.avatarText, !isSuperAdmin && { color: "#34D399" }]}>
+                        {c.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={styles.customerName}>{c.name}</Text>
+                        {ordersCount > 0 && (
+                          <View style={{ backgroundColor: "#3B82F622", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ color: "#60A5FA", fontSize: 10, fontWeight: "800" }}>{ordersCount} Orders</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.customerEmail}>{c.email}</Text>
+                      {c.phone && <Text style={styles.customerPhone}>📞 {c.phone}</Text>}
+                    </View>
+
+                    <View style={styles.verifiedBadge}>
+                      <Ionicons name="shield-checkmark" size={12} color="#34D399" />
+                      <Text style={styles.verifiedText}>Verified</Text>
+                    </View>
                   </View>
 
-                  <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={styles.customerName}>{c.name}</Text>
-                    <Text style={styles.customerEmail}>{c.email}</Text>
-                    {c.phone && <Text style={styles.customerPhone}>📞 {c.phone}</Text>}
+                  {/* Actions */}
+                  <View style={styles.cardActions}>
+                    <TouchableOpacity
+                      style={[styles.miniActionBtn, { backgroundColor: "#3B82F622", borderColor: "#3B82F655" }]}
+                      onPress={() => setInspectCustomer(c)}
+                    >
+                      <Ionicons name="eye-outline" size={14} color="#60A5FA" />
+                      <Text style={{ color: "#60A5FA", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+                        Inspect & History
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.miniActionBtn, { backgroundColor: "#F59E0B22", borderColor: "#F59E0B55" }]}
+                      onPress={() => openEdit(c)}
+                    >
+                      <Ionicons name="create-outline" size={14} color="#FBBF24" />
+                      <Text style={{ color: "#FBBF24", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+                        Edit
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.miniActionBtn, { backgroundColor: "#EF444422", borderColor: "#EF444455" }]}
+                      onPress={() => {
+                        setSelectedDeleteId(c.id);
+                        setDeleteModal(true);
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={14} color="#F87171" />
+                      <Text style={{ color: "#F87171", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
+                        Delete
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-
-                  <View style={styles.verifiedBadge}>
-                    <Ionicons name="shield-checkmark" size={12} color="#34D399" />
-                    <Text style={styles.verifiedText}>Verified</Text>
-                  </View>
-                </View>
-
-                {/* Actions */}
-                <View style={styles.cardActions}>
-                  <TouchableOpacity
-                    style={[styles.miniActionBtn, { backgroundColor: "#3B82F622", borderColor: "#3B82F655" }]}
-                    onPress={() => setInspectCustomer(c)}
-                  >
-                    <Ionicons name="eye-outline" size={14} color="#60A5FA" />
-                    <Text style={{ color: "#60A5FA", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
-                      Inspect
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.miniActionBtn, { backgroundColor: "#F59E0B22", borderColor: "#F59E0B55" }]}
-                    onPress={() => openEdit(c)}
-                  >
-                    <Ionicons name="create-outline" size={14} color="#FBBF24" />
-                    <Text style={{ color: "#FBBF24", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
-                      Edit
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.miniActionBtn, { backgroundColor: "#EF444422", borderColor: "#EF444455" }]}
-                    onPress={() => {
-                      setSelectedDeleteId(c.id);
-                      setDeleteModal(true);
-                    }}
-                  >
-                    <Ionicons name="trash-outline" size={14} color="#F87171" />
-                    <Text style={{ color: "#F87171", fontSize: 11, fontWeight: "700", marginLeft: 4 }}>
-                      Delete
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          ))
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })
         )}
       </ScrollView>
 
-      {/* ── 👁️ INSPECT CLIENT MODAL ── */}
+      {/* ── 👁️ INSPECT CLIENT & ORDER HISTORY MODAL ── */}
       <Modal visible={!!inspectCustomer} transparent animationType="fade" onRequestClose={() => setInspectCustomer(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -376,7 +409,7 @@ export default function AdminCustomers() {
               <View>
                 <Text style={styles.modalTitle}>{inspectCustomer?.name}</Text>
                 <Text style={{ color: isSuperAdmin ? "#60A5FA" : "#34D399", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
-                  Client ID #{inspectCustomer?.id}
+                  Client Account ID #{inspectCustomer?.id}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setInspectCustomer(null)}>
@@ -384,27 +417,70 @@ export default function AdminCustomers() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 360 }}>
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Email Address</Text>
-                <Text style={styles.detailValue}>{inspectCustomer?.email}</Text>
-              </View>
+            {(() => {
+              const customerJobs = customerBookingsMap[inspectCustomer?.id || 0] || [];
+              const completedJobs = customerJobs.filter((b) => b.status === "completed");
+              const totalSpent = completedJobs.reduce((sum, b) => sum + Number(b.price || b.service?.price || 0), 0);
 
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Phone Contact</Text>
-                <Text style={styles.detailValue}>{inspectCustomer?.phone || "No phone registered"}</Text>
-              </View>
+              return (
+                <ScrollView style={{ maxHeight: 400 }}>
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Email Address</Text>
+                    <Text style={styles.detailValue}>{inspectCustomer?.email}</Text>
+                  </View>
 
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Account Verification</Text>
-                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
-                  <Ionicons name="shield-checkmark" size={16} color="#10B981" style={{ marginRight: 6 }} />
-                  <Text style={{ color: "#34D399", fontWeight: "700", fontSize: 13 }}>Active Verified Account</Text>
-                </View>
-              </View>
-            </ScrollView>
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>Phone Contact</Text>
+                    <Text style={styles.detailValue}>{inspectCustomer?.phone || "No phone registered"}</Text>
+                  </View>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setInspectCustomer(null)}>
+                  {/* Customer Financial Summary Cards */}
+                  <View style={{ flexDirection: "row", gap: 8, marginVertical: 10 }}>
+                    <View style={{ flex: 1, backgroundColor: "#0F172A", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#334155" }}>
+                      <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "800" }}>TOTAL SPENT</Text>
+                      <Text style={{ color: "#34D399", fontSize: 15, fontWeight: "800", marginTop: 4 }}>
+                        ETB {totalSpent.toLocaleString("en-ET", { minimumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+
+                    <View style={{ flex: 1, backgroundColor: "#0F172A", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#334155" }}>
+                      <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "800" }}>TOTAL BOOKINGS</Text>
+                      <Text style={{ color: "#60A5FA", fontSize: 15, fontWeight: "800", marginTop: 4 }}>
+                        {customerJobs.length} Orders
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Customer Itemized Order Log */}
+                  <Text style={{ color: "#F8FAFC", fontSize: 13, fontWeight: "800", marginBottom: 8, marginTop: 4 }}>
+                    📋 Itemized Order History Log
+                  </Text>
+
+                  {customerJobs.length === 0 ? (
+                    <Text style={{ color: "#94A3B8", fontSize: 12, fontStyle: "italic", paddingVertical: 8 }}>
+                      No previous booking orders recorded for this client profile.
+                    </Text>
+                  ) : (
+                    customerJobs.map((b: any) => (
+                      <View key={b.id} style={{ backgroundColor: "#0F172A", padding: 10, borderRadius: 8, marginBottom: 6, borderWidth: 1, borderColor: "#334155" }}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                          <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 12 }}>#{b.id} · {b.service?.name || "Clean Service"}</Text>
+                          <Text style={{ color: "#34D399", fontWeight: "800", fontSize: 12 }}>
+                            ETB {Number(b.price || b.service?.price || 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
+                          <Text style={{ color: "#94A3B8", fontSize: 10 }}>🗓️ {b.booking_date || "Today"}</Text>
+                          <Text style={{ color: "#60A5FA", fontSize: 10, fontWeight: "800" }}>{(b.status || "pending").toUpperCase()}</Text>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </ScrollView>
+              );
+            })()}
+
+            <TouchableOpacity style={[styles.closeBtn, { marginTop: 12 }]} onPress={() => setInspectCustomer(null)}>
               <Text style={styles.closeBtnText}>Close Inspection</Text>
             </TouchableOpacity>
           </View>

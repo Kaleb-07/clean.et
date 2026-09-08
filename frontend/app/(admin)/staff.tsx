@@ -31,6 +31,7 @@ interface StaffMember {
     phone?: string;
   };
   qualifications?: string[];
+  availability_status?: string;
 }
 
 const SECTOR_QUALIFICATIONS = [
@@ -54,13 +55,14 @@ export default function AdminStaff() {
   const isSuperAdmin = user?.role === "super_admin";
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [staffBookingsMap, setStaffBookingsMap] = useState<Record<number, { completedCount: number; totalRevenue: number }>>({});
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [availabilityFilter, setAvailabilityFilter] = useState<string>("ALL");
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
-  const [inspectStaff, setInspectStaff] = useState<StaffMember | null>(null);
 
   const [deleteModal, setDeleteModal] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
@@ -84,9 +86,32 @@ export default function AdminStaff() {
   const loadStaff = async () => {
     setLoading(true);
     try {
-      const res = await API.get("/staff");
-      const payload = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
-      setStaff(payload);
+      const [stRes, bRes] = await Promise.allSettled([
+        API.get("/staff"),
+        API.get("/bookings"),
+      ]);
+
+      const stData = stRes.status === "fulfilled"
+        ? (Array.isArray(stRes.value.data) ? stRes.value.data : (stRes.value.data?.data ?? []))
+        : [];
+      const bData = bRes.status === "fulfilled"
+        ? (Array.isArray(bRes.value.data) ? bRes.value.data : (bRes.value.data?.data ?? []))
+        : [];
+
+      const map: Record<number, { completedCount: number; totalRevenue: number }> = {};
+      bData.forEach((b: any) => {
+        const stId = b.staff?.id || b.staff_id;
+        if (stId) {
+          if (!map[stId]) map[stId] = { completedCount: 0, totalRevenue: 0 };
+          if (b.status === "completed") {
+            map[stId].completedCount += 1;
+            map[stId].totalRevenue += Number(b.price || b.service?.price || 0);
+          }
+        }
+      });
+
+      setStaffBookingsMap(map);
+      setStaff(stData);
     } catch (e) {
       console.log("Error loading staff:", e);
     } finally {
@@ -231,7 +256,12 @@ export default function AdminStaff() {
     const name = (s.user?.name || "").toLowerCase();
     const role = (s.role_title || "").toLowerCase();
     const email = (s.user?.email || "").toLowerCase();
-    return name.includes(q) || role.includes(q) || email.includes(q);
+
+    const matchesSearch = name.includes(q) || role.includes(q) || email.includes(q);
+    const avail = (s.availability_status || "available").toLowerCase();
+    const matchesAvail = availabilityFilter === "ALL" || avail === availabilityFilter.toLowerCase();
+
+    return matchesSearch && matchesAvail;
   });
 
   const CAR_WASH_QUALS = ["car-washing", "corporate-fleet", "mobile-doorstep", "valet-pickup", "bay-wash"];
@@ -317,6 +347,31 @@ export default function AdminStaff() {
           </View>
         </LinearGradient>
 
+        {/* ── AVAILABILITY FILTER CHIPS ── */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {[
+              { id: "ALL", label: "ALL CREW" },
+              { id: "available", label: "🟢 AVAILABLE" },
+              { id: "on_job", label: "🔵 ON JOB" },
+              { id: "off_duty", label: "🔴 OFF DUTY" },
+            ].map((af) => {
+              const isSel = availabilityFilter === af.id;
+              return (
+                <TouchableOpacity
+                  key={af.id}
+                  onPress={() => setAvailabilityFilter(af.id)}
+                  style={[styles.filterChip, isSel && styles.filterChipActive]}
+                >
+                  <Text style={[styles.filterChipText, isSel && styles.filterChipTextActive]}>
+                    {af.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
+
         {/* ── SEARCH & ACTION BAR ── */}
         <View style={styles.actionBar}>
           <View style={styles.searchBox}>
@@ -373,6 +428,8 @@ export default function AdminStaff() {
             const name = s.user?.name || `Tech #${s.id}`;
             const email = s.user?.email || "";
             const phone = s.user?.phone || "";
+            const perfStats = staffBookingsMap[s.id] || { completedCount: 0, totalRevenue: 0 };
+
             return (
               <Animated.View key={s.id} entering={FadeInDown.delay(index * 40)}>
                 <View style={styles.card}>
@@ -387,6 +444,22 @@ export default function AdminStaff() {
                       <Text style={styles.staffName}>{name}</Text>
                       <Text style={{ color: "#60A5FA", fontSize: 12, fontWeight: "700" }}>💼 {s.role_title || "Field Tech"}</Text>
                       <Text style={styles.staffMeta}>{email} {phone ? `· 📞 ${phone}` : ""}</Text>
+
+                      {/* Performance Metric Pill */}
+                      <View style={{ flexDirection: "row", gap: 6, marginTop: 4 }}>
+                        <View style={{ backgroundColor: "#10B98122", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: "#34D399", fontSize: 10, fontWeight: "800" }}>
+                            🏆 {perfStats.completedCount} Jobs Done
+                          </Text>
+                        </View>
+                        {perfStats.totalRevenue > 0 && (
+                          <View style={{ backgroundColor: "#3B82F622", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ color: "#60A5FA", fontSize: 10, fontWeight: "800" }}>
+                              ETB {perfStats.totalRevenue.toLocaleString()}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
 
                     {(() => {
@@ -474,12 +547,10 @@ export default function AdminStaff() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>
-                  {editingStaff ? "Edit Technician Qualifications" : "Register Company Technician"}
+                  {editingStaff ? "Edit Technician Qualifications" : "Register Field Crew Member"}
                 </Text>
                 <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
-                  {isSuperAdmin
-                    ? "Register staff member on platform"
-                    : `Register on-duty technician for ${user?.tenant?.business_name || "Company"}`}
+                  Assign certifications & operational qualifications
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -487,11 +558,11 @@ export default function AdminStaff() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 400 }}>
+            <ScrollView style={{ maxHeight: 420 }}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Technician Full Name *</Text>
                 <TextInput
-                  placeholder="e.g. Samuel Tadesse"
+                  placeholder="e.g. Dawit Yohannes"
                   placeholderTextColor="#64748B"
                   value={form.name}
                   onChangeText={(t) => setForm({ ...form, name: t })}
@@ -500,9 +571,20 @@ export default function AdminStaff() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email Address (Login ID)</Text>
+                <Text style={styles.inputLabel}>Role Title / Designation *</Text>
                 <TextInput
-                  placeholder="e.g. samuel.tech@clean.et"
+                  placeholder="e.g. Lead Auto Specialist"
+                  placeholderTextColor="#64748B"
+                  value={form.role_title}
+                  onChangeText={(t) => setForm({ ...form, role_title: t })}
+                  style={styles.textInput}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email Address</Text>
+                <TextInput
+                  placeholder="e.g. dawit@clean.et"
                   placeholderTextColor="#64748B"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -513,7 +595,7 @@ export default function AdminStaff() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Phone Number</Text>
+                <Text style={styles.inputLabel}>Phone Contact Number</Text>
                 <TextInput
                   placeholder="e.g. +251922..."
                   placeholderTextColor="#64748B"
@@ -526,9 +608,9 @@ export default function AdminStaff() {
 
               {!editingStaff && (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Initial Account Password</Text>
+                  <Text style={styles.inputLabel}>Initial Password</Text>
                   <TextInput
-                    placeholder="Enter password (default: password123)"
+                    placeholder="Min 6 characters (default: password123)"
                     placeholderTextColor="#64748B"
                     secureTextEntry
                     value={form.password}
@@ -538,34 +620,28 @@ export default function AdminStaff() {
                 </View>
               )}
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Role Title / Designation *</Text>
-                <TextInput
-                  placeholder="e.g. Lead Auto Detailer / High-Rise Window Rope Specialist"
-                  placeholderTextColor="#64748B"
-                  value={form.role_title}
-                  onChangeText={(t) => setForm({ ...form, role_title: t })}
-                  style={styles.textInput}
-                />
-              </View>
+              {/* Qualification Tags Selection */}
+              <Text style={[styles.inputLabel, { marginTop: 6, marginBottom: 8 }]}>
+                Sector Certifications & Specializations
+              </Text>
 
-              {/* Sub-Center Branch & Sector Qualifications */}
-              <Text style={styles.inputLabel}>Authorized Sub-Center & Sector Qualifications *</Text>
-              <View style={{ gap: 8, marginBottom: 14 }}>
+              <View style={{ gap: 6, marginBottom: 12 }}>
                 {availableQualifications.map((sq) => {
-                  const isSel = form.qualifications.includes(sq.id);
+                  const isChecked = form.qualifications.includes(sq.id);
                   return (
                     <TouchableOpacity
                       key={sq.id}
                       onPress={() => toggleQualification(sq.id)}
-                      style={[styles.qualSelectItem, isSel && styles.qualSelectItemActive]}
+                      style={[styles.qualSelectItem, isChecked && styles.qualSelectItemActive]}
                     >
                       <Ionicons
-                        name={isSel ? "checkbox" : "square-outline"}
-                        size={20}
-                        color={isSel ? "#10B981" : "#64748B"}
+                        name={isChecked ? "checkbox" : "square-outline"}
+                        size={18}
+                        color={isChecked ? "#10B981" : "#64748B"}
                       />
-                      <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "700", marginLeft: 8 }}>{sq.label}</Text>
+                      <Text style={[styles.qualSelectText, isChecked && styles.qualSelectTextActive]}>
+                        {sq.label}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -578,7 +654,7 @@ export default function AdminStaff() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.submitBtn, !isSuperAdmin && { backgroundColor: "#059669" }, isSubmitting && { opacity: 0.7 }]}
+                style={[styles.submitBtn, { backgroundColor: "#059669" }, isSubmitting && { opacity: 0.7 }]}
                 onPress={handleSave}
                 disabled={isSubmitting}
               >
@@ -586,7 +662,7 @@ export default function AdminStaff() {
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
-                    {editingStaff ? "Save Technician Details" : "Register Technician"}
+                    {editingStaff ? "Save Updates" : "Register Crew"}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -605,7 +681,7 @@ export default function AdminStaff() {
                 Remove Technician from Roster?
               </Text>
               <Text style={{ color: "#94A3B8", fontSize: 12, textAlign: "center", marginTop: 4 }}>
-                This technician will be removed from company duty roster.
+                This technician will no longer be available for job assignment.
               </Text>
             </View>
 
@@ -650,7 +726,7 @@ const styles = StyleSheet.create({
   headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
   refreshBtn: { padding: 6 },
   scrollContent: { padding: 16, paddingBottom: 40 },
-  heroCard: { padding: 18, borderRadius: 16, marginBottom: 16 },
+  heroCard: { padding: 18, borderRadius: 16, marginBottom: 14 },
   heroRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   heroLabel: { fontSize: 12, color: "#DBEAFE", fontWeight: "500" },
   heroValue: { fontSize: 24, fontWeight: "800", color: "#FFF", marginTop: 4 },
@@ -664,6 +740,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(52, 211, 153, 0.3)",
   },
+  filterChip: { backgroundColor: "#1E293B", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "#334155" },
+  filterChipActive: { backgroundColor: "#059669", borderColor: "#10B981" },
+  filterChipText: { color: "#94A3B8", fontSize: 11, fontWeight: "700" },
+  filterChipTextActive: { color: "#FFF" },
   actionBar: { flexDirection: "row", marginBottom: 16, gap: 10 },
   searchBox: {
     flex: 1,
@@ -694,7 +774,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#334155",
   },
-  cardHeader: { flexDirection: "row", alignItems: "center" },
+  cardHeader: { flexDirection: "row", alignItems: "flex-start" },
   avatarBox: {
     width: 42,
     height: 42,
@@ -708,22 +788,12 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: "#60A5FA", fontWeight: "800", fontSize: 18 },
   staffName: { color: "#FFF", fontWeight: "800", fontSize: 15 },
-  staffMeta: { color: "#CBD5E1", fontSize: 11, marginTop: 2 },
-  dutyBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#10B98122",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#10B98155",
-    gap: 4,
-  },
-  dutyText: { color: "#34D399", fontSize: 10, fontWeight: "700" },
+  staffMeta: { color: "#94A3B8", fontSize: 11, marginTop: 2 },
+  dutyBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  dutyText: { fontSize: 10, fontWeight: "800" },
   qualRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
-  qualTag: { backgroundColor: "#0F172A", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "#334155" },
-  qualTagText: { color: "#94A3B8", fontSize: 10, fontWeight: "700" },
+  qualTag: { backgroundColor: "#0F172A", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: "#334155" },
+  qualTagText: { color: "#A5B4FC", fontSize: 9, fontWeight: "700" },
   cardActions: {
     flexDirection: "row",
     marginTop: 12,
@@ -751,8 +821,19 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 12 },
   inputLabel: { fontSize: 12, fontWeight: "700", color: "#CBD5E1", marginBottom: 6 },
   textInput: { backgroundColor: "#0F172A", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: "#F8FAFC", borderWidth: 1, borderColor: "#334155" },
-  qualSelectItem: { flexDirection: "row", alignItems: "center", backgroundColor: "#0F172A", padding: 10, borderRadius: 8, borderWidth: 1, borderColor: "#334155" },
-  qualSelectItemActive: { borderColor: "#10B981", backgroundColor: "#10B98115" },
+  qualSelectItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0F172A",
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#334155",
+    gap: 8,
+  },
+  qualSelectItemActive: { backgroundColor: "#10B98115", borderColor: "#10B98155" },
+  qualSelectText: { color: "#94A3B8", fontSize: 12, fontWeight: "600" },
+  qualSelectTextActive: { color: "#FFF", fontWeight: "700" },
   closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   closeBtnText: { color: "#FFF", fontWeight: "700" },
   submitBtn: { flex: 1, backgroundColor: "#2563EB", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
