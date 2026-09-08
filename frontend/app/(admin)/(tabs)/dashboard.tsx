@@ -18,7 +18,6 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 import API, { apiFetch } from "../../../src/api/client";
 import { useAuth } from "../../../contexts/AuthContext";
-import { downloadCsvFile, openPrintableReceipt } from "../../../src/utils/exportHelpers";
 
 /* ─── TYPES ─────────────────────────────────────────────────────────────── */
 interface Booking {
@@ -121,157 +120,6 @@ export default function AdminDashboard() {
 
   const activeJobsCount = bookings.filter((b) => b.status === "pending" || b.status === "in_progress").length;
 
-  const [reportsModalVisible, setReportsModalVisible] = useState(false);
-
-  const handleExportFullLedgerCSV = () => {
-    if (bookings.length === 0) {
-      return Alert.alert("No Data", "There are no bookings recorded to export.");
-    }
-
-    const headers = ["Booking ID", "Customer Name", "Customer Phone", "Service Offering", "Sub-Center Station", "Price (ETB)", "Status", "Date", "Time Slot", "Address"];
-    const rows = bookings.map((b) => [
-      `#${b.id}`,
-      `"${b.customer?.name || "Client"}"`,
-      `"${b.customer?.phone || ""}"`,
-      `"${b.service?.name || "Service Clean"}"`,
-      `"${(b.service as any)?.sub_center || "corporate-fleet"}"`,
-      b.price || b.service?.price || 0,
-      b.status || "pending",
-      b.booking_date || "Today",
-      b.booking_time || "",
-      `"${b.address || ""}"`,
-    ]);
-
-    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const filename = `cleanet_${user?.tenant?.business_name ? user.tenant.business_name.toLowerCase().replace(/\s+/g, "_") : "sector"}_ledger_${Date.now()}.csv`;
-    downloadCsvFile(csvContent, filename);
-    Alert.alert("🎉 CSV Download Triggered", `Full sector ledger exported as ${filename}`);
-  };
-
-  const handleExportSubCenterCSV = () => {
-    const subCenterStats: Record<string, { label: string; rev: number; count: number }> = {
-      "corporate-fleet": { label: "Corporate Fleet Wash Center", rev: 0, count: 0 },
-      "mobile-doorstep": { label: "Home-to-Home Doorstep Center", rev: 0, count: 0 },
-      "valet-pickup": { label: "Valet Pickup & Drop Center", rev: 0, count: 0 },
-      "bay-wash": { label: "Standard Bay Station Center", rev: 0, count: 0 },
-      "exterior-facade": { label: "Exterior High-Rise Glass Center", rev: 0, count: 0 },
-      "interior-deep": { label: "Interior Deep Sanitization Center", rev: 0, count: 0 },
-    };
-
-    bookings.forEach((b) => {
-      const sub = (b.service as any)?.sub_center || "corporate-fleet";
-      if (subCenterStats[sub]) {
-        subCenterStats[sub].count += 1;
-        if (b.status === "completed") {
-          subCenterStats[sub].rev += Number(b.price || b.service?.price || 0);
-        }
-      }
-    });
-
-    const headers = ["Station ID", "Sub-Center Branch Title", "Total Orders", "Gross Revenue (ETB)", "Revenue Contribution %"];
-    const rows = Object.entries(subCenterStats).map(([key, item]) => {
-      const pct = totalRevenue > 0 ? Math.round((item.rev / totalRevenue) * 100) : 0;
-      return [key, `"${item.label}"`, item.count, item.rev, `${pct}%`];
-    });
-
-    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const filename = `cleanet_subcenter_analytics_${Date.now()}.csv`;
-    downloadCsvFile(csvContent, filename);
-    Alert.alert("🎉 CSV Download Triggered", `Sub-Center performance statement exported as ${filename}`);
-  };
-
-  const handleExportCrewAuditCSV = () => {
-    const headers = ["Technician ID", "Technician Full Name", "Designation", "Availability Status"];
-    const rows = staff.map((s) => [
-      `TECH-#${s.id}`,
-      `"${s.user?.name || "Technician"}"`,
-      `"${s.role_title || "Field Tech"}"`,
-      `"${(s as any).availability_status || "available"}"`,
-    ]);
-
-    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const filename = `cleanet_crew_fulfillment_audit_${Date.now()}.csv`;
-    downloadCsvFile(csvContent, filename);
-    Alert.alert("🎉 CSV Download Triggered", `Crew roster audit log exported as ${filename}`);
-  };
-
-  const handlePrintFinancialStatement = () => {
-    const divisionName = user?.tenant?.business_name || "CLEANING DIVISION";
-    const dateStr = new Date().toLocaleDateString("en-ET", { day: "2-digit", month: "long", year: "numeric" });
-    const completedJobs = bookings.filter((b) => b.status === "completed").length;
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Executive Financial Statement - ${divisionName}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 30px; color: #1E293B; background: #FFF; }
-          .header { border-bottom: 2px solid #10B981; padding-bottom: 15px; margin-bottom: 20px; }
-          .title { font-size: 24px; font-weight: bold; color: #064E3B; margin: 0; }
-          .subtitle { font-size: 14px; color: #64748B; margin-top: 4px; }
-          .kpi-row { display: flex; gap: 15px; margin-bottom: 25px; }
-          .kpi-card { flex: 1; border: 1px solid #CBD5E1; padding: 12px; border-radius: 8px; background: #F8FAFC; }
-          .kpi-label { font-size: 11px; color: #64748B; font-weight: bold; text-transform: uppercase; }
-          .kpi-val { font-size: 18px; font-weight: bold; color: #059669; margin-top: 4px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th { background: #0F172A; color: #FFF; text-align: left; padding: 8px; font-size: 12px; }
-          td { border-bottom: 1px solid #E2E8F0; padding: 8px; font-size: 12px; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="title">🏢 ${divisionName.toUpperCase()}</div>
-          <div class="subtitle">Executive Financial Statement & Performance Audit &bull; ${dateStr}</div>
-        </div>
-
-        <div class="kpi-row">
-          <div class="kpi-card">
-            <div class="kpi-label">Gross Revenue GMV</div>
-            <div class="kpi-val">ETB ${totalRevenue.toLocaleString("en-ET", { minimumFractionDigits: 2 })}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Completed Jobs</div>
-            <div class="kpi-val" style="color: #2563EB;">${completedJobs} Orders</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Active Technicians</div>
-            <div class="kpi-val" style="color: #7C3AED;">${staff.length} Crew Members</div>
-          </div>
-        </div>
-
-        <h3>📋 Itemized Booking Ledger</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Customer</th>
-              <th>Service</th>
-              <th>Station</th>
-              <th>Status</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${bookings.map((b) => `
-              <tr>
-                <td>#${b.id}</td>
-                <td>${b.customer?.name || "Client"}</td>
-                <td>${b.service?.name || "Clean Service"}</td>
-                <td>${((b.service as any)?.sub_center || "corporate-fleet").replace("-", " ").toUpperCase()}</td>
-                <td>${(b.status || "pending").toUpperCase()}</td>
-                <td>ETB ${Number(b.price || b.service?.price || 0).toLocaleString("en-ET", { minimumFractionDigits: 2 })}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
-
-    openPrintableReceipt(html);
-  };
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── TOP HEADER BAR ── */}
@@ -287,11 +135,9 @@ export default function AdminDashboard() {
           </Text>
         </View>
 
-        {isSuperAdmin && (
-          <TouchableOpacity onPress={() => router.push("/(admin)/reports")} style={styles.iconBtn}>
-            <Ionicons name="bar-chart-outline" size={18} color="#34D399" />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity onPress={() => router.push("/(admin)/reports")} style={styles.iconBtn}>
+          <Ionicons name="bar-chart-outline" size={18} color="#34D399" />
+        </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push("/(admin)/notifications")} style={styles.iconBtn}>
           <Ionicons name="notifications-outline" size={18} color="#F472B6" />
@@ -378,7 +224,7 @@ export default function AdminDashboard() {
               </View>
 
               <TouchableOpacity
-                onPress={() => setReportsModalVisible(true)}
+                onPress={() => router.push("/(admin)/reports")}
                 style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#059669", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, gap: 4 }}
               >
                 <Ionicons name="document-text-outline" size={13} color="#FFF" />
@@ -492,6 +338,12 @@ export default function AdminDashboard() {
             <Ionicons name="calendar" size={22} color="#60A5FA" />
             <Text style={styles.actionTileTitle}>Dispatch Queue</Text>
             <Text style={styles.actionTileSub}>View & Assign Technicians</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/reports")}>
+            <Ionicons name="document-text" size={22} color="#34D399" />
+            <Text style={styles.actionTileTitle}>Reports & CSV Exports</Text>
+            <Text style={styles.actionTileSub}>Download Ledgers & Statements</Text>
           </TouchableOpacity>
 
           {isSuperAdmin && (
@@ -635,113 +487,6 @@ export default function AdminDashboard() {
               </TouchableOpacity>
 
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── 📊 EXECUTIVE SECTOR REPORTS & DATA DOWNLOADS HUB MODAL ── */}
-      <Modal visible={reportsModalVisible} transparent animationType="slide" onRequestClose={() => setReportsModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Executive Reports & Downloads</Text>
-                <Text style={{ color: "#34D399", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
-                  🏢 {user?.tenant?.business_name || "Division"} Sector Financial Intelligence
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setReportsModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={{ maxHeight: 420 }}>
-              {/* Sector Financial Summary Cards */}
-              <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-                <View style={{ flex: 1, backgroundColor: "#0F172A", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#334155" }}>
-                  <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "800" }}>GROSS GMV REVENUE</Text>
-                  <Text style={{ color: "#34D399", fontSize: 15, fontWeight: "800", marginTop: 4 }}>
-                    ETB {totalRevenue.toLocaleString("en-ET", { minimumFractionDigits: 2 })}
-                  </Text>
-                </View>
-
-                <View style={{ flex: 1, backgroundColor: "#0F172A", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#334155" }}>
-                  <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "800" }}>TOTAL ORDERS</Text>
-                  <Text style={{ color: "#60A5FA", fontSize: 15, fontWeight: "800", marginTop: 4 }}>
-                    {bookings.length} Bookings
-                  </Text>
-                </View>
-              </View>
-
-              {/* Download Option Buttons */}
-              <Text style={{ color: "#F8FAFC", fontSize: 13, fontWeight: "800", marginBottom: 8, marginTop: 4 }}>
-                📥 Select Report Statement to Export:
-              </Text>
-
-              <TouchableOpacity
-                onPress={handleExportFullLedgerCSV}
-                style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#0F172A", padding: 14, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: "#34D39955", gap: 10 }}
-              >
-                <Ionicons name="document-text" size={22} color="#34D399" />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>📄 Full Sector Financial Ledger (.CSV)</Text>
-                  <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>Itemized CSV report with client details, prices & status logs.</Text>
-                </View>
-                <Ionicons name="download-outline" size={18} color="#34D399" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleExportSubCenterCSV}
-                style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#0F172A", padding: 14, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: "#60A5FA55", gap: 10 }}
-              >
-                <Ionicons name="business" size={22} color="#60A5FA" />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>🏬 Sub-Center Station Analytics (.CSV)</Text>
-                  <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>Branch-by-branch revenue contribution & order volume.</Text>
-                </View>
-                <Ionicons name="download-outline" size={18} color="#60A5FA" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleExportCrewAuditCSV}
-                style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#0F172A", padding: 14, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: "#A78BFA55", gap: 10 }}
-              >
-                <Ionicons name="construct" size={22} color="#A78BFA" />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>👷 Field Crew Fulfillment Audit (.CSV)</Text>
-                  <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>Technician availability, designations & certifications log.</Text>
-                </View>
-                <Ionicons name="download-outline" size={18} color="#A78BFA" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handlePrintFinancialStatement}
-                style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#0F172A", padding: 14, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: "#F59E0B55", gap: 10 }}
-              >
-                <Ionicons name="print" size={22} color="#FBBF24" />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 13 }}>🖨️ Printable Executive PDF Statement</Text>
-                  <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>Opens formatted HTML receipt ready for PDF print/export.</Text>
-                </View>
-                <Ionicons name="open-outline" size={18} color="#FBBF24" />
-              </TouchableOpacity>
-
-              {/* Navigate to Reports Screen Button */}
-              <TouchableOpacity
-                onPress={() => {
-                  setReportsModalVisible(false);
-                  router.push("/(admin)/reports");
-                }}
-                style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#3B82F622", padding: 12, borderRadius: 10, marginTop: 6, borderWidth: 1, borderColor: "#3B82F655", gap: 6 }}
-              >
-                <Ionicons name="stats-chart" size={16} color="#60A5FA" />
-                <Text style={{ color: "#60A5FA", fontWeight: "800", fontSize: 12 }}>Open Advanced Analytics Center</Text>
-              </TouchableOpacity>
-            </ScrollView>
-
-            <TouchableOpacity style={[styles.closeBtn, { marginTop: 14 }]} onPress={() => setReportsModalVisible(false)}>
-              <Text style={styles.closeBtnText}>Close Reports Center</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
