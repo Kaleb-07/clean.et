@@ -6,11 +6,6 @@ import {
   ScrollView,
   Pressable,
   Platform,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  Alert,
-  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,7 +13,6 @@ import { BlurView } from "expo-blur";
 import { useAuth } from "../../../contexts/AuthContext";
 import {
   Settings,
-  User,
   Bell,
   ChevronRight,
   LogOut,
@@ -31,7 +25,6 @@ import {
   FileText,
   Building,
   TrendingUp,
-  Award,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -46,14 +39,6 @@ export default function ProfileScreen() {
   const divisionTitle = user?.tenant?.business_name || "Sector Division";
 
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
-  const [editProfileModal, setEditProfileModal] = useState(false);
-  const [savingProfile, setSavingProfile] = useState(false);
-
-  const [profileForm, setProfileForm] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    phone: (user as any)?.phone || "",
-  });
 
   const [sectorStats, setSectorStats] = useState({
     gmv: 0,
@@ -115,27 +100,6 @@ export default function ProfileScreen() {
       router.replace("/(auth)/login");
     } catch (e) {
       console.error("Logout failed", e);
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    if (!profileForm.name.trim()) {
-      return Alert.alert("Required", "Full name cannot be empty.");
-    }
-    setSavingProfile(true);
-    try {
-      // Endpoint to update profile info
-      await API.put("/user/profile", {
-        name: profileForm.name.trim(),
-        phone: profileForm.phone.trim(),
-      }).catch(() => {});
-
-      Alert.alert("🎉 Success", "Sector profile details updated successfully!");
-      setEditProfileModal(false);
-    } catch (e: any) {
-      Alert.alert("Error", e?.message || "Failed to update profile.");
-    } finally {
-      setSavingProfile(false);
     }
   };
 
@@ -233,14 +197,7 @@ export default function ProfileScreen() {
 
           <Pressable
             style={styles.editButton}
-            onPress={() => {
-              setProfileForm({
-                name: user?.name || "",
-                email: user?.email || "",
-                phone: (user as any)?.phone || "",
-              });
-              setEditProfileModal(true);
-            }}
+            onPress={() => router.push("/profile/personal-info")}
           >
             <Text style={styles.editButtonText}>Edit Profile Info</Text>
           </Pressable>
@@ -325,75 +282,6 @@ export default function ProfileScreen() {
             : `Clean.et ${divisionTitle} Portal &bull; v1.0.2`}
         </Text>
       </ScrollView>
-
-      {/* ── ✏️ EDIT PROFILE MODAL ── */}
-      <Modal visible={editProfileModal} transparent animationType="slide" onRequestClose={() => setEditProfileModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>
-                  {isSuperAdmin ? "Edit Executive Profile" : `Edit ${divisionTitle} Admin`}
-                </Text>
-                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
-                  Update your contact details and portal credentials
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setEditProfileModal(false)}>
-                <Text style={{ color: "#94A3B8", fontSize: 18, fontWeight: "800" }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={{ maxHeight: 320 }}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Full Name *</Text>
-                <TextInput
-                  value={profileForm.name}
-                  onChangeText={(t) => setProfileForm({ ...profileForm, name: t })}
-                  placeholder="Admin Name"
-                  placeholderTextColor="#64748B"
-                  style={styles.textInput}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email Address (Read-only)</Text>
-                <TextInput
-                  value={profileForm.email}
-                  editable={false}
-                  style={[styles.textInput, { opacity: 0.6 }]}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Phone Contact Number</Text>
-                <TextInput
-                  value={profileForm.phone}
-                  onChangeText={(t) => setProfileForm({ ...profileForm, phone: t })}
-                  placeholder="e.g. +251911..."
-                  placeholderTextColor="#64748B"
-                  keyboardType="phone-pad"
-                  style={styles.textInput}
-                />
-              </View>
-            </ScrollView>
-
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-              <TouchableOpacity style={styles.closeBtn} onPress={() => setEditProfileModal(false)} disabled={savingProfile}>
-                <Text style={styles.closeBtnText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.submitBtn} onPress={handleSaveProfile} disabled={savingProfile}>
-                {savingProfile ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>Save Updates</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* ── LOGOUT CONFIRMATION MODAL ── */}
       <ActionModal
@@ -581,14 +469,4 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
   },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.8)", justifyContent: "center", padding: 16 },
-  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, borderWidth: 1, borderColor: "#334155" },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
-  modalTitle: { fontSize: 17, fontWeight: "800", color: "#F8FAFC" },
-  inputGroup: { marginBottom: 12 },
-  inputLabel: { fontSize: 11, fontWeight: "700", color: "#CBD5E1", marginBottom: 4 },
-  textInput: { backgroundColor: "#0F172A", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: "#F8FAFC", borderWidth: 1, borderColor: "#334155", fontSize: 13 },
-  closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
-  closeBtnText: { color: "#FFF", fontWeight: "700" },
-  submitBtn: { flex: 1, backgroundColor: "#059669", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
 });
