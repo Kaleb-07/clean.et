@@ -158,4 +158,19 @@ class StaffController extends Controller
 
         return response()->json(['message' => 'Staff member removed successfully.']);
     }
+
+    // PATCH /api/staff/{id}/availability
+    public function updateAvailability(Request $request, $id)
+    {
+        $request->validate([
+            'availability_status' => 'required|string|in:available,on_job,off_duty',
+        ]);
+
+        $staffProfile = StaffProfile::findOrFail($id);
+        $staffProfile->update([
+            'availability_status' => $request->availability_status,
+        ]);
+
+        return response()->json($staffProfile->load(['user', 'certifications']));
+    }
 }

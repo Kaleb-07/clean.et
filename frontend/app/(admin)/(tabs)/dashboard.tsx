@@ -120,6 +120,30 @@ export default function AdminDashboard() {
 
   const activeJobsCount = bookings.filter((b) => b.status === "pending" || b.status === "in_progress").length;
 
+  const handleExportFinancialsCSV = () => {
+    if (bookings.length === 0) {
+      return Alert.alert("No Data", "There are no bookings recorded to export.");
+    }
+
+    const headers = ["Booking ID", "Customer Name", "Service Offering", "Sub-Center Station", "Price (ETB)", "Status", "Date"];
+    const rows = bookings.map((b) => [
+      `#${b.id}`,
+      `"${b.customer?.name || "Client"}"`,
+      `"${b.service?.name || "Service Clean"}"`,
+      `"${(b.service as any)?.sub_center || "corporate-fleet"}"`,
+      b.price || b.service?.price || 0,
+      b.status || "pending",
+      b.booking_date || "Today",
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+    Alert.alert(
+      "📊 Sector Financial CSV Exported",
+      `Financial report compiled successfully for ${user?.tenant?.business_name || "Division"}!\nTotal Bookings: ${bookings.length}\nTotal GMV Revenue: ETB ${totalRevenue.toLocaleString("en-ET", { minimumFractionDigits: 2 })}\n\nCSV Record Data:\n` + csvContent.slice(0, 220) + "..."
+    );
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── TOP HEADER BAR ── */}
@@ -220,8 +244,18 @@ export default function AdminDashboard() {
         {!isSuperAdmin && (
           <View style={styles.subCenterAnalyticsCard}>
             <View style={styles.subCenterCardHeader}>
-              <Ionicons name="business" size={18} color="#34D399" />
-              <Text style={styles.subCenterCardTitle}>Sub-Center Revenue & Branch Analytics</Text>
+              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Ionicons name="business" size={18} color="#34D399" />
+                <Text style={styles.subCenterCardTitle}>Sub-Center Revenue & Branch Analytics</Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleExportFinancialsCSV}
+                style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#059669", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, gap: 4 }}
+              >
+                <Ionicons name="document-text-outline" size={13} color="#FFF" />
+                <Text style={{ color: "#FFF", fontSize: 10, fontWeight: "800" }}>Export CSV</Text>
+              </TouchableOpacity>
             </View>
 
             {(() => {

@@ -268,6 +268,39 @@ export default function DynamicBookingScreen() {
           </BlurView>
         </Animated.View>
 
+        {/* SUB-CENTER BRANCH STATION SELECTION */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Building2 size={18} color="#10B981" />
+            <Text style={styles.sectionTitle}>Select Sub-Center Station Branch</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectGrid}>
+            {[
+              { id: "corporate-fleet", label: "🚛 Fleet Wash Station", sub: "Enterprise Fleet Facility" },
+              { id: "mobile-doorstep", label: "🏠 Doorstep Mobile Rig", sub: "On-Site Valet Service" },
+              { id: "valet-pickup", label: "🚗 Valet Pick & Return", sub: "Door-to-Door Pickup" },
+              { id: "bay-wash", label: "🧼 Express Bay Station", sub: "Standard Service Station" },
+              { id: "exterior-facade", label: "🏙️ High-Rise Facade Glass", sub: "Specialized Aerial Crew" },
+              { id: "interior-deep", label: "🧹 Interior Deep Sanitizer", sub: "Hygiene & Disinfection" },
+            ].map((sc) => {
+              const isSel = (requirementData.sub_center || "corporate-fleet") === sc.id;
+              return (
+                <Pressable
+                  key={sc.id}
+                  onPress={() => {
+                    handleFieldChange("sub_center", sc.id);
+                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  style={[styles.selectChip, isSel && { backgroundColor: "#059669", borderColor: "#34D399" }]}
+                >
+                  <Text style={[styles.selectChipText, isSel && styles.textActive]}>{sc.label}</Text>
+                  <Text style={{ fontSize: 10, color: isSel ? "#E2E8F0" : "#64748B", marginTop: 2 }}>{sc.sub}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
         {/* VEHICLE SELECTION (Car Washing) */}
         {categorySlug === "car-washing" && (
           <View style={styles.section}>

@@ -183,6 +183,23 @@ export default function AdminStaff() {
     }
   };
 
+  const handleToggleAvailability = async (staffId: number, currentStatus?: string) => {
+    const nextStatusMap: Record<string, string> = {
+      available: "on_job",
+      on_job: "off_duty",
+      off_duty: "available",
+    };
+    const nextStatus = nextStatusMap[currentStatus || "available"] || "available";
+
+    try {
+      await API.patch(`/staff/${staffId}/availability`, { availability_status: nextStatus });
+      triggerNotification(`⚡ Crew availability updated to ${nextStatus.replace("_", " ").toUpperCase()}!`, "success");
+      loadStaff();
+    } catch (e: any) {
+      triggerNotification("Failed to update availability status.", "danger");
+    }
+  };
+
   /* ================= DELETE ================= */
   const confirmDelete = async () => {
     if (!selectedDeleteId) return;
@@ -372,10 +389,23 @@ export default function AdminStaff() {
                       <Text style={styles.staffMeta}>{email} {phone ? `· 📞 ${phone}` : ""}</Text>
                     </View>
 
-                    <View style={styles.dutyBadge}>
-                      <Ionicons name="flash" size={12} color="#34D399" />
-                      <Text style={styles.dutyText}>On Duty</Text>
-                    </View>
+                    {(() => {
+                      const avail = (s as any).availability_status || "available";
+                      const availConfig: Record<string, { label: string; color: string; bg: string }> = {
+                        available: { label: "🟢 AVAILABLE", color: "#34D399", bg: "#10B98122" },
+                        on_job: { label: "🔵 ON JOB", color: "#60A5FA", bg: "#3B82F622" },
+                        off_duty: { label: "🔴 OFF DUTY", color: "#F87171", bg: "#EF444422" },
+                      };
+                      const conf = availConfig[avail] || availConfig.available;
+                      return (
+                        <TouchableOpacity
+                          onPress={() => handleToggleAvailability(s.id, avail)}
+                          style={[styles.dutyBadge, { backgroundColor: conf.bg, borderColor: conf.color + "55", borderWidth: 1 }]}
+                        >
+                          <Text style={[styles.dutyText, { color: conf.color }]}>{conf.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })()}
                   </View>
 
                   {/* Sector Qualifications */}

@@ -86,6 +86,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('/staff/{id}',     [StaffController::class, 'show']);
     Route::post('/staff',         [StaffController::class, 'store']);
     Route::put('/staff/{id}',      [StaffController::class, 'update']);
+    Route::patch('/staff/{id}/availability', [StaffController::class, 'updateAvailability']);
     Route::delete('/staff/{id}',  [StaffController::class, 'destroy']);
 });
 

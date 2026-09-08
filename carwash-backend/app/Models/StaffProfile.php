@@ -18,6 +18,7 @@ class StaffProfile extends Model
         'sector_qualifications',
         'jobs_completed',
         'average_rating',
+        'availability_status',
     ];
 
     protected $casts = [

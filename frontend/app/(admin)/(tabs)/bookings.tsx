@@ -474,6 +474,8 @@ export default function AdminBookings() {
                 staff.map((s) => {
                   const staffName = s.user?.name || `Tech #${s.id}`;
                   const isSelected = selectedStaffId === s.id;
+                  const avail = (s as any).availability_status || "available";
+                  const availLabel = avail === "on_job" ? "🔵 On Job" : avail === "off_duty" ? "🔴 Off Duty" : "🟢 Available";
                   return (
                     <TouchableOpacity
                       key={s.id}
@@ -484,7 +486,12 @@ export default function AdminBookings() {
                         <Text style={{ color: "#A78BFA", fontWeight: "800" }}>{staffName.charAt(0)}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}>{staffName}</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}>{staffName}</Text>
+                          <Text style={{ fontSize: 9, fontWeight: "800", color: avail === "off_duty" ? "#F87171" : avail === "on_job" ? "#60A5FA" : "#34D399" }}>
+                            {availLabel}
+                          </Text>
+                        </View>
                         <Text style={{ color: "#94A3B8", fontSize: 11 }}>💼 {s.role_title || "Field Tech"}</Text>
                       </View>
                       <Ionicons
