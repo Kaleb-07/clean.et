@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useAuth } from "../../contexts/AuthContext";
+import { useColors } from "../../hooks/useColors";
 import {
   Settings,
   User,
@@ -50,6 +51,7 @@ function formatEthiopianPhone(input: string): string {
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { user, logout, updateUser } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
 

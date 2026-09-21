@@ -39,6 +39,7 @@ import { useBookings } from "../../hooks/useBookings";
 import { useVehicles } from "../../hooks/useVehicles";
 import { useBuildingProfiles } from "../../hooks/useBuildingProfiles";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useColors } from "../../hooks/useColors";
 import type { SectorField } from "../../constants/categories";
 
 const TIME_SLOTS = [
@@ -50,6 +51,7 @@ const TIME_SLOTS = [
 export default function DynamicBookingScreen() {
   const { sectorId } = useLocalSearchParams<{ sectorId: string }>();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { categories, loading: categoriesLoading, estimatePrice } = useCategories();
   const { addBooking } = useBookings();
   const { t } = useLanguage();

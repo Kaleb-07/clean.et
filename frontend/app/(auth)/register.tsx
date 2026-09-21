@@ -21,6 +21,7 @@ import axios from "axios";
 
 import API from "../../src/api/client";
 import { useAuth } from "../../contexts/AuthContext";
+import { useColors } from "../../hooks/useColors";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -42,6 +43,7 @@ function formatEthiopianPhone(input: string): string {
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
+  const colors = useColors();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -140,7 +142,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <LinearGradient colors={["#0a0a18", "#1f1145", "#4c1d95"]} style={{ flex: 1 }}>
+    <LinearGradient colors={colors.gradients.auth} style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

@@ -22,6 +22,7 @@ import * as Haptics from "expo-haptics";
 import API from "../../src/api/client";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useCategories } from "../../hooks/useCategories";
+import { useColors } from "../../hooks/useColors";
 
 const SECTOR_METADATA: Record<string, { description: string; duration: string; startingPrice: string; image: any }> = {
   'standard-bay-wash': {
@@ -65,6 +66,7 @@ const SECTOR_METADATA: Record<string, { description: string; duration: string; s
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
+  const colors = useColors();
   const { categories, loading, error, reload } = useCategories();
 
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);

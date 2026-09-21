@@ -41,6 +41,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useBookings } from "../../../hooks/useBookings";
 import { useLanguage } from "../../../contexts/LanguageContext";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useColors } from "../../../hooks/useColors";
 import API from "../../../src/api/client";
 
 function to12h(time24: string): string {
@@ -57,6 +58,7 @@ function to12h(time24: string): string {
 export default function BookingStatusScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { getBooking, isLoading, refreshBookings } = useBookings();
   const { t } = useLanguage();
   const { user } = useAuth();

@@ -21,6 +21,7 @@ import axios from "axios";
 
 import API from "../../src/api/client";
 import { useAuth } from "../../contexts/AuthContext";
+import { useColors } from "../../hooks/useColors";
 
 // ─── Role-based route resolver ───────────────────────────────────────────────
 function getHomeRoute(role: string): string {
@@ -41,6 +42,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
+  const colors = useColors();
 
   const [loginMode, setLoginMode] = useState<"phone" | "email">("phone");
   const [phone, setPhone] = useState("");
@@ -127,7 +129,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient colors={["#0a0a18", "#1f1145", "#4c1d95"]} style={{ flex: 1 }}>
+    <LinearGradient colors={colors.gradients.auth} style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -360,34 +362,45 @@ export default function LoginScreen() {
                   <Pressable
                     onPress={() => {
                       setLoginMode("email");
-                      setEmail("admin.apex@clean.et");
-                      setPassword("password123");
+                      setEmail("carwash.admin@clean.et");
+                      setPassword("admin123");
                     }}
                     style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(16, 185, 129, 0.3)" }}
                   >
-                    <Text style={{ color: "#34D399", fontSize: 10, fontWeight: "700" }}>🏢 Tenant Admin (Apex)</Text>
+                    <Text style={{ color: "#34D399", fontSize: 10, fontWeight: "700" }}>🚗 Car Wash Admin (Solomon)</Text>
                   </Pressable>
 
                   <Pressable
                     onPress={() => {
                       setLoginMode("email");
-                      setEmail("admin.skyline@clean.et");
-                      setPassword("password123");
+                      setEmail("building.admin@clean.et");
+                      setPassword("admin123");
                     }}
                     style={{ backgroundColor: "rgba(245, 158, 11, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(245, 158, 11, 0.3)" }}
                   >
-                    <Text style={{ color: "#FBBF24", fontSize: 10, fontWeight: "700" }}>🏢 Tenant Admin (Skyline)</Text>
+                    <Text style={{ color: "#FBBF24", fontSize: 10, fontWeight: "700" }}>🏢 Building Admin (Bethlehem)</Text>
                   </Pressable>
 
                   <Pressable
                     onPress={() => {
                       setLoginMode("email");
-                      setEmail("staff.dawit@apex.et");
-                      setPassword("password123");
+                      setEmail("tech2@clean.et");
+                      setPassword("staff123");
                     }}
                     style={{ backgroundColor: "rgba(167, 139, 250, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(167, 139, 250, 0.3)" }}
                   >
                     <Text style={{ color: "#C084FC", fontSize: 10, fontWeight: "700" }}>👷 Staff (Dawit)</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
+                      setLoginMode("email");
+                      setEmail("test@example.com");
+                      setPassword("password123");
+                    }}
+                    style={{ backgroundColor: "rgba(236, 72, 153, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(236, 72, 153, 0.3)" }}
+                  >
+                    <Text style={{ color: "#F472B6", fontSize: 10, fontWeight: "700" }}>👤 Client (Test User)</Text>
                   </Pressable>
                 </View>
               </View>

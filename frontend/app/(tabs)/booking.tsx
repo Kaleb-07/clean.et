@@ -23,6 +23,7 @@ import {
   AlertCircle,
 } from "lucide-react-native";
 import { useBookings, Booking } from "../../hooks/useBookings";
+import { useColors } from "../../hooks/useColors";
 
 // ─── In-app Toast ────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ function useToast() {
 
 export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { bookings, isLoading, reload, cancelBooking } = useBookings();
   const { toast, show: showToast, opacity, translateY } = useToast();
 
