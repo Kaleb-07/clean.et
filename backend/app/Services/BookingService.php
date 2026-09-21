@@ -25,11 +25,22 @@ class BookingService
         if ($user->isCustomer()) {
             // Customer sees only their own bookings
             $customer = $user->customerProfile;
-            $query->where('customer_id', $customer?->id)
+            $query->where(function($q) use ($customer, $user) {
+                $q->where('customer_id', $customer?->id)
                   ->orWhere('user_id', $user->id);
+            });
         } elseif ($user->isTenantAdmin() && $user->tenant_id) {
-            // Tenant admin sees all bookings for their tenant
-            $query->where('tenant_id', $user->tenant_id);
+            // Tenant admin sees bookings for their tenant OR matching their division categories
+            $tenant = $user->tenant;
+            $categories = $tenant?->categories_enabled ?? [];
+            $query->where(function($q) use ($user, $categories) {
+                $q->where('tenant_id', $user->tenant_id);
+                if (!empty($categories)) {
+                    $q->orWhereHas('sector.category', function($catQuery) use ($categories) {
+                        $catQuery->whereIn('slug', $categories);
+                    });
+                }
+            });
         } elseif ($user->isStaff()) {
             // Staff sees only assigned jobs
             $profile = $user->staffProfile;
@@ -86,9 +97,17 @@ class BookingService
         }
         if (!$tenantId && $sector && $sector->category) {
             $categorySlug = $sector->category->slug;
+            // Prefer specific sector division tenants (where tenant_id != 1)
             $tenantId = \App\Models\Tenant::where('status', 'active')
+                ->where('id', '!=', 1)
                 ->whereJsonContains('categories_enabled', $categorySlug)
                 ->value('id');
+
+            if (!$tenantId) {
+                $tenantId = \App\Models\Tenant::where('status', 'active')
+                    ->whereJsonContains('categories_enabled', $categorySlug)
+                    ->value('id');
+            }
         }
         if (!$tenantId) {
             $tenantId = \App\Models\Tenant::first()?->id;
