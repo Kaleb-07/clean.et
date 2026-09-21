@@ -47,7 +47,36 @@ interface Booking {
 interface StaffMember {
   id: number;
   role_title: string;
-  user?: { name: string; phone?: string };
+  availability_status?: string;
+  user?: { name: string; email?: string; phone?: string };
+}
+
+
+const LIFECYCLE_STEPS: { key: BookingStatus; label: string; icon: string; color: string }[] = [
+  { key: "pending", label: "Received", icon: "time-outline", color: "#FBBF24" },
+  { key: "confirmed", label: "Confirmed", icon: "checkmark-circle-outline", color: "#60A5FA" },
+  { key: "driver_assigned", label: "Driver Assigned", icon: "person-add-outline", color: "#818CF8" },
+  { key: "in_progress", label: "Cleaning", icon: "play-circle-outline", color: "#C084FC" },
+  { key: "completed", label: "Completed", icon: "checkmark-done-circle-outline", color: "#34D399" },
+  { key: "invoiced", label: "Invoiced", icon: "document-text-outline", color: "#2DD4BF" },
+];
+
+function getNextStepAction(currentStatus: string): { next: BookingStatus; label: string; icon: string; color: string } | null {
+  switch (currentStatus) {
+    case "pending":
+      return { next: "confirmed", label: "Confirm Order", icon: "checkmark-circle", color: "#3B82F6" };
+    case "confirmed":
+      return { next: "driver_assigned", label: "Dispatch Crew", icon: "flash", color: "#6366F1" };
+    case "driver_assigned":
+    case "picked_up":
+      return { next: "in_progress", label: "Start Cleaning", icon: "play", color: "#A855F7" };
+    case "in_progress":
+      return { next: "completed", label: "Mark Completed", icon: "checkmark-done", color: "#10B981" };
+    case "completed":
+      return { next: "invoiced", label: "Generate Invoice", icon: "document-text", color: "#14B8A6" };
+    default:
+      return null;
+  }
 }
 
 export default function AdminBookings() {
@@ -113,9 +142,10 @@ export default function AdminBookings() {
     setAssigning(true);
     try {
       await API.post(`/bookings/${selectedBooking.id}/assign`, { staff_id: selectedStaffId });
+      await API.patch(`/bookings/${selectedBooking.id}/status`, { status: "driver_assigned" });
       const assignedTech = staff.find((s) => s.id === selectedStaffId);
       const techName = assignedTech?.user?.name || `Tech #${selectedStaffId}`;
-      triggerNotification(`⚡ Crew "${techName}" dispatched to Booking #${selectedBooking.id}!`, "success");
+      triggerNotification(`⚡ Crew "${techName}" dispatched & status set to DRIVER ASSIGNED for Booking #${selectedBooking.id}!`, "success");
       setAssignModal(false);
       setSelectedBooking(null);
       setSelectedStaffId(null);
@@ -336,15 +366,27 @@ export default function AdminBookings() {
                         <Text style={styles.miniBtnText}>Dispatch</Text>
                       </TouchableOpacity>
 
-                      {b.status !== "completed" && (
-                        <TouchableOpacity
-                          style={[styles.miniBtn, { backgroundColor: "#10B981" }]}
-                          onPress={() => handleUpdateStatus(b.id, "completed")}
-                        >
-                          <Ionicons name="checkmark-done" size={14} color="#FFF" />
-                          <Text style={styles.miniBtnText}>Complete</Text>
-                        </TouchableOpacity>
-                      )}
+                      {(() => {
+                        const stepAction = getNextStepAction(b.status || "pending");
+                        if (!stepAction) return null;
+                        return (
+                          <TouchableOpacity
+                            style={[styles.miniBtn, { backgroundColor: stepAction.color }]}
+                            onPress={() => {
+                              if (stepAction.next === "driver_assigned") {
+                                setSelectedBooking(b);
+                                setSelectedStaffId(b.staff?.id || null);
+                                setAssignModal(true);
+                              } else {
+                                handleUpdateStatus(b.id, stepAction.next);
+                              }
+                            }}
+                          >
+                            <Ionicons name={stepAction.icon as any} size={14} color="#FFF" />
+                            <Text style={styles.miniBtnText}>{stepAction.label}</Text>
+                          </TouchableOpacity>
+                        );
+                      })()}
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -371,6 +413,58 @@ export default function AdminBookings() {
             </View>
 
             <ScrollView style={{ maxHeight: 360 }}>
+              {/* ── 🔄 INTERACTIVE STEP-BY-STEP STAGE FLOW ── */}
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Job Lifecycle Stage (Tap to Update Stage)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}>
+                    {LIFECYCLE_STEPS.map((step, idx) => {
+                      const isCurrent = inspectBooking?.status === step.key;
+                      const currentIdx = LIFECYCLE_STEPS.findIndex((s) => s.key === inspectBooking?.status);
+                      const isPast = currentIdx !== -1 && idx < currentIdx;
+
+                      return (
+                        <TouchableOpacity
+                          key={step.key}
+                          onPress={() => {
+                            if (inspectBooking) {
+                              handleUpdateStatus(inspectBooking.id, step.key);
+                              setInspectBooking({ ...inspectBooking, status: step.key });
+                            }
+                          }}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            backgroundColor: isCurrent ? step.color + "33" : isPast ? "#1E293B" : "#0F172A",
+                            borderColor: isCurrent ? step.color : isPast ? "#34D39955" : "#334155",
+                            borderWidth: 1.5,
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 20,
+                            gap: 5,
+                          }}
+                        >
+                          <Ionicons
+                            name={isPast ? "checkmark-circle" : (step.icon as any)}
+                            size={14}
+                            color={isCurrent ? step.color : isPast ? "#34D399" : "#64748B"}
+                          />
+                          <Text
+                            style={{
+                              color: isCurrent ? "#FFF" : isPast ? "#CBD5E1" : "#64748B",
+                              fontSize: 11,
+                              fontWeight: isCurrent ? "800" : "600",
+                            }}
+                          >
+                            {step.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              </View>
+
               <View style={styles.detailSection}>
                 <Text style={styles.detailLabel}>Service Offering</Text>
                 <Text style={styles.detailValue}>{inspectBooking?.service?.name || "Service Clean"}</Text>
@@ -426,20 +520,34 @@ export default function AdminBookings() {
 
             <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
               <TouchableOpacity style={styles.closeBtn} onPress={() => setInspectBooking(null)}>
-                <Text style={styles.closeBtnText}>Close Inspection</Text>
+                <Text style={styles.closeBtnText}>Close</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.submitBtn, !isSuperAdmin && { backgroundColor: "#059669" }]}
-                onPress={() => {
-                  setSelectedBooking(inspectBooking);
-                  setSelectedStaffId(inspectBooking?.staff?.id || null);
-                  setInspectBooking(null);
-                  setAssignModal(true);
-                }}
-              >
-                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>⚡ Dispatch Crew</Text>
-              </TouchableOpacity>
+              {(() => {
+                const stepAction = inspectBooking ? getNextStepAction(inspectBooking.status || "pending") : null;
+                if (!stepAction) return null;
+                return (
+                  <TouchableOpacity
+                    style={[styles.submitBtn, { backgroundColor: stepAction.color }]}
+                    onPress={() => {
+                      if (!inspectBooking) return;
+                      if (stepAction.next === "driver_assigned") {
+                        setSelectedBooking(inspectBooking);
+                        setSelectedStaffId(inspectBooking.staff?.id || null);
+                        setInspectBooking(null);
+                        setAssignModal(true);
+                      } else {
+                        handleUpdateStatus(inspectBooking.id, stepAction.next);
+                        setInspectBooking({ ...inspectBooking, status: stepAction.next });
+                      }
+                    }}
+                  >
+                    <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 12 }}>
+                      ⚡ {stepAction.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
             </View>
           </View>
         </View>

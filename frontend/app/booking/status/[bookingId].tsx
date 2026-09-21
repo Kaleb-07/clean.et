@@ -65,14 +65,24 @@ export default function BookingStatusScreen() {
 
   const booking = useMemo(() => getBooking(bookingId!), [bookingId, getBooking]);
 
-  // ── Proof upload state ──────────────────────────────────────────────────────
+  // ── Proof upload state & Refresh state ──────────────────────────────────────
   const [proofModal, setProofModal] = useState(false);
   const [proofImage, setProofImage] = useState<string | null>(null);
   const [proofNote, setProofNote] = useState("");
   const [uploading, setUploading] = useState(false);
   const [proofs, setProofs] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const isStaff = user?.role === "super_admin" || user?.role === "tenant_admin" || user?.role === "staff";
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshBookings();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshBookings]);
 
   const pickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -159,17 +169,6 @@ export default function BookingStatusScreen() {
       .toUpperCase()
       .substring(0, 2);
   };
-
-  const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await refreshBookings();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshBookings]);
 
   return (
     <>

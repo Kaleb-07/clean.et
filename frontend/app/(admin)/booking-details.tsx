@@ -87,6 +87,24 @@ export default function BookingDetails() {
     );
   }
 
+  const handleUpdateStatus = async (newStatus: string) => {
+    try {
+      await API.patch(`/bookings/${booking.id}/status`, { status: newStatus });
+      setBooking((prev: any) => (prev ? { ...prev, status: newStatus } : prev));
+    } catch (e) {
+      console.log("Error updating status:", e);
+    }
+  };
+
+  const LIFECYCLE_STEPS = [
+    { key: "pending", label: "Received", icon: "time-outline", color: "#FBBF24" },
+    { key: "confirmed", label: "Confirmed", icon: "checkmark-circle-outline", color: "#60A5FA" },
+    { key: "driver_assigned", label: "Driver Assigned", icon: "person-add-outline", color: "#818CF8" },
+    { key: "in_progress", label: "Cleaning", icon: "play-circle-outline", color: "#C084FC" },
+    { key: "completed", label: "Completed", icon: "checkmark-done-circle-outline", color: "#34D399" },
+    { key: "invoiced", label: "Invoiced", icon: "document-text-outline", color: "#2DD4BF" },
+  ];
+
   const badge = getStatusBadge(booking.status);
 
   return (
@@ -126,6 +144,53 @@ export default function BookingDetails() {
             </View>
           </View>
         </LinearGradient>
+
+        {/* ── 🔄 STAGE LIFECYCLE TRACKER ── */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Job Lifecycle Stage (Tap to Update Stage)</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}>
+              {LIFECYCLE_STEPS.map((step, idx) => {
+                const isCurrent = booking.status === step.key;
+                const currentIdx = LIFECYCLE_STEPS.findIndex((s) => s.key === booking.status);
+                const isPast = currentIdx !== -1 && idx < currentIdx;
+
+                return (
+                  <TouchableOpacity
+                    key={step.key}
+                    onPress={() => handleUpdateStatus(step.key)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: isCurrent ? step.color + "33" : isPast ? "#1E293B" : "#0F172A",
+                      borderColor: isCurrent ? step.color : isPast ? "#34D39955" : "#334155",
+                      borderWidth: 1.5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 20,
+                      gap: 5,
+                    }}
+                  >
+                    <Ionicons
+                      name={isPast ? "checkmark-circle" : (step.icon as any)}
+                      size={14}
+                      color={isCurrent ? step.color : isPast ? "#34D399" : "#64748B"}
+                    />
+                    <Text
+                      style={{
+                        color: isCurrent ? "#FFF" : isPast ? "#CBD5E1" : "#64748B",
+                        fontSize: 11,
+                        fontWeight: isCurrent ? "800" : "600",
+                      }}
+                    >
+                      {step.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
 
         {/* DETAILS SECTION */}
         <View style={styles.sectionCard}>

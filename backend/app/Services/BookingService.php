@@ -79,8 +79,23 @@ class BookingService
                 ? ($data['booking_date'] . ' ' . $data['booking_time'])
                 : now());
 
+        // Resolve tenant_id for division assignment
+        $tenantId = $data['tenant_id'] ?? $user->tenant_id;
+        if (!$tenantId && !empty($data['service_id'])) {
+            $tenantId = \App\Models\Service::find($data['service_id'])?->tenant_id;
+        }
+        if (!$tenantId && $sector && $sector->category) {
+            $categorySlug = $sector->category->slug;
+            $tenantId = \App\Models\Tenant::where('status', 'active')
+                ->whereJsonContains('categories_enabled', $categorySlug)
+                ->value('id');
+        }
+        if (!$tenantId) {
+            $tenantId = \App\Models\Tenant::first()?->id;
+        }
+
         $booking = Booking::create([
-            'tenant_id'           => $user->tenant_id ?? ($sector?->category?->tenant_id ?? null),
+            'tenant_id'           => $tenantId,
             'sector_id'           => $sector?->id,
             'service_id'          => $data['service_id'] ?? null,
             'user_id'             => $user->id,
