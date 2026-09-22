@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   TextInput,
   Platform,
   ActivityIndicator,
+  FlatList,
+  Dimensions,
 } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -26,6 +28,14 @@ import {
   Navigation,
   Award,
   Calendar,
+  MapPin,
+  Bell,
+  ArrowRight,
+  Shirt,
+  Droplets,
+  Layers,
+  Leaf,
+  Zap,
 } from "lucide-react-native";
 import Animated, { FadeInUp, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -35,6 +45,76 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import { useCategories } from "../../hooks/useCategories";
 import { useBookings, Booking } from "../../hooks/useBookings";
 import { useColors } from "../../hooks/useColors";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+const CLEANING_TIPS = [
+  {
+    id: 1,
+    Icon: Droplets,
+    gradient: ["#3B82F6", "#2563EB"] as const,
+    title: "Rinse Before Washing",
+    desc: "Always pre-rinse your car to loosen dirt and avoid scratching the paint.",
+  },
+  {
+    id: 2,
+    Icon: Layers,
+    gradient: ["#10B981", "#059669"] as const,
+    title: "Two-Bucket Method",
+    desc: "Use one bucket for soapy water and another for rinsing your mitt — prevents swirl marks.",
+  },
+  {
+    id: 3,
+    Icon: Building2,
+    gradient: ["#8B5CF6", "#6D28D9"] as const,
+    title: "Top-Down Building Wash",
+    desc: "Always clean windows and facades from top to bottom to prevent re-contamination.",
+  },
+  {
+    id: 4,
+    Icon: Leaf,
+    gradient: ["#059669", "#047857"] as const,
+    title: "Eco-Friendly Agents",
+    desc: "Our crew uses biodegradable cleaning agents that are safe for drains and the environment.",
+  },
+  {
+    id: 5,
+    Icon: Calendar,
+    gradient: ["#F59E0B", "#D97706"] as const,
+    title: "Book in Advance",
+    desc: "Schedule your wash at least 24 hours ahead to guarantee your preferred time slot.",
+  },
+];
+
+const BANNER_SLIDES = [
+  {
+    id: 1,
+    title: "On-Demand Car Washing 24/7",
+    subtitle: "Mobile Doorstep Rigs & Bay Stations",
+    cta: "Book Wash →",
+    tag: "SPECIAL 20% OFF",
+    image: require("../../assets/myimage/banner-carwash.jpg"),
+    sectorId: 1,
+  },
+  {
+    id: 2,
+    title: "Enterprise Building Cleaning",
+    subtitle: "Deep Interior & Facade Window Glass",
+    cta: "Explore Sectors →",
+    tag: "VERIFIED CREW",
+    image: require("../../assets/myimage/banner-building.jpg"),
+    sectorId: 5,
+  },
+  {
+    id: 3,
+    title: "Valet Pickup & Drop-Off",
+    subtitle: "We Pick, Clean & Return Your Car Spotless",
+    cta: "Schedule Valet →",
+    tag: "VALET DISPATCH",
+    image: require("../../assets/myimage/banner-valet.jpg"),
+    sectorId: 3,
+  },
+];
 
 const SECTOR_METADATA: Record<string, { description: string; duration: string; startingPrice: string; image: any }> = {
   'standard-bay-wash': {
@@ -85,12 +165,22 @@ export default function HomeScreen() {
   const [activeCategoryId, setActiveCategoryId] = useState<number | "all">("all");
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; email?: string } | null>(null);
   const [liveServices, setLiveServices] = useState<any[]>([]);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(3);
 
   useEffect(() => {
     loadUser();
     loadLiveServices();
+  }, []);
+
+  // Auto-slide banner effect
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % BANNER_SLIDES.length);
+    }, 4500);
+    return () => clearInterval(timer);
   }, []);
 
   const loadUser = async () => {
@@ -150,11 +240,13 @@ export default function HomeScreen() {
     );
   }, [sectors, search]);
 
+  const currentBanner = BANNER_SLIDES[activeSlide];
+
   return (
     <LinearGradient colors={colors.gradients.background} style={styles.container}>
       <ScrollView
         contentContainerStyle={{
-          paddingTop: Math.max(insets.top, 60),
+          paddingTop: Math.max(insets.top + 10, 50),
           paddingBottom: insets.bottom + 100,
         }}
         refreshControl={
@@ -165,23 +257,113 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* ENTERPRISE HERO HEADER */}
-        <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <View>
-              <Text style={[styles.greeting, { color: colors.text }]}>Hello, {user?.name || "Valued Client"}</Text>
-              <Text style={[styles.subtitle, { color: colors.subtext }]}>Clean.et Division Service Hub</Text>
+        {/* ── 1. HEADER ROW (Avatar + Location + Greeting | Notification Bell) ── */}
+        <Animated.View entering={FadeInDown.delay(100)} style={styles.headerRow}>
+          <View style={styles.userSection}>
+            <View style={[styles.avatarBox, { backgroundColor: colors.accentLight, borderColor: colors.secondary }]}>
+              {user?.name ? (
+                <Text style={[styles.avatarInitial, { color: colors.secondary }]}>
+                  {user.name.charAt(0).toUpperCase()}
+                </Text>
+              ) : (
+                <Text style={{ fontSize: 18 }}>🧑‍💼</Text>
+              )}
             </View>
-            <View style={[styles.badgePill, { backgroundColor: colors.accentLight, borderColor: colors.secondary }]}>
-              <Sparkles size={14} color={colors.secondary} />
-              <Text style={[styles.badgeText, { color: colors.secondary }]}>ENTERPRISE</Text>
+
+            <View>
+              <View style={styles.locationRow}>
+                <MapPin size={12} color={colors.secondary} />
+                <Text style={[styles.locationText, { color: colors.subtext }]}>
+                  Addis Ababa, Ethiopia
+                </Text>
+              </View>
+              <Text style={[styles.greetingText, { color: colors.text }]}>
+                Hi, {user?.name || "Amanda"} 👋
+              </Text>
             </View>
           </View>
+
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }
+              router.push("/profile/notifications");
+            }}
+            style={({ pressed }) => [
+              styles.notificationBtn,
+              { backgroundColor: colors.card, borderColor: colors.cardBorder },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Bell size={20} color={colors.text} />
+            {unreadNotifications > 0 && (
+              <View style={[styles.badgeCircle, { backgroundColor: colors.danger }]}>
+                <Text style={styles.badgeCountText}>{unreadNotifications}</Text>
+              </View>
+            )}
+          </Pressable>
         </Animated.View>
 
-        {/* ACTIVE BOOKING TRACKER HERO BANNER (IF ANY) */}
+        {/* ── 2. SEARCH INPUT TAB ── */}
+        <Animated.View entering={FadeInDown.delay(150)} style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+          <Search size={18} color={colors.subtext} />
+          <TextInput
+            placeholder="Search services, sectors, packages..."
+            placeholderTextColor={colors.subtext}
+            value={search}
+            onChangeText={setSearch}
+            style={[styles.searchInput, { color: colors.text, outlineStyle: "none" } as any]}
+          />
+        </Animated.View>
+
+        {/* ── 3. RECTANGULAR HERO SLIDER BANNER ── */}
+        <Animated.View entering={FadeInDown.delay(200)} style={styles.sliderContainer}>
+          <Pressable
+            onPress={() => handleBook(currentBanner.sectorId)}
+            style={({ pressed }) => [styles.bannerCard, pressed && { opacity: 0.95 }]}
+          >
+            <Image source={currentBanner.image} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+            
+            <LinearGradient
+              colors={["rgba(11, 15, 25, 0.2)", "rgba(11, 15, 25, 0.85)"]}
+              style={StyleSheet.absoluteFillObject}
+            />
+
+            <View style={styles.bannerContent}>
+              <View style={[styles.bannerTag, { backgroundColor: colors.secondary }]}>
+                <Text style={styles.bannerTagText}>{currentBanner.tag}</Text>
+              </View>
+
+              <Text style={styles.bannerTitle}>{currentBanner.title}</Text>
+              <Text style={styles.bannerSubtitle}>{currentBanner.subtitle}</Text>
+
+              <View style={[styles.bannerCtaBtn, { backgroundColor: colors.primary }]}>
+                <Text style={styles.bannerCtaText}>{currentBanner.cta}</Text>
+              </View>
+            </View>
+
+            {/* Pagination Dots (. . —) at Bottom Right */}
+            <View style={styles.paginationBox}>
+              {BANNER_SLIDES.map((_, idx) => (
+                <Pressable
+                  key={idx}
+                  onPress={() => setActiveSlide(idx)}
+                  style={[
+                    styles.dotItem,
+                    idx === activeSlide
+                      ? [styles.dotActive, { backgroundColor: colors.secondary }]
+                      : styles.dotInactive,
+                  ]}
+                />
+              ))}
+            </View>
+          </Pressable>
+        </Animated.View>
+
+        {/* ── ACTIVE BOOKING TRACKER HERO BANNER (IF ANY) ── */}
         {activeBooking && (
-          <Animated.View entering={FadeInUp.delay(150)} style={{ marginHorizontal: 24, marginBottom: 24 }}>
+          <Animated.View entering={FadeInUp.delay(220)} style={{ marginHorizontal: 20, marginBottom: 20 }}>
             <BlurView intensity={35} tint="dark" style={[styles.activeBookingCard, { borderColor: colors.secondary, backgroundColor: colors.card }]}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -227,77 +409,72 @@ export default function HomeScreen() {
           </Animated.View>
         )}
 
-        {/* CATEGORY SELECTOR CARDS */}
-        <View style={styles.categoryContainer}>
-          {[
-            { id: "all" as const, name: "All Services", slug: "all", Icon: Sparkles },
-            ...categories.map((c) => ({
-              id: c.id,
-              name: c.name,
-              slug: c.slug,
-              Icon: c.slug === "car-washing" ? Car : Building2,
-            })),
-          ].map((cat) => {
-            const isActive = cat.id === activeCategoryId;
-            const Icon = cat.Icon;
-            return (
-              <Pressable
-                key={String(cat.id)}
-                onPress={() => {
-                  if (Platform.OS !== "web") {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                  setActiveCategoryId(cat.id);
-                }}
-                style={styles.categoryCardWrapper}
-              >
-                <BlurView
-                  intensity={isActive ? 45 : 20}
-                  tint="dark"
-                  style={[
-                    styles.categoryCard,
-                    {
-                      borderColor: isActive ? colors.primary : colors.cardBorder,
-                      backgroundColor: isActive ? colors.primaryLight : "rgba(255, 255, 255, 0.03)",
-                    },
-                  ]}
+        {/* ── 4. CATEGORY SELECTOR CARDS ── */}
+        <Animated.View entering={FadeInUp.delay(240)}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Explore Service Categories</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.subtext }]}>Select sector to filter offerings</Text>
+          </View>
+
+          <View style={styles.categoryContainer}>
+            {[
+              { id: "all" as const, name: "All Services", slug: "all", Icon: Sparkles },
+              ...categories.map((c) => ({
+                id: c.id,
+                name: c.name,
+                slug: c.slug,
+                Icon: c.slug === "car-washing" ? Car : c.slug === "building-cleaning" ? Building2 : Shirt,
+              })),
+            ].map((cat) => {
+              const isActive = cat.id === activeCategoryId;
+              const Icon = cat.Icon;
+              return (
+                <Pressable
+                  key={String(cat.id)}
+                  onPress={() => {
+                    if (Platform.OS !== "web") {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                    setActiveCategoryId(cat.id);
+                  }}
+                  style={styles.categoryCardWrapper}
                 >
-                  {isActive && (
-                    <LinearGradient
-                      colors={colors.gradients.primary}
-                      style={StyleSheet.absoluteFillObject}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    />
-                  )}
-                  <View style={styles.categoryIconWrapper}>
-                    <Icon size={24} color={isActive ? "#FFFFFF" : colors.subtext} />
-                  </View>
-                  <Text
+                  <BlurView
+                    intensity={isActive ? 45 : 20}
+                    tint="dark"
                     style={[
-                      styles.categoryLabel,
-                      { color: isActive ? "#FFFFFF" : colors.subtext },
+                      styles.categoryCard,
+                      {
+                        borderColor: isActive ? colors.primary : colors.cardBorder,
+                        backgroundColor: isActive ? colors.primaryLight : "rgba(255, 255, 255, 0.03)",
+                      },
                     ]}
                   >
-                    {cat.name}
-                  </Text>
-                </BlurView>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* SEARCH & FILTER */}
-        <BlurView intensity={20} tint="dark" style={[styles.searchContainer, { backgroundColor: colors.card }]}>
-          <Search size={18} color={colors.subtext} />
-          <TextInput
-            placeholder="Search sector services..."
-            placeholderTextColor={colors.subtext}
-            value={search}
-            onChangeText={setSearch}
-            style={[styles.searchInput, { color: colors.text, outlineStyle: "none" } as any]}
-          />
-        </BlurView>
+                    {isActive && (
+                      <LinearGradient
+                        colors={colors.gradients.primary}
+                        style={StyleSheet.absoluteFillObject}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      />
+                    )}
+                    <View style={styles.categoryIconWrapper}>
+                      <Icon size={22} color={isActive ? "#FFFFFF" : colors.subtext} />
+                    </View>
+                    <Text
+                      style={[
+                        styles.categoryLabel,
+                        { color: isActive ? "#FFFFFF" : colors.subtext },
+                      ]}
+                    >
+                      {cat.name}
+                    </Text>
+                  </BlurView>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Animated.View>
 
         {/* LOADING & ERROR */}
         {categoriesLoading && !refreshing && (
@@ -308,7 +485,7 @@ export default function HomeScreen() {
           <Text style={[styles.errorText, { color: colors.danger }]}>{categoriesError}</Text>
         )}
 
-        {/* UNIFIED SECTOR DIVISION SERVICES */}
+        {/* ── 5. UNIFIED SECTOR DIVISION SERVICES LIST ── */}
         <View style={styles.servicesList}>
           {filteredSectors.map((item: any, index) => {
             const meta = SECTOR_METADATA[item.slug] || {
@@ -387,6 +564,12 @@ export default function HomeScreen() {
           })}
         </View>
 
+        {/* ── CLEANING TIPS CAROUSEL ── */}
+        <CleaningTipsSection colors={colors} />
+
+        {/* ── PROMO BANNER ── */}
+        <PromoOfferBanner colors={colors} onPress={() => router.push("/booking")} />
+
         {/* ENTERPRISE TRUST BADGES FOOTER */}
         <Animated.View entering={FadeInUp.delay(300)} style={styles.trustFooter}>
           <Text style={[styles.trustTitle, { color: colors.subtext }]}>CLEAN.ET ENTERPRISE GUARANTEE</Text>
@@ -410,34 +593,344 @@ export default function HomeScreen() {
   );
 }
 
+// ─── CLEANING TIPS CAROUSEL COMPONENT ───────────────────────────────────────
+function CleaningTipsSection({ colors }: { colors: ReturnType<typeof import("../../hooks/useColors").useColors> }) {
+  const flatRef = useRef<FlatList>(null);
+  const [activeTip, setActiveTip] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveTip((prev) => {
+        const next = (prev + 1) % CLEANING_TIPS.length;
+        flatRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, 3500);
+    return () => clearInterval(timer);
+  }, []);
+
+  const innerWidth = SCREEN_WIDTH - 40 - 32; // card width minus padding
+
+  return (
+    <Animated.View entering={FadeInUp.delay(310)} style={styles.tipsSection}>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Cleaning Tips</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.subtext }]}>Pro care advice from our crew</Text>
+      </View>
+
+      {/* Single outer card — FlatList + dots live inside */}
+      <View
+        style={[
+          styles.tipOuterCard,
+          { backgroundColor: colors.card, borderColor: colors.cardBorder, marginHorizontal: 20 },
+        ]}
+      >
+        <FlatList
+          ref={flatRef}
+          data={CLEANING_TIPS}
+          horizontal
+          pagingEnabled
+          scrollEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => String(item.id)}
+          getItemLayout={(_, index) => ({ length: innerWidth, offset: innerWidth * index, index })}
+          onMomentumScrollEnd={(e) => {
+            const idx = Math.round(e.nativeEvent.contentOffset.x / innerWidth);
+            setActiveTip(idx);
+          }}
+          renderItem={({ item }) => {
+            const IconComponent = item.Icon;
+            return (
+              <View style={[styles.tipInnerRow, { width: innerWidth }]}>
+                {/* Enterprise gradient icon box */}
+                <LinearGradient
+                  colors={item.gradient}
+                  style={styles.tipIconBox}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <IconComponent size={22} color="#FFFFFF" strokeWidth={2} />
+                </LinearGradient>
+                {/* Text */}
+                <View style={styles.tipTextBlock}>
+                  <Text style={[styles.tipTitle, { color: colors.text }]}>{item.title}</Text>
+                  <Text style={[styles.tipDesc, { color: colors.subtext }]}>{item.desc}</Text>
+                </View>
+              </View>
+            );
+          }}
+          snapToInterval={innerWidth}
+          decelerationRate="fast"
+        />
+
+        {/* Dots INSIDE the card at the bottom */}
+        <View style={styles.tipDots}>
+          {CLEANING_TIPS.map((_, idx) => (
+            <Pressable
+              key={idx}
+              onPress={() => {
+                flatRef.current?.scrollToIndex({ index: idx, animated: true });
+                setActiveTip(idx);
+              }}
+              style={[
+                styles.tipDot,
+                idx === activeTip
+                  ? [styles.tipDotActive, { backgroundColor: colors.primary }]
+                  : styles.tipDotInactive,
+              ]}
+            />
+          ))}
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+
+// ─── PROMO OFFER BANNER COMPONENT ────────────────────────────────────────────
+function PromoOfferBanner({
+  colors,
+  onPress,
+}: {
+  colors: ReturnType<typeof import("../../hooks/useColors").useColors>;
+  onPress: () => void;
+}) {
+  return (
+    <Animated.View entering={FadeInUp.delay(350)} style={styles.promoBannerWrapper}>
+      <LinearGradient
+        colors={[colors.primary, "#1D4ED8"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.promoBanner}
+      >
+        {/* Decorative circle */}
+        <View style={[styles.promoCircle, { backgroundColor: "rgba(16,185,129,0.2)" }]} />
+        <View style={[styles.promoCircleSmall, { backgroundColor: "rgba(255,255,255,0.08)" }]} />
+
+        {/* Badge */}
+        <View style={[styles.promoBadge, { backgroundColor: "rgba(255,255,255,0.15)", borderColor: "rgba(255,255,255,0.35)" }]}>
+          <Text style={{ fontSize: 13 }}>⚡</Text>
+          <Text style={[styles.promoBadgeText, { color: "#FFFFFF" }]}>LIMITED OFFER</Text>
+        </View>
+
+        {/* Headline */}
+        <Text style={styles.promoHeadline}>
+          Get 20% Off Your{"\n"}First Booking
+        </Text>
+        <Text style={[styles.promoSubtitle, { color: "rgba(255,255,255,0.72)" }]}>
+          Book any sector service and save instantly — verified crews, transparent ETB pricing.
+        </Text>
+
+        {/* CTA Button */}
+        <Pressable
+          onPress={onPress}
+          style={({ pressed }) => [
+            styles.promoBtn,
+            { backgroundColor: "rgba(255,255,255,0.12)", borderColor: "rgba(255,255,255,0.35)" },
+            pressed && { opacity: 0.75 },
+          ]}
+        >
+          <Text style={styles.promoBtnText}>Book Now →</Text>
+        </Pressable>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 24,
-    marginBottom: 20,
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
-  greeting: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 4,
+  userSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
-  subtitle: {
-    fontSize: 14,
+  avatarBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
   },
-  badgePill: {
+  avatarInitial: {
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  locationRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
+    marginBottom: 2,
   },
-  badgeText: {
+  locationText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  greetingText: {
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  notificationBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  badgeCircle: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeCountText: {
+    color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "800",
+  },
+  searchContainer: {
+    marginHorizontal: 20,
+    marginBottom: 18,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+  },
+  searchInput: {
+    marginLeft: 10,
+    flex: 1,
+    fontSize: 14,
+    borderWidth: 0,
+  },
+  sliderContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  bannerCard: {
+    height: 170,
+    borderRadius: 20,
+    overflow: "hidden",
+    justifyContent: "flex-end",
+    padding: 16,
+    position: "relative",
+  },
+  bannerContent: {
+    zIndex: 2,
+    alignItems: "flex-start",
+  },
+  bannerTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  bannerTagText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  bannerTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  bannerSubtitle: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    marginBottom: 10,
+  },
+  bannerCtaBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  bannerCtaText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  paginationBox: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    zIndex: 3,
+  },
+  dotItem: {
+    height: 6,
+    borderRadius: 3,
+  },
+  dotActive: {
+    width: 20,
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
+  },
+  sectionHeader: {
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  categoryContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    gap: 10,
+    marginBottom: 20,
+  },
+  categoryCardWrapper: {
+    flex: 1,
+  },
+  categoryCard: {
+    height: 80,
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  categoryIconWrapper: {
+    marginBottom: 4,
+    zIndex: 1,
+  },
+  categoryLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    zIndex: 1,
+    textAlign: "center",
+    lineHeight: 14,
   },
   activeBookingCard: {
     borderRadius: 20,
@@ -459,59 +952,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
-  categoryContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 24,
-    gap: 12,
-    marginBottom: 20,
-  },
-  categoryCardWrapper: {
-    flex: 1,
-  },
-  categoryCard: {
-    height: 84,
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  categoryIconWrapper: {
-    marginBottom: 6,
-    zIndex: 1,
-  },
-  categoryLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    zIndex: 1,
-    textAlign: "center",
-    lineHeight: 15,
-  },
   errorText: {
     textAlign: "center",
-    marginHorizontal: 24,
+    marginHorizontal: 20,
     marginBottom: 16,
     fontSize: 14,
   },
-  searchContainer: {
-    marginHorizontal: 24,
-    marginBottom: 20,
-    borderRadius: 16,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 0,
-  },
-  searchInput: {
-    marginLeft: 10,
-    flex: 1,
-    fontSize: 15,
-    borderWidth: 0,
-  },
   servicesList: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     gap: 16,
   },
   card: {
@@ -581,7 +1029,7 @@ const styles = StyleSheet.create({
   },
   trustFooter: {
     marginTop: 20,
-    marginHorizontal: 24,
+    marginHorizontal: 20,
     alignItems: "center",
   },
   trustTitle: {
@@ -604,5 +1052,135 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+
+  // ── Cleaning Tips ──
+  tipsSection: {
+    marginBottom: 24,
+  },
+  tipOuterCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 14,
+    overflow: "hidden",
+  },
+  tipInnerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingBottom: 4,
+  },
+  tipIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  tipTextBlock: {
+    flex: 1,
+  },
+  tipTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  tipDesc: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  tipDots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 14,
+  },
+  tipDot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  tipDotActive: {
+    width: 20,
+  },
+  tipDotInactive: {
+    width: 6,
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+
+  // ── Promo Banner ──
+  promoBannerWrapper: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+    borderRadius: 22,
+    overflow: "hidden",
+  },
+  promoBanner: {
+    borderRadius: 22,
+    padding: 24,
+    overflow: "hidden",
+    position: "relative",
+  },
+  promoCircle: {
+    position: "absolute",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "rgba(59,130,246,0.18)",
+    right: -40,
+    top: -40,
+  },
+  promoCircleSmall: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(16,185,129,0.12)",
+    right: 30,
+    bottom: -20,
+  },
+  promoBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  promoBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+  promoHeadline: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "800",
+    lineHeight: 30,
+    marginBottom: 10,
+  },
+  promoSubtitle: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 20,
+  },
+  promoBtn: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  promoBtnText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
 });
+
 
