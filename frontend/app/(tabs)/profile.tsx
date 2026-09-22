@@ -324,7 +324,9 @@ export default function ProfileScreen() {
   };
 
   // Settings Tab State
-  const [settingsSubPage, setSettingsSubPage] = useState<"notifications" | "password" | "privacy" | "help" | null>(null);
+  const [settingsSubPage, setSettingsSubPage] = useState<
+    "notifications" | "password" | "privacy" | "help" | "terms" | "privacy_policy" | null
+  >(null);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [expandedFaqId, setExpandedFaqId] = useState<string | null>(null);
@@ -340,8 +342,6 @@ export default function ProfileScreen() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccessMsg, setPasswordSuccessMsg] = useState("");
-  const [termsModalVisible, setTermsModalVisible] = useState(false);
-  const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
 
   const handleToggleFaq = (id: string) => {
@@ -1759,6 +1759,248 @@ export default function ProfileScreen() {
                 <Text style={styles.screenshotLogoutText}>Log Out</Text>
               </Pressable>
             </View>
+          ) : settingsSubPage === "terms" ? (
+            <View style={styles.bodyContent}>
+              {/* Back button & Title (Matches screenshot) */}
+              <View style={styles.subPageHeaderRow}>
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setSettingsSubPage(null);
+                  }}
+                  style={[
+                    styles.subPageBackBtn,
+                    {
+                      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                >
+                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                </Pressable>
+                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Terms of Service
+                </Text>
+              </View>
+
+              {/* Terms Content Card (Matches screenshot) */}
+              <View
+                style={[
+                  styles.legalDocCardBox,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                <Text style={[styles.legalLastUpdatedText, { color: isDark ? "#94A3B8" : "#94A3B8" }]}>
+                  Last updated: February 15, 2026
+                </Text>
+
+                {/* 1. Acceptance of Terms */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    1. Acceptance of Terms
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    By accessing and using Clean.et (Docly Pro), you agree to be bound by these Terms of Service.
+                  </Text>
+                </View>
+
+                {/* 2. Description of Service */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    2. Description of Service
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    Clean.et provides an on-demand cleaning service platform connecting clients with specialized cleaning crews including car washing, auto detailing, property cleaning, and facility maintenance.
+                  </Text>
+                </View>
+
+                {/* 3. User Accounts */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    3. User Accounts
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    You must provide accurate information when creating an account. You are responsible for safeguarding your password and all activities under your account.
+                  </Text>
+                </View>
+
+                {/* 4. Service Disclaimer */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    4. Service Disclaimer
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    Clean.et connects you with verified professional cleaning crews. While we inspect and train all service personnel, please ensure personal valuables are secured prior to service arrival.
+                  </Text>
+                </View>
+
+                {/* 5. Payment Terms */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    5. Payment Terms
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    All fees are due at the time of service or booking confirmation. Refunds are processed within 5-7 business days.
+                  </Text>
+                </View>
+
+                {/* 6. Privacy */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    6. Privacy
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    Your privacy is important to us. Please refer to our Privacy Policy for details on data collection and usage.
+                  </Text>
+                </View>
+
+                {/* 7. Contact */}
+                <View style={[styles.legalSectionGroup, { marginBottom: 0 }]}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    7. Contact
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    For questions about these terms, contact us at support@clean.et.
+                  </Text>
+                </View>
+              </View>
+
+              {/* LOG OUT BUTTON (Matches screenshot) */}
+              <Pressable
+                onPress={handleLogout}
+                style={({ pressed }) => [
+                  styles.screenshotLogoutBtn,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+                ]}
+              >
+                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+              </Pressable>
+            </View>
+          ) : settingsSubPage === "privacy_policy" ? (
+            <View style={styles.bodyContent}>
+              {/* Back button & Title (Matches screenshot) */}
+              <View style={styles.subPageHeaderRow}>
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setSettingsSubPage(null);
+                  }}
+                  style={[
+                    styles.subPageBackBtn,
+                    {
+                      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                >
+                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                </Pressable>
+                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Privacy Policy
+                </Text>
+              </View>
+
+              {/* Privacy Content Card (Matches screenshot) */}
+              <View
+                style={[
+                  styles.legalDocCardBox,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                <Text style={[styles.legalLastUpdatedText, { color: isDark ? "#94A3B8" : "#94A3B8" }]}>
+                  Last updated: February 15, 2026
+                </Text>
+
+                {/* Information We Collect */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Information We Collect
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    We collect information you provide directly, including name, email, phone number, saved addresses, and vehicle or property details. We also collect usage data and device information.
+                  </Text>
+                </View>
+
+                {/* How We Use Your Information */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    How We Use Your Information
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    We use your information to provide services, process appointments, send notifications, and ensure account security.
+                  </Text>
+                </View>
+
+                {/* Data Security */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Data Security
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    We implement AES-256 encryption, secure servers, and regular security audits to protect your information.
+                  </Text>
+                </View>
+
+                {/* Compliance & Standards */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Compliance & Standards
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    We adhere to strict data protection standards and encryption protocols to safeguard your personal records and transaction details.
+                  </Text>
+                </View>
+
+                {/* Data Sharing */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Data Sharing
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    We do not sell your personal data. We only share information with assigned cleaning crews and service providers you choose to consult.
+                  </Text>
+                </View>
+
+                {/* Your Rights */}
+                <View style={styles.legalSectionGroup}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Your Rights
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    You have the right to access, correct, or delete your personal data. You can opt out of marketing at any time.
+                  </Text>
+                </View>
+
+                {/* Contact Us */}
+                <View style={[styles.legalSectionGroup, { marginBottom: 0 }]}>
+                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Contact Us
+                  </Text>
+                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    For privacy-related inquiries, contact us at support@clean.et.
+                  </Text>
+                </View>
+              </View>
+
+              {/* LOG OUT BUTTON (Matches screenshot) */}
+              <Pressable
+                onPress={handleLogout}
+                style={({ pressed }) => [
+                  styles.screenshotLogoutBtn,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+                ]}
+              >
+                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+              </Pressable>
+            </View>
           ) : (
             <View style={styles.bodyContent}>
               {/* ── APPEARANCE SECTION ── */}
@@ -2015,7 +2257,7 @@ export default function ProfileScreen() {
                 <Pressable
                   onPress={() => {
                     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-                    setTermsModalVisible(true);
+                    setSettingsSubPage("terms");
                   }}
                   style={({ pressed }) => [
                     styles.settingsRowItem,
@@ -2039,7 +2281,7 @@ export default function ProfileScreen() {
                 <Pressable
                   onPress={() => {
                     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-                    setPrivacyModalVisible(true);
+                    setSettingsSubPage("privacy_policy");
                   }}
                   style={({ pressed }) => [
                     styles.settingsRowItem,
@@ -2413,107 +2655,7 @@ export default function ProfileScreen() {
 
 
 
-      {/* ── Terms of Service Modal ── */}
-      <Modal
-        visible={termsModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTermsModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.editModalContainer}>
-            <View
-              style={[
-                styles.editModalContent,
-                {
-                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                  borderColor: isDark ? "#334155" : "#E2E8F0",
-                },
-              ]}
-            >
-              <View style={styles.modalHeaderRow}>
-                <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 0 }]}>
-                  Terms of Service
-                </Text>
-                <Pressable onPress={() => setTermsModalVisible(false)} hitSlop={10}>
-                  <X size={20} color={isDark ? "#94A3B8" : "#64748B"} />
-                </Pressable>
-              </View>
 
-              <ScrollView style={{ maxHeight: 260, marginVertical: 8 }}>
-                <Text style={[styles.modalBodyText, { color: isDark ? "#CBD5E1" : "#475569" }]}>
-                  Welcome to Clean.et (Docly Pro). By accessing or using our on-demand cleaning, vehicle detailing, and property hygiene management platform, you agree to comply with our terms and standards.
-                  {"\n\n"}
-                  1. All booked cleaning services are scheduled based on verified partner technician availability.
-                  {"\n\n"}
-                  2. Cancellations and rescheduling must be performed at least 2 hours prior to scheduled service time to avoid cancellation fees.
-                  {"\n\n"}
-                  3. Service guarantees ensure customer satisfaction with comprehensive quality inspections.
-                </Text>
-              </ScrollView>
-
-              <Pressable
-                style={styles.modalSaveBtn}
-                onPress={() => setTermsModalVisible(false)}
-              >
-                <Text style={styles.modalSaveBtnText}>I Understand</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── Privacy Policy Modal ── */}
-      <Modal
-        visible={privacyModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPrivacyModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.editModalContainer}>
-            <View
-              style={[
-                styles.editModalContent,
-                {
-                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                  borderColor: isDark ? "#334155" : "#E2E8F0",
-                },
-              ]}
-            >
-              <View style={styles.modalHeaderRow}>
-                <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 0 }]}>
-                  Privacy Policy
-                </Text>
-                <Pressable onPress={() => setPrivacyModalVisible(false)} hitSlop={10}>
-                  <X size={20} color={isDark ? "#94A3B8" : "#64748B"} />
-                </Pressable>
-              </View>
-
-              <ScrollView style={{ maxHeight: 260, marginVertical: 8 }}>
-                <Text style={[styles.modalBodyText, { color: isDark ? "#CBD5E1" : "#475569" }]}>
-                  Your privacy and data security are our highest priority.
-                  {"\n\n"}
-                  1. Information We Collect: We collect your name, email, phone number, saved addresses, and vehicle/property details necessary to fulfill your cleaning requests.
-                  {"\n\n"}
-                  2. Secure Storage: All location, payment, and account information is encrypted in transit and at rest using modern encryption standards.
-                  {"\n\n"}
-                  3. Control: You can review, update, or remove your saved addresses, payment methods, and profile at any time.
-                </Text>
-              </ScrollView>
-
-              <Pressable
-                style={styles.modalSaveBtn}
-                onPress={() => setPrivacyModalVisible(false)}
-              >
-                <Text style={styles.modalSaveBtnText}>Close</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* ── About Docly Pro Modal ── */}
       <Modal
@@ -3289,6 +3431,38 @@ const styles = StyleSheet.create({
   faqAnswerText: {
     fontSize: 13,
     lineHeight: 20,
+    fontWeight: "400",
+  },
+
+  // ── Legal Document Subpage Styles (Terms & Privacy Policy) ──
+  legalDocCardBox: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 22,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  legalLastUpdatedText: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginBottom: 18,
+  },
+  legalSectionGroup: {
+    marginBottom: 16,
+  },
+  legalSectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4,
+    letterSpacing: -0.2,
+  },
+  legalSectionBody: {
+    fontSize: 13,
+    lineHeight: 19,
     fontWeight: "400",
   },
 
