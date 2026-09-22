@@ -7,7 +7,6 @@ use App\Http\Requests\StorePaymentRequest;
 use App\Http\Resources\PaymentResource;
 use App\Models\Invoice;
 use App\Models\Payment;
-use App\Notifications\BookingNotification;
 use App\Services\NotificationService;
 use App\Services\PaymentGatewayService;
 use Illuminate\Http\Request;
@@ -158,15 +157,14 @@ class PaymentController extends Controller
             }
         });
 
-        // Fire push notification outside transaction (fire-and-forget)
+        // Notify customer about payment
         if ($bookingUser) {
-            $bookingUser->notify(new BookingNotification(
-                'Your payment of ETB ' . number_format($payment->amount, 2) . ' has been confirmed. Thank you!'
-            ));
-            $this->notifications->notify(
+            $bookingId = $payment->invoice?->booking_id ?? 0;
+            $this->notifications->notifyPaymentConfirmed(
                 $bookingUser,
-                '✅ Payment Confirmed',
-                'ETB ' . number_format($payment->amount, 2) . ' paid successfully via ' . strtoupper($payment->provider) . '.'
+                (float) $payment->amount,
+                $payment->provider,
+                $bookingId
             );
         }
 

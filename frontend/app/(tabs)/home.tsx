@@ -168,11 +168,12 @@ export default function HomeScreen() {
   const [user, setUser] = useState<{ name: string; email?: string } | null>(null);
   const [liveServices, setLiveServices] = useState<any[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(3);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     loadUser();
     loadLiveServices();
+    loadUnreadCount();
   }, []);
 
   // Auto-slide banner effect
@@ -202,12 +203,21 @@ export default function HomeScreen() {
     }
   };
 
+  const loadUnreadCount = async () => {
+    try {
+      const res = await API.get("/notifications/unread-count");
+      setUnreadNotifications(res.data.unread_count ?? 0);
+    } catch {
+      // silently fail
+    }
+  };
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    await Promise.all([reloadCategories(), reloadBookings(), loadLiveServices()]);
+    await Promise.all([reloadCategories(), reloadBookings(), loadLiveServices(), loadUnreadCount()]);
     setRefreshing(false);
   }, [reloadCategories, reloadBookings]);
 

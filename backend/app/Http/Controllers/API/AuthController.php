@@ -7,20 +7,22 @@ use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Resources\AuthResource;
 use App\Services\AuthService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
-    protected $authService;
-
-    public function __construct(AuthService $authService)
-    {
-        $this->authService = $authService;
-    }
+    public function __construct(
+        protected AuthService $authService,
+        protected NotificationService $notifications,
+    ) {}
 
     public function register(RegisterRequest $request)
     {
         $user = $this->authService->register($request->validated());
+
+        // Welcome notification for new users
+        $this->notifications->notifyRegistration($user);
 
         return new AuthResource($user);
     }
@@ -32,6 +34,9 @@ class AuthController extends Controller
         if (!$user) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
+
+        // Login notification
+        $this->notifications->notifyLogin($user);
 
         return new AuthResource($user);
     }
@@ -53,6 +58,15 @@ class AuthController extends Controller
 
         $user = $request->user();
         $user->update($request->only('name', 'email', 'phone', 'language', 'push_token'));
+
+        // Only notify if something other than push_token changed
+        $changed = array_diff_key(
+            $request->only('name', 'email', 'phone', 'language'),
+            ['push_token' => true]
+        );
+        if (!empty($changed)) {
+            $this->notifications->notifyProfileUpdated($user);
+        }
 
         return new AuthResource($user);
     }

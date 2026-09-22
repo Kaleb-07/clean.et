@@ -1,271 +1,562 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, Switch, ScrollView, Platform, Alert, TouchableOpacity } from "react-native";
-import { router } from "expo-router";
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Platform,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+} from "react-native";
+import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { ChevronLeft, Bell, MessageSquare, Tag, Info, Megaphone, Send } from "lucide-react-native";
-import { BlurView } from "expo-blur";
+import {
+  ChevronLeft,
+  Bell,
+  CheckCheck,
+  Calendar,
+  CreditCard,
+  MessageSquare,
+  Tag,
+  Info,
+  Trash2,
+  BellOff,
+  ShieldCheck,
+  Car,
+} from "lucide-react-native";
+import Animated, { FadeInUp, FadeOutLeft, Layout } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import ActionModal from "../../src/components/ActionModal";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuth } from "../../contexts/AuthContext";
+import { useColors } from "../../hooks/useColors";
+import API from "../../src/api/client";
 
-const STORAGE_KEY = "@notification_settings";
+// ── Types ──────────────────────────────────────────────────────────────────────
+type NotifType =
+  | "booking_update"
+  | "payment"
+  | "message"
+  | "promo"
+  | "system"
+  | "booking_confirmed"
+  | "profile";
 
+interface AppNotification {
+  id: number;
+  type: NotifType;
+  title: string;
+  body: string;
+  data?: Record<string, any>;
+  is_unread: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+// ── Icon config per type ───────────────────────────────────────────────────────
+const TYPE_CONFIG: Record<
+  NotifType,
+  { Icon: any; iconColor: string; bgColor: string }
+> = {
+  booking_update: {
+    Icon: Calendar,
+    iconColor: "#EF4444",
+    bgColor: "rgba(239, 68, 68, 0.12)",
+  },
+  booking_confirmed: {
+    Icon: Calendar,
+    iconColor: "#EF4444",
+    bgColor: "rgba(239, 68, 68, 0.12)",
+  },
+  payment: {
+    Icon: CreditCard,
+    iconColor: "#10B981",
+    bgColor: "rgba(16, 185, 129, 0.12)",
+  },
+  message: {
+    Icon: MessageSquare,
+    iconColor: "#F59E0B",
+    bgColor: "rgba(245, 158, 11, 0.12)",
+  },
+  promo: {
+    Icon: Tag,
+    iconColor: "#8B5CF6",
+    bgColor: "rgba(139, 92, 246, 0.12)",
+  },
+  system: {
+    Icon: Info,
+    iconColor: "#3B82F6",
+    bgColor: "rgba(59, 130, 246, 0.12)",
+  },
+  profile: {
+    Icon: Bell,
+    iconColor: "#64748B",
+    bgColor: "rgba(100, 116, 139, 0.12)",
+  },
+};
+
+// ── Time formatter ─────────────────────────────────────────────────────────────
+function timeAgo(iso: string): string {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+// ── Main Screen ────────────────────────────────────────────────────────────────
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const isSuperAdmin = user?.role === "super_admin";
+  const colors = useColors();
 
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [settings, setSettings] = useState({
-    push: true,
-    orders: true,
-    promo: false,
-    updates: true,
-  });
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          setSettings(JSON.parse(saved));
-        }
-      } catch (e) {
-        console.error("Failed to load settings", e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadSettings();
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await API.get("/notifications");
+      setNotifications(res.data.data ?? []);
+      setUnreadCount(res.data.unread_count ?? 0);
+    } catch (e: any) {
+      console.error("Failed to load notifications", e?.message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(style).catch(() => {});
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  // Refresh whenever the screen comes into focus (e.g. navigating back)
+  useFocusEffect(
+    useCallback(() => {
+      fetchNotifications();
+    }, [fetchNotifications])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await fetchNotifications();
+  }, [fetchNotifications]);
+
+  // ── Mark one read ──────────────────────────────────────────────────────────
+  const markRead = async (id: number) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, is_unread: false, read_at: new Date().toISOString() } : n))
+    );
+    setUnreadCount((c) => Math.max(0, c - 1));
+    try {
+      await API.post(`/notifications/${id}/read`);
+    } catch {
+      // silently revert if needed
+    }
+  };
+
+  // ── Mark all read ──────────────────────────────────────────────────────────
+  const markAllRead = async () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const now = new Date().toISOString();
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_unread: false, read_at: now })));
+    setUnreadCount(0);
+    try {
+      await API.post("/notifications/read-all");
+    } catch {}
+  };
+
+  // ── Delete one ─────────────────────────────────────────────────────────────
+  const deleteOne = async (id: number) => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const wasUnread = notifications.find((n) => n.id === id)?.is_unread;
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    if (wasUnread) setUnreadCount((c) => Math.max(0, c - 1));
+    try {
+      await API.delete(`/notifications/${id}`);
+    } catch {}
+  };
+
+  // ── Clear all ──────────────────────────────────────────────────────────────
+  const clearAll = () => {
+    const confirm = () => {
+      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setNotifications([]);
+      setUnreadCount(0);
+      API.delete("/notifications").catch(() => {});
+    };
+    if (Platform.OS === "web") {
+      if (window.confirm("Clear all notifications?")) confirm();
+    } else {
+      Alert.alert("Clear All", "Delete all notifications?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Clear All", style: "destructive", onPress: confirm },
+      ]);
     }
   };
 
   const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/(admin)/(tabs)/Profile");
+    if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)/home");
+  };
+
+  // ── Tap notification ──────────────────────────────────────────────────────
+  const handleItemPress = (item: AppNotification) => {
+    if (item.is_unread) {
+      markRead(item.id);
+    }
+    if (item.data?.screen) {
+      router.push(item.data.screen as any);
+    } else if (item.data?.booking_id) {
+      router.push(`/booking/status/${item.data.booking_id}` as any);
+    } else if (item.data?.invoice_id) {
+      router.push(`/invoices/${item.data.invoice_id}` as any);
+    } else if (item.type === "profile") {
+      router.push("/(tabs)/profile" as any);
     }
   };
 
-  const toggle = (key: keyof typeof settings) => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-    setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
+  // ── Render item ────────────────────────────────────────────────────────────
+  const renderItem = (item: AppNotification, index: number) => {
+    const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.system;
+    const { Icon, iconColor, bgColor } = config;
 
-  const handleSave = async () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-      setShowSuccess(true);
-    } catch (e) {
-      const msg = "Could not save notification preferences.";
-      Platform.OS === "web" ? window.alert(msg) : Alert.alert("Error", msg);
-    }
+    return (
+      <Animated.View
+        key={item.id}
+        entering={FadeInUp.delay(index * 40)}
+        exiting={FadeOutLeft}
+        layout={Layout.springify()}
+      >
+        <Pressable
+          onPress={() => handleItemPress(item)}
+          style={({ pressed }) => [
+            styles.card,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+              borderLeftColor: item.is_unread ? "#EF4444" : colors.cardBorder,
+              borderLeftWidth: item.is_unread ? 4 : 1,
+              opacity: pressed ? 0.92 : 1,
+            },
+          ]}
+        >
+          {/* Pastel Icon Box */}
+          <View style={[styles.iconBox, { backgroundColor: bgColor }]}>
+            <Icon size={22} color={iconColor} strokeWidth={1.8} />
+          </View>
+
+          {/* Content */}
+          <View style={styles.cardContent}>
+            <View style={styles.cardTitleRow}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  {
+                    color: colors.text,
+                    fontWeight: item.is_unread ? "700" : "600",
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {item.title}
+              </Text>
+              {item.is_unread && <View style={styles.unreadDot} />}
+            </View>
+            <Text
+              style={[styles.cardBody, { color: colors.subtext }]}
+              numberOfLines={2}
+            >
+              {item.body}
+            </Text>
+            <Text style={[styles.cardTime, { color: colors.subtext }]}>
+              {timeAgo(item.created_at)}
+            </Text>
+          </View>
+
+          {/* Delete button */}
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation?.();
+              deleteOne(item.id);
+            }}
+            hitSlop={12}
+            style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.5 }]}
+          >
+            <Trash2 size={15} color={colors.subtext} />
+          </Pressable>
+        </Pressable>
+      </Animated.View>
+    );
   };
 
   return (
-    <LinearGradient colors={["#0B0F19", "#111827", "#1E1B4B"]} style={styles.container}>
+    <LinearGradient colors={colors.gradients.background} style={styles.container}>
+      {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable onPress={handleBack} style={styles.backButton}>
-          <ChevronLeft color="#ffffff" size={28} />
+        <Pressable
+          onPress={handleBack}
+          style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+        >
+          <ChevronLeft color={colors.text} size={22} />
         </Pressable>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        <View style={{ width: 40 }} />
-      </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* SUPER ADMIN BROADCAST CENTER BANNER */}
-        {isSuperAdmin && (
-          <View style={styles.broadcastBanner}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <Megaphone size={24} color="#F59E0B" />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16 }}>
-                  Platform Broadcast Sender
-                </Text>
-                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 1 }}>
-                  Dispatch push alerts to all accounts, managers & field staff
-                </Text>
-              </View>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
+          {unreadCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
             </View>
-
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
-              <TouchableOpacity
-                style={styles.broadcastBtnPrimary}
-                onPress={() => router.push("/(admin)/broadcast")}
-              >
-                <Send size={16} color="#FFF" />
-                <Text style={styles.broadcastBtnText}>Dispatch Broadcast</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.broadcastBtnSecondary}
-                onPress={() => router.push("/(admin)/notifications")}
-              >
-                <Bell size={16} color="#F472B6" />
-                <Text style={[styles.broadcastBtnText, { color: "#F472B6" }]}>Notifications Log</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        <Text style={styles.sectionTitle}>Preferences</Text>
-
-        <View style={styles.list}>
-          <BlurView intensity={20} tint="dark" style={styles.itemWrapper}>
-            <View style={styles.item}>
-              <View style={styles.itemLeft}>
-                <View style={[styles.iconBox, { backgroundColor: "rgba(59,130,246,0.15)" }]}>
-                  <Bell size={20} color="#3b82f6" />
-                </View>
-                <View>
-                  <Text style={styles.itemTitle}>Push Notifications</Text>
-                  <Text style={styles.itemSubtitle}>Receive instant push alerts on device</Text>
-                </View>
-              </View>
-              <Switch
-                value={settings.push}
-                onValueChange={() => toggle("push")}
-                trackColor={{ false: "#334155", true: "#10b981" }}
-              />
-            </View>
-          </BlurView>
-
-          <BlurView intensity={20} tint="dark" style={styles.itemWrapper}>
-            <View style={styles.item}>
-              <View style={styles.itemLeft}>
-                <View style={[styles.iconBox, { backgroundColor: "rgba(16,185,129,0.15)" }]}>
-                  <MessageSquare size={20} color="#10b981" />
-                </View>
-                <View>
-                  <Text style={styles.itemTitle}>Order & Booking Updates</Text>
-                  <Text style={styles.itemSubtitle}>Real-time updates on active jobs</Text>
-                </View>
-              </View>
-              <Switch
-                value={settings.orders}
-                onValueChange={() => toggle("orders")}
-                trackColor={{ false: "#334155", true: "#10b981" }}
-              />
-            </View>
-          </BlurView>
-
-          <BlurView intensity={20} tint="dark" style={styles.itemWrapper}>
-            <View style={styles.item}>
-              <View style={styles.itemLeft}>
-                <View style={[styles.iconBox, { backgroundColor: "rgba(245,158,11,0.15)" }]}>
-                  <Tag size={20} color="#f59e0b" />
-                </View>
-                <View>
-                  <Text style={styles.itemTitle}>Promotions & Offers</Text>
-                  <Text style={styles.itemSubtitle}>Special discounts and marketing news</Text>
-                </View>
-              </View>
-              <Switch
-                value={settings.promo}
-                onValueChange={() => toggle("promo")}
-                trackColor={{ false: "#334155", true: "#10b981" }}
-              />
-            </View>
-          </BlurView>
-
-          <BlurView intensity={20} tint="dark" style={styles.itemWrapper}>
-            <View style={styles.item}>
-              <View style={styles.itemLeft}>
-                <View style={[styles.iconBox, { backgroundColor: "rgba(139,92,246,0.15)" }]}>
-                  <Info size={20} color="#8b5cf6" />
-                </View>
-                <View>
-                  <Text style={styles.itemTitle}>App System Updates</Text>
-                  <Text style={styles.itemSubtitle}>New features and technical releases</Text>
-                </View>
-              </View>
-              <Switch
-                value={settings.updates}
-                onValueChange={() => toggle("updates")}
-                trackColor={{ false: "#334155", true: "#10b981" }}
-              />
-            </View>
-          </BlurView>
+          )}
         </View>
 
-        <Pressable style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Save Preferences</Text>
-        </Pressable>
-      </ScrollView>
+        {unreadCount > 0 ? (
+          <Pressable onPress={markAllRead} style={styles.markAllBtn}>
+            <CheckCheck size={15} color="#EF4444" />
+            <Text style={styles.markAllText}>Mark all read</Text>
+          </Pressable>
+        ) : (
+          <View style={{ width: 95 }} />
+        )}
+      </View>
 
-      <ActionModal
-        visible={showSuccess}
-        type="success"
-        title="Settings Saved"
-        message="Your notification preferences have been saved to local storage."
-        confirmText="Got it"
-        onConfirm={() => setShowSuccess(false)}
-      />
+      {/* ── Body ── */}
+      {loading ? (
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
+      ) : (
+        <ScrollView
+          contentContainerStyle={[
+            styles.list,
+            { paddingBottom: insets.bottom + 30 },
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {notifications.length === 0 ? (
+            /* ── Empty state ── */
+            <Animated.View entering={FadeInUp} style={styles.emptyState}>
+              <LinearGradient
+                colors={["rgba(59,130,246,0.15)", "rgba(59,130,246,0.05)"]}
+                style={styles.emptyIconBg}
+              >
+                <BellOff size={40} color={colors.primary} />
+              </LinearGradient>
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>All caught up!</Text>
+              <Text style={[styles.emptyDesc, { color: colors.subtext }]}>
+                No notifications yet. We'll notify you when something important happens.
+              </Text>
+            </Animated.View>
+          ) : (
+            <>
+              {/* Unread section */}
+              {notifications.some((n) => n.is_unread) && (
+                <>
+                  <Text style={[styles.sectionLabel, { color: colors.subtext }]}>UNREAD</Text>
+                  {notifications.filter((n) => n.is_unread).map((item, i) => renderItem(item, i))}
+                </>
+              )}
+
+              {/* Read section */}
+              {notifications.some((n) => !n.is_unread) && (
+                <>
+                  <Text style={[styles.sectionLabel, { color: colors.subtext, marginTop: 20 }]}>
+                    EARLIER
+                  </Text>
+                  {notifications.filter((n) => !n.is_unread).map((item, i) => renderItem(item, i))}
+                </>
+              )}
+
+              {/* Clear all */}
+              <Pressable
+                onPress={clearAll}
+                style={({ pressed }) => [
+                  styles.clearAllBtn,
+                  { borderColor: colors.cardBorder },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Trash2 size={15} color={colors.danger} />
+                <Text style={[styles.clearAllText, { color: colors.danger }]}>
+                  Clear all notifications
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </ScrollView>
+      )}
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  // ── Header ────────────────────────────────────────────────────────────────
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 14,
   },
-  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#ffffff" },
-  backButton: { padding: 8 },
-  content: { padding: 20 },
-  broadcastBanner: {
-    backgroundColor: "#0F172A",
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerCenter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  unreadBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unreadBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  markAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  markAllText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#EF4444",
+  },
+
+  // ── List ──────────────────────────────────────────────────────────────────
+  list: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    gap: 10,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    marginBottom: 4,
+    marginLeft: 4,
+  },
+
+  // ── Card ──────────────────────────────────────────────────────────────────
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 16,
-    padding: 16,
+    borderWidth: 1,
+    padding: 14,
+    gap: 12,
+    overflow: "hidden",
+    position: "relative",
+  },
+  iconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  cardContent: {
+    flex: 1,
+  },
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 3,
+  },
+  cardTitle: {
+    fontSize: 15,
+    flex: 1,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
+    flexShrink: 0,
+  },
+  cardBody: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 5,
+  },
+  cardTime: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  deleteBtn: {
+    padding: 6,
+    flexShrink: 0,
+  },
+
+  // ── Clear all ─────────────────────────────────────────────────────────────
+  clearAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  clearAllText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+  emptyState: {
+    alignItems: "center",
+    paddingTop: 80,
+    paddingHorizontal: 40,
+  },
+  emptyIconBg: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#334155",
   },
-  broadcastBtnPrimary: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F59E0B",
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 8,
   },
-  broadcastBtnSecondary: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#1E293B",
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: "#F472B655",
+  emptyDesc: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
   },
-  broadcastBtnText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: 12 },
-  list: { gap: 10, marginBottom: 30 },
-  itemWrapper: { borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  item: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16 },
-  itemLeft: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center" },
-  itemTitle: { fontSize: 15, fontWeight: "600", color: "#ffffff" },
-  itemSubtitle: { fontSize: 11, color: "#64748b", marginTop: 2 },
-  saveButton: { backgroundColor: "#10B981", paddingVertical: 16, borderRadius: 16, alignItems: "center" },
-  saveButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "bold" },
 });

@@ -132,11 +132,11 @@ class BookingService
             'recurrence_rule'     => $data['recurrence_rule'] ?? null,
         ]);
 
-        // Notify all tenant admins
-        User::where('tenant_id', $booking->tenant_id)
-            ->where('role', 'tenant_admin')
-            ->get()
-            ->each(fn(User $admin) => $admin->notify(new BookingNotification("New booking #{$booking->id} created")));
+        // ── Notify customer immediately ──────────────────────────────────────
+        if ($booking->user) {
+            $sectorName = $sector?->name ?? '';
+            $this->notifications->notifyBookingCreated($booking->user, $booking->id, $sectorName);
+        }
 
         return $booking->load(['sector.category', 'customer.user', 'vehicle', 'building', 'service']);
     }
@@ -163,8 +163,9 @@ class BookingService
         $booking->update(['status' => Booking::STATUS_CANCELLED]);
 
         // Notify customer
-        if ($booking->user) {
-            $booking->user->notify(new BookingNotification("Booking #{$booking->id} has been cancelled."));
+        $targetUser = $booking->user ?? $booking->customer?->user;
+        if ($targetUser) {
+            $this->notifications->notifyBookingCancelled($targetUser, $booking->id);
         }
 
         return $booking->load(['sector.category', 'customer.user', 'vehicle', 'service']);
@@ -176,7 +177,7 @@ class BookingService
             abort(422, "Invalid status '{$status}'.");
         }
 
-        $booking = Booking::with(['user', 'customer'])->findOrFail($id);
+        $booking = Booking::with(['user', 'customer.user'])->findOrFail($id);
 
         DB::transaction(function () use ($booking, $status) {
             $booking->update(['status' => $status]);
@@ -187,12 +188,10 @@ class BookingService
             }
         });
 
-        // Fire push notification (fire-and-forget, outside transaction)
-        if ($booking->user) {
-            // Legacy in-app notification
-            $booking->user->notify(new BookingNotification("Your booking #{$booking->id} is now: {$status}"));
-            // Expo push notification
-            $this->notifications->notifyBookingStatus($booking->user, $booking->id, $status);
+        // Fire notification (fire-and-forget, outside transaction)
+        $targetUser = $booking->user ?? $booking->customer?->user;
+        if ($targetUser) {
+            $this->notifications->notifyBookingStatus($targetUser, $booking->id, $status);
         }
 
         return $booking->load(['sector.category', 'customer.user', 'vehicle', 'service']);

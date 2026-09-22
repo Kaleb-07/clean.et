@@ -7,12 +7,17 @@ use App\Models\User;
 use App\Models\StaffProfile;
 use App\Models\Booking;
 use App\Http\Resources\BookingResource;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 
 class StaffController extends Controller
 {
+    public function __construct(
+        protected NotificationService $notifications
+    ) {}
+
     // GET /api/staff
     public function index(Request $request)
     {
@@ -87,13 +92,31 @@ class StaffController extends Controller
             'staff_id' => 'required|exists:staff_profiles,id',
         ]);
 
-        $booking = Booking::withoutGlobalScopes()->findOrFail($id);
-        $staff = StaffProfile::withoutGlobalScopes()->findOrFail($request->staff_id);
+        $booking = Booking::withoutGlobalScopes()->with(['user', 'customer.user'])->findOrFail($id);
+        $staff = StaffProfile::withoutGlobalScopes()->with('user')->findOrFail($request->staff_id);
 
         $booking->update([
             'staff_id' => $staff->id,
             'status'   => Booking::STATUS_DRIVER_ASSIGNED,
         ]);
+
+        // Notify customer that crew has been assigned
+        $customerUser = $booking->user ?? $booking->customer?->user;
+        if ($customerUser) {
+            $crewName = $staff->user?->name ?? 'Assigned Staff';
+            $this->notifications->notifyCrewAssigned($customerUser, $booking->id, $crewName);
+        }
+
+        // Notify the assigned staff member
+        if ($staff->user) {
+            $this->notifications->notify(
+                $staff->user,
+                'New Job Assigned',
+                "You have been assigned to booking #{$booking->id}.",
+                ['booking_id' => $booking->id, 'screen' => "/booking/status/{$booking->id}"],
+                'booking_update'
+            );
+        }
 
         return new BookingResource($booking->load(['tenant', 'sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service']));
     }

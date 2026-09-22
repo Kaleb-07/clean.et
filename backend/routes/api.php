@@ -18,6 +18,7 @@ use App\Http\Controllers\API\BookingProofController;
 use App\Http\Controllers\API\FleetAccountController;
 use App\Http\Controllers\API\TenantController;
 use App\Http\Controllers\API\SuperAdminController;
+use App\Http\Controllers\API\NotificationController;
 
 // ─── Health Check ──────────────────────────────────────────────────────────────
 Route::get('/test', fn () => response()->json([
@@ -33,6 +34,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me',      [AuthController::class, 'me']);
     Route::put('/me',      [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // ─── NOTIFICATIONS ─────────────────────────────────────────────────────
+    Route::get('/notifications',                       [NotificationController::class, 'index']);
+    Route::get('/notifications/unread-count',          [NotificationController::class, 'unreadCount']);
+    Route::post('/notifications/read-all',             [NotificationController::class, 'markAllRead']);
+    Route::post('/notifications/{id}/read',            [NotificationController::class, 'markRead']);
+    Route::delete('/notifications/{id}',               [NotificationController::class, 'destroy']);
+    Route::delete('/notifications',                    [NotificationController::class, 'destroyAll']);
 });
 
 // ─── CATEGORIES & SECTORS (public) ────────────────────────────────────────────
