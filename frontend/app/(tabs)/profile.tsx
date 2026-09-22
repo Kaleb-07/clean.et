@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ChevronLeft,
   Pencil,
@@ -41,6 +42,8 @@ import {
   Sun,
   Globe,
   CheckCircle2,
+  Plus,
+  Trash2,
 } from "lucide-react-native";
 
 import { useAuth } from "../../contexts/AuthContext";
@@ -50,6 +53,28 @@ import { useLanguage } from "../../contexts/LanguageContext";
 import ActionModal from "../../src/components/ActionModal";
 
 type ProfileTab = "info" | "history" | "saved" | "address" | "settings";
+
+export interface UserAddress {
+  id: string;
+  title: string;
+  address: string;
+  isDefault?: boolean;
+}
+
+const DEFAULT_ADDRESSES: UserAddress[] = [
+  {
+    id: "1",
+    title: "Home",
+    address: "123 Main Street, Apt 4B, New York, NY 10001",
+    isDefault: true,
+  },
+  {
+    id: "2",
+    title: "Office",
+    address: "456 Business Ave, Suite 200, New York, NY 10002",
+    isDefault: false,
+  },
+];
 
 // ─── Ethiopian Phone Formatter ────────────────────────────────────────────────
 function formatEthiopianPhone(input: string): string {
@@ -85,6 +110,121 @@ export default function ProfileScreen() {
   const [editError, setEditError] = useState("");
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
+  // Address State
+  const [addresses, setAddresses] = useState<UserAddress[]>(DEFAULT_ADDRESSES);
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null);
+  const [addressTitle, setAddressTitle] = useState("");
+  const [addressText, setAddressText] = useState("");
+  const [addressIsDefault, setAddressIsDefault] = useState(false);
+  const [addressError, setAddressError] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem("@user_saved_addresses");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAddresses(parsed);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load addresses from storage", e);
+      }
+    })();
+  }, []);
+
+  const saveAddresses = async (updated: UserAddress[]) => {
+    setAddresses(updated);
+    try {
+      await AsyncStorage.setItem("@user_saved_addresses", JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to save addresses to storage", e);
+    }
+  };
+
+  const handleOpenAddAddress = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedAddress(null);
+    setAddressTitle("");
+    setAddressText("");
+    setAddressIsDefault(addresses.length === 0);
+    setAddressError("");
+    setAddressModalVisible(true);
+  };
+
+  const handleOpenEditAddress = (addr: UserAddress) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedAddress(addr);
+    setAddressTitle(addr.title);
+    setAddressText(addr.address);
+    setAddressIsDefault(!!addr.isDefault);
+    setAddressError("");
+    setAddressModalVisible(true);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!addressTitle.trim()) {
+      setAddressError("Please enter an address label.");
+      return;
+    }
+    if (!addressText.trim()) {
+      setAddressError("Please enter the full address.");
+      return;
+    }
+
+    let updated: UserAddress[];
+
+    if (selectedAddress) {
+      updated = addresses.map((item) => {
+        if (item.id === selectedAddress.id) {
+          return {
+            ...item,
+            title: addressTitle.trim(),
+            address: addressText.trim(),
+            isDefault: addressIsDefault,
+          };
+        }
+        if (addressIsDefault) {
+          return { ...item, isDefault: false };
+        }
+        return item;
+      });
+    } else {
+      const newAddr: UserAddress = {
+        id: Date.now().toString(),
+        title: addressTitle.trim(),
+        address: addressText.trim(),
+        isDefault: addressIsDefault,
+      };
+      if (addressIsDefault) {
+        updated = [...addresses.map((a) => ({ ...a, isDefault: false })), newAddr];
+      } else {
+        updated = [...addresses, newAddr];
+      }
+    }
+
+    if (!updated.some((a) => a.isDefault) && updated.length > 0) {
+      updated[0].isDefault = true;
+    }
+
+    await saveAddresses(updated);
+    setAddressModalVisible(false);
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  const handleDeleteAddress = async () => {
+    if (!selectedAddress) return;
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    let updated = addresses.filter((a) => a.id !== selectedAddress.id);
+    if (selectedAddress.isDefault && updated.length > 0) {
+      updated[0].isDefault = true;
+    }
+    await saveAddresses(updated);
+    setAddressModalVisible(false);
+  };
+
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(style).catch(() => {});
@@ -99,10 +239,6 @@ export default function ProfileScreen() {
     }
     if (tab === "saved") {
       router.push("/vehicles");
-      return;
-    }
-    if (tab === "address") {
-      router.push("/building-profiles");
       return;
     }
     setActiveTab(tab);
@@ -245,7 +381,7 @@ export default function ProfileScreen() {
                 {user?.email || "alex.johnson@email.com"}
               </Text>
               <Text style={styles.profileMeta} numberOfLines={1}>
-                {user?.phone || "+1 555-0199"} • Customer, Active
+                {user?.phone || "+1 555-0199"} • Male, 32 yrs
               </Text>
             </View>
           </View>
@@ -309,12 +445,22 @@ export default function ProfileScreen() {
             onPress={() => handleTabPress("address")}
             style={[
               styles.tabPill,
-              styles.tabPillInactive,
-              { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" },
+              activeTab === "address"
+                ? styles.tabPillActive
+                : [styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }],
             ]}
           >
-            <MapPin size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
-            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+            <MapPin
+              size={18}
+              color={activeTab === "address" ? "#ffffff" : isDark ? "#94A3B8" : "#64748B"}
+              strokeWidth={2}
+            />
+            <Text
+              style={[
+                styles.tabPillText,
+                { color: activeTab === "address" ? "#ffffff" : isDark ? "#94A3B8" : "#64748B" },
+              ]}
+            >
               Address
             </Text>
           </Pressable>
@@ -505,6 +651,82 @@ export default function ProfileScreen() {
                 </View>
               </View>
             </View>
+
+            {/* LOG OUT BUTTON (Matches screenshot) */}
+            <Pressable
+              onPress={handleLogout}
+              style={({ pressed }) => [
+                styles.screenshotLogoutBtn,
+                pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+              ]}
+            >
+              <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+              <Text style={styles.screenshotLogoutText}>Log Out</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* ── TAB CONTENT: ADDRESS VIEW (Matches user's screenshot) ── */}
+        {activeTab === "address" && (
+          <View style={styles.bodyContent}>
+            {addresses.map((item) => (
+              <View
+                key={item.id}
+                style={[
+                  styles.addressCard,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                <View style={styles.addressHeaderRow}>
+                  <View style={styles.addressTitleGroup}>
+                    <View style={styles.addressIconWrap}>
+                      <MapPin size={18} color="#EF4444" strokeWidth={2.4} />
+                    </View>
+                    <Text style={[styles.addressTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      {item.title}
+                    </Text>
+                    {item.isDefault && (
+                      <View style={styles.defaultBadge}>
+                        <Text style={styles.defaultBadgeText}>Default</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <Pressable
+                    onPress={() => handleOpenEditAddress(item)}
+                    hitSlop={12}
+                    style={({ pressed }) => pressed && { opacity: 0.6 }}
+                  >
+                    <Text style={styles.addressEditLink}>Edit</Text>
+                  </Pressable>
+                </View>
+
+                <Text style={[styles.addressDetailsText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  {item.address}
+                </Text>
+              </View>
+            ))}
+
+            {/* + Add New Address Card */}
+            <Pressable
+              onPress={handleOpenAddAddress}
+              style={({ pressed }) => [
+                styles.addAddressDashedBtn,
+                {
+                  borderColor: isDark ? "#334155" : "#CBD5E1",
+                  backgroundColor: isDark ? "rgba(30, 41, 59, 0.4)" : "rgba(241, 245, 249, 0.5)",
+                },
+                pressed && { opacity: 0.7, transform: [{ scale: 0.99 }] },
+              ]}
+            >
+              <Plus size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2.2} />
+              <Text style={[styles.addAddressDashedText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                Add New Address
+              </Text>
+            </Pressable>
 
             {/* LOG OUT BUTTON (Matches screenshot) */}
             <Pressable
@@ -753,6 +975,125 @@ export default function ProfileScreen() {
                   ) : (
                     <Text style={styles.modalSaveBtnText}>Save Changes</Text>
                   )}
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Add / Edit Address Modal ── */}
+      <Modal
+        visible={addressModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAddressModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.editModalContainer}>
+            <View
+              style={[
+                styles.editModalContent,
+                {
+                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                  borderColor: isDark ? "#334155" : "#E2E8F0",
+                },
+              ]}
+            >
+              <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                {selectedAddress ? "Edit Address" : "Add New Address"}
+              </Text>
+
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  Address Label
+                </Text>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    {
+                      backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
+                      color: isDark ? "#FFFFFF" : "#0F172A",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                  value={addressTitle}
+                  onChangeText={(t) => {
+                    setAddressTitle(t);
+                    setAddressError("");
+                  }}
+                  placeholder="e.g. Home, Office, Villa"
+                  placeholderTextColor="#64748B"
+                />
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  Street Address
+                </Text>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    {
+                      height: 72,
+                      paddingTop: 10,
+                      backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
+                      color: isDark ? "#FFFFFF" : "#0F172A",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                  value={addressText}
+                  onChangeText={(t) => {
+                    setAddressText(t);
+                    setAddressError("");
+                  }}
+                  placeholder="e.g. 123 Main Street, Apt 4B, New York"
+                  placeholderTextColor="#64748B"
+                  multiline
+                  numberOfLines={2}
+                />
+              </View>
+
+              {/* Set as default switch */}
+              <View style={styles.defaultSwitchRow}>
+                <Text style={[styles.defaultSwitchLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Set as Default Address
+                </Text>
+                <Switch
+                  value={addressIsDefault}
+                  onValueChange={setAddressIsDefault}
+                  trackColor={{ false: "#CBD5E1", true: "#10B981" }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              {addressError ? <Text style={styles.editErrorText}>{addressError}</Text> : null}
+
+              <View style={styles.modalActionsRow}>
+                {selectedAddress && (
+                  <Pressable
+                    style={styles.modalDeleteBtn}
+                    onPress={handleDeleteAddress}
+                  >
+                    <Trash2 size={18} color="#EF4444" strokeWidth={2.2} />
+                  </Pressable>
+                )}
+
+                <Pressable
+                  style={styles.modalCancelBtn}
+                  onPress={() => setAddressModalVisible(false)}
+                >
+                  <Text style={[styles.modalCancelBtnText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.modalSaveBtn}
+                  onPress={handleSaveAddress}
+                >
+                  <Text style={styles.modalSaveBtnText}>Save Address</Text>
                 </Pressable>
               </View>
             </View>
@@ -1125,6 +1466,100 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 14,
     fontWeight: "700",
+  },
+
+  // ── Address Tab Styles ──
+  addressCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  addressHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  addressTitleGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  addressIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addressTitleText: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  defaultBadge: {
+    backgroundColor: "rgba(16, 185, 129, 0.14)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  defaultBadgeText: {
+    color: "#10B981",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  addressEditLink: {
+    color: "#EF4444",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  addressDetailsText: {
+    fontSize: 13,
+    lineHeight: 18,
+    paddingLeft: 4,
+  },
+  addAddressDashedBtn: {
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderRadius: 18,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 20,
+  },
+  addAddressDashedText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  defaultSwitchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  defaultSwitchLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  modalDeleteBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   // ── Toast ──
