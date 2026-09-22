@@ -22,6 +22,7 @@ import axios from "axios";
 import API from "../../src/api/client";
 import { useAuth } from "../../contexts/AuthContext";
 import { useColors } from "../../hooks/useColors";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ─── Role-based route resolver ───────────────────────────────────────────────
 function getHomeRoute(role: string): string {
@@ -107,6 +108,9 @@ export default function LoginScreen() {
       const user = data.user;
 
       await login(token, user);
+      try {
+        await AsyncStorage.setItem("@user_current_password", password);
+      } catch {}
 
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace(getHomeRoute(user.role) as any);

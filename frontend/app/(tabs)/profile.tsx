@@ -54,6 +54,8 @@ import {
   Mail,
   Phone,
   MessageCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react-native";
 
 import { useAuth } from "../../contexts/AuthContext";
@@ -273,20 +275,39 @@ export default function ProfileScreen() {
   };
 
   // Settings Tab State
-  const [settingsSubPage, setSettingsSubPage] = useState<"notifications" | null>(null);
+  const [settingsSubPage, setSettingsSubPage] = useState<"notifications" | "password" | null>(null);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
   const [rtlEnabled, setRtlEnabled] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(4);
   const [langModalVisible, setLangModalVisible] = useState(false);
-  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccessMsg, setPasswordSuccessMsg] = useState("");
   const [termsModalVisible, setTermsModalVisible] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
+
+  // Load saved current password so it appears in the current password field
+  useEffect(() => {
+    (async () => {
+      try {
+        const savedPass = await AsyncStorage.getItem("@user_current_password");
+        if (savedPass) {
+          setCurrentPassword(savedPass);
+        } else {
+          setCurrentPassword("password123");
+        }
+      } catch (e) {
+        console.error("Failed to load stored password", e);
+      }
+    })();
+  }, [settingsSubPage]);
 
   useEffect(() => {
     (async () => {
@@ -378,8 +399,8 @@ export default function ProfileScreen() {
       setPasswordError("All password fields are required.");
       return;
     }
-    if (newPassword.length < 6) {
-      setPasswordError("New password must be at least 6 characters.");
+    if (newPassword.length < 8) {
+      setPasswordError("Password must be at least 8 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -389,23 +410,31 @@ export default function ProfileScreen() {
 
     setPasswordLoading(true);
     setPasswordError("");
+    setPasswordSuccessMsg("");
     try {
       await API.post("/user/change-password", {
         current_password: currentPassword,
         password: newPassword,
         password_confirmation: confirmPassword,
       });
-      setPasswordModalVisible(false);
-      setCurrentPassword("");
+
+      // Update stored password so it remains in the current password field
+      await AsyncStorage.setItem("@user_current_password", newPassword);
+      setCurrentPassword(newPassword);
       setNewPassword("");
       setConfirmPassword("");
+      setPasswordSuccessMsg("Password updated successfully!");
       setShowSuccessToast(true);
+      triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+
       setTimeout(() => setShowSuccessToast(false), 3000);
+      setTimeout(() => setPasswordSuccessMsg(""), 5000);
     } catch (e: any) {
       const msg =
         e?.response?.data?.message ||
         (e instanceof Error ? e.message : "Failed to change password.");
       setPasswordError(msg);
+      triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
     } finally {
       setPasswordLoading(false);
     }
@@ -1126,6 +1155,221 @@ export default function ProfileScreen() {
                 <Text style={styles.screenshotLogoutText}>Log Out</Text>
               </Pressable>
             </View>
+          ) : settingsSubPage === "password" ? (
+            <View style={styles.bodyContent}>
+              {/* Back button & Title (Matches screenshot) */}
+              <View style={styles.subPageHeaderRow}>
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setSettingsSubPage(null);
+                  }}
+                  style={[
+                    styles.subPageBackBtn,
+                    {
+                      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                >
+                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                </Pressable>
+                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Change Password
+                </Text>
+              </View>
+
+              {/* Change Password Card Box (Matches screenshot) */}
+              <View
+                style={[
+                  styles.passwordCardBox,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                {/* 1. Current Password */}
+                <View style={styles.passwordFieldGroup}>
+                  <Text style={[styles.passwordFieldLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Current Password
+                  </Text>
+                  <View
+                    style={[
+                      styles.passwordInputContainer,
+                      {
+                        backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
+                        borderColor: isDark ? "#334155" : "#E2E8F0",
+                      },
+                    ]}
+                  >
+                    <Lock size={18} color="#94A3B8" strokeWidth={2} style={styles.passwordInputLeftIcon} />
+                    <TextInput
+                      value={currentPassword}
+                      onChangeText={setCurrentPassword}
+                      placeholder="Enter current password"
+                      placeholderTextColor="#94A3B8"
+                      secureTextEntry={!showCurrentPassword}
+                      style={[
+                        styles.passwordTextInput,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                      autoCapitalize="none"
+                    />
+                    <Pressable
+                      onPress={() => {
+                        triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                        setShowCurrentPassword((prev) => !prev);
+                      }}
+                      hitSlop={12}
+                      style={styles.passwordEyeBtn}
+                    >
+                      {showCurrentPassword ? (
+                        <EyeOff size={18} color="#94A3B8" strokeWidth={2} />
+                      ) : (
+                        <Eye size={18} color="#94A3B8" strokeWidth={2} />
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+
+                {/* 2. New Password */}
+                <View style={styles.passwordFieldGroup}>
+                  <Text style={[styles.passwordFieldLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    New Password
+                  </Text>
+                  <View
+                    style={[
+                      styles.passwordInputContainer,
+                      {
+                        backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
+                        borderColor: isDark ? "#334155" : "#E2E8F0",
+                      },
+                    ]}
+                  >
+                    <Lock size={18} color="#94A3B8" strokeWidth={2} style={styles.passwordInputLeftIcon} />
+                    <TextInput
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      placeholder="Enter new password"
+                      placeholderTextColor="#94A3B8"
+                      secureTextEntry={!showNewPassword}
+                      style={[
+                        styles.passwordTextInput,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                      autoCapitalize="none"
+                    />
+                    <Pressable
+                      onPress={() => {
+                        triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                        setShowNewPassword((prev) => !prev);
+                      }}
+                      hitSlop={12}
+                      style={styles.passwordEyeBtn}
+                    >
+                      {showNewPassword ? (
+                        <EyeOff size={18} color="#94A3B8" strokeWidth={2} />
+                      ) : (
+                        <Eye size={18} color="#94A3B8" strokeWidth={2} />
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+
+                {/* 3. Confirm New Password */}
+                <View style={styles.passwordFieldGroup}>
+                  <Text style={[styles.passwordFieldLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Confirm New Password
+                  </Text>
+                  <View
+                    style={[
+                      styles.passwordInputContainer,
+                      {
+                        backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
+                        borderColor: isDark ? "#334155" : "#E2E8F0",
+                      },
+                    ]}
+                  >
+                    <Lock size={18} color="#94A3B8" strokeWidth={2} style={styles.passwordInputLeftIcon} />
+                    <TextInput
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      placeholder="Re-enter new password"
+                      placeholderTextColor="#94A3B8"
+                      secureTextEntry={!showConfirmPassword}
+                      style={[
+                        styles.passwordTextInput,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                      autoCapitalize="none"
+                    />
+                    <Pressable
+                      onPress={() => {
+                        triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                        setShowConfirmPassword((prev) => !prev);
+                      }}
+                      hitSlop={12}
+                      style={styles.passwordEyeBtn}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff size={18} color="#94A3B8" strokeWidth={2} />
+                      ) : (
+                        <Eye size={18} color="#94A3B8" strokeWidth={2} />
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+
+                {/* Password rule helper text (Matches screenshot) */}
+                <Text style={[styles.passwordHintText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  Password must be at least 8 characters with a mix of letters and numbers.
+                </Text>
+
+                {/* Error Banner */}
+                {!!passwordError && (
+                  <View style={styles.passwordErrorBox}>
+                    <Text style={styles.passwordErrorText}>{passwordError}</Text>
+                  </View>
+                )}
+
+                {/* Success Banner */}
+                {!!passwordSuccessMsg && (
+                  <View style={styles.passwordSuccessBox}>
+                    <Text style={styles.passwordSuccessText}>{passwordSuccessMsg}</Text>
+                  </View>
+                )}
+
+                {/* Update Password Primary Button (Matches screenshot) */}
+                <Pressable
+                  onPress={handleChangePassword}
+                  disabled={passwordLoading}
+                  style={({ pressed }) => [
+                    styles.updatePasswordBtn,
+                    pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+                    passwordLoading && { opacity: 0.7 },
+                  ]}
+                >
+                  {passwordLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.updatePasswordBtnText}>Update Password</Text>
+                  )}
+                </Pressable>
+              </View>
+
+              {/* LOG OUT BUTTON (Matches screenshot) */}
+              <Pressable
+                onPress={handleLogout}
+                style={({ pressed }) => [
+                  styles.screenshotLogoutBtn,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+                ]}
+              >
+                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+              </Pressable>
+            </View>
           ) : (
             <View style={styles.bodyContent}>
               {/* ── APPEARANCE SECTION ── */}
@@ -1260,13 +1504,21 @@ export default function ProfileScreen() {
 
                 {/* Change Password */}
                 <Pressable
-                  onPress={() => {
+                  onPress={async () => {
                     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
                     setPasswordError("");
-                    setCurrentPassword("");
+                    setPasswordSuccessMsg("");
+                    try {
+                      const savedPass = await AsyncStorage.getItem("@user_current_password");
+                      if (savedPass) {
+                        setCurrentPassword(savedPass);
+                      } else if (!currentPassword) {
+                        setCurrentPassword("password123");
+                      }
+                    } catch {}
                     setNewPassword("");
                     setConfirmPassword("");
-                    setPasswordModalVisible(true);
+                    setSettingsSubPage("password");
                   }}
                   style={({ pressed }) => [
                     styles.settingsRowItem,
@@ -1770,140 +2022,7 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* ── Change Password Modal ── */}
-      <Modal
-        visible={passwordModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => !passwordLoading && setPasswordModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.editModalContainer}>
-            <View
-              style={[
-                styles.editModalContent,
-                {
-                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                  borderColor: isDark ? "#334155" : "#E2E8F0",
-                },
-              ]}
-            >
-              <View style={styles.modalHeaderRow}>
-                <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 0 }]}>
-                  Change Password
-                </Text>
-                <Pressable
-                  onPress={() => !passwordLoading && setPasswordModalVisible(false)}
-                  hitSlop={10}
-                >
-                  <X size={20} color={isDark ? "#94A3B8" : "#64748B"} />
-                </Pressable>
-              </View>
 
-              <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                  Current Password
-                </Text>
-                <TextInput
-                  style={[
-                    styles.textInput,
-                    {
-                      backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
-                      color: isDark ? "#FFFFFF" : "#0F172A",
-                      borderColor: isDark ? "#334155" : "#E2E8F0",
-                    },
-                  ]}
-                  secureTextEntry
-                  value={currentPassword}
-                  onChangeText={(t) => {
-                    setCurrentPassword(t);
-                    setPasswordError("");
-                  }}
-                  placeholder="••••••••"
-                  placeholderTextColor="#64748B"
-                  editable={!passwordLoading}
-                />
-              </View>
-
-              <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                  New Password
-                </Text>
-                <TextInput
-                  style={[
-                    styles.textInput,
-                    {
-                      backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
-                      color: isDark ? "#FFFFFF" : "#0F172A",
-                      borderColor: isDark ? "#334155" : "#E2E8F0",
-                    },
-                  ]}
-                  secureTextEntry
-                  value={newPassword}
-                  onChangeText={(t) => {
-                    setNewPassword(t);
-                    setPasswordError("");
-                  }}
-                  placeholder="••••••••"
-                  placeholderTextColor="#64748B"
-                  editable={!passwordLoading}
-                />
-              </View>
-
-              <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                  Confirm New Password
-                </Text>
-                <TextInput
-                  style={[
-                    styles.textInput,
-                    {
-                      backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
-                      color: isDark ? "#FFFFFF" : "#0F172A",
-                      borderColor: isDark ? "#334155" : "#E2E8F0",
-                    },
-                  ]}
-                  secureTextEntry
-                  value={confirmPassword}
-                  onChangeText={(t) => {
-                    setConfirmPassword(t);
-                    setPasswordError("");
-                  }}
-                  placeholder="••••••••"
-                  placeholderTextColor="#64748B"
-                  editable={!passwordLoading}
-                />
-              </View>
-
-              {passwordError ? <Text style={styles.editErrorText}>{passwordError}</Text> : null}
-
-              <View style={styles.modalActionsRow}>
-                <Pressable
-                  style={[styles.modalCancelBtn, passwordLoading && { opacity: 0.5 }]}
-                  onPress={() => !passwordLoading && setPasswordModalVisible(false)}
-                >
-                  <Text style={[styles.modalCancelBtnText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    Cancel
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={[styles.modalSaveBtn, passwordLoading && { opacity: 0.7 }]}
-                  onPress={handleChangePassword}
-                  disabled={passwordLoading}
-                >
-                  {passwordLoading ? (
-                    <ActivityIndicator color="#ffffff" size="small" />
-                  ) : (
-                    <Text style={styles.modalSaveBtnText}>Update Password</Text>
-                  )}
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* ── Terms of Service Modal ── */}
       <Modal
@@ -2575,6 +2694,99 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(239, 68, 68, 0.08)",
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  // ── Password Subpage Styles (Matches Screenshot) ──
+  passwordCardBox: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  passwordFieldGroup: {
+    marginBottom: 16,
+  },
+  passwordFieldLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 8,
+    letterSpacing: -0.2,
+  },
+  passwordInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+  },
+  passwordInputLeftIcon: {
+    marginRight: 10,
+  },
+  passwordTextInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  passwordEyeBtn: {
+    padding: 6,
+    marginLeft: 6,
+  },
+  passwordHintText: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 18,
+    marginTop: 2,
+  },
+  passwordErrorBox: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  passwordErrorText: {
+    color: "#EF4444",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  passwordSuccessBox: {
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    borderColor: "rgba(16, 185, 129, 0.3)",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  passwordSuccessText: {
+    color: "#10B981",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  updatePasswordBtn: {
+    backgroundColor: "#EF4444",
+    height: 50,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  updatePasswordBtnText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
   },
 
   // ── Toast ──

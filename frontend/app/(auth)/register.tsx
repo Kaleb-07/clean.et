@@ -22,6 +22,7 @@ import axios from "axios";
 import API from "../../src/api/client";
 import { useAuth } from "../../contexts/AuthContext";
 import { useColors } from "../../hooks/useColors";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -116,6 +117,9 @@ export default function RegisterScreen() {
 
       if (token && user) {
         await login(token, user);
+        try {
+          await AsyncStorage.setItem("@user_current_password", password);
+        } catch {}
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace("/(tabs)/home");
       } else {
