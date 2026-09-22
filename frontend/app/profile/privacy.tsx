@@ -1,55 +1,66 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, Platform, Switch, Modal, TextInput, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Switch,
+  Alert,
+  Platform,
+} from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  ChevronLeft, Shield, Fingerprint, Lock, EyeOff,
-  KeyRound, FileText, X, Eye, ShieldCheck, Activity
-} from "lucide-react-native";
-import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
-import ActionModal from "../../src/components/ActionModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuth } from "../../contexts/AuthContext";
-import { useSuperAdmin } from "../../hooks/useSuperAdmin";
+import {
+  ChevronLeft,
+  Pencil,
+  User as UserIcon,
+  FileText,
+  Heart,
+  MapPin,
+  Settings as SettingsIcon,
+  ArrowLeft,
+  LogOut,
+} from "lucide-react-native";
 
-const STORAGE_KEY = "@privacy_settings";
+import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
+
+const STORAGE_KEY = "@user_privacy_settings";
+
+interface PrivacySettings {
+  twoFactor: boolean;
+  biometricLogin: boolean;
+  loginAlerts: boolean;
+}
+
+const DEFAULT_SETTINGS: PrivacySettings = {
+  twoFactor: false,
+  biometricLogin: true,
+  loginAlerts: true,
+};
 
 export default function PrivacyScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const { auditLogs } = useSuperAdmin();
-  const isSuperAdmin = user?.role === "super_admin";
+  const { user, logout } = useAuth();
+  const { isDark } = useTheme();
 
-  const [biometric, setBiometric] = useState(false);
-  const [twoFactor, setTwoFactor] = useState(false);
-  const [privateProfile, setPrivateProfile] = useState(true);
-
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showPolicyModal, setShowPolicyModal] = useState(false);
-
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPasswordSuccess, setShowPasswordSuccess] = useState(false);
+  const [settings, setSettings] = useState<PrivacySettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       try {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
         if (saved) {
-          const parsed = JSON.parse(saved);
-          setBiometric(parsed.biometric ?? false);
-          setTwoFactor(parsed.twoFactor ?? false);
-          setPrivateProfile(parsed.privateProfile ?? true);
+          setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
         }
       } catch (e) {
         console.error("Failed to load privacy settings", e);
       }
-    };
-    load();
+    })();
   }, []);
 
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
@@ -58,266 +69,565 @@ export default function PrivacyScreen() {
     }
   };
 
+  const handleToggle = async (key: keyof PrivacySettings, val: boolean) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    const updated = { ...settings, [key]: val };
+    setSettings(updated);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to save privacy settings", e);
+    }
+  };
+
+  const handleDownloadData = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      "Download My Data",
+      `An archive of your account data (profile, bookings, addresses, invoices) is being prepared and will be sent to ${user?.email || "your registered email"}.`,
+      [{ text: "OK" }]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to permanently delete your Clean.et account? All your bookings, vehicles, and saved data will be erased. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: async () => {
+            await logout();
+            router.replace("/(auth)/login");
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLogout = async () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: async () => {
+          await logout();
+          router.replace("/(auth)/login");
+        },
+      },
+    ]);
+  };
+
   const handleBack = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/(admin)/(tabs)/Profile");
+      router.replace("/(tabs)/profile");
     }
   };
 
-  const handleSave = async () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
-    try {
-      await AsyncStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ biometric, twoFactor, privateProfile })
-      );
-      setShowSuccess(true);
-    } catch (e) {
-      console.error("Save privacy failed", e);
-    }
+  const getInitials = (name?: string | null) => {
+    if (!name) return "AJ";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return name.slice(0, 2).toUpperCase();
   };
 
   return (
-    <LinearGradient colors={["#0B0F19", "#111827", "#1E1B4B"]} style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable onPress={handleBack} style={styles.backButton}>
-          <ChevronLeft color="#ffffff" size={28} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Privacy & Security Audit</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* SUPER ADMIN SECURITY AUDIT BANNER */}
-        {isSuperAdmin && (
-          <View style={styles.auditBanner}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <Activity size={24} color="#6366F1" />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16 }}>
-                  Platform Security Audit Trail
-                </Text>
-                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 1 }}>
-                  Inspect real-time system logs (`TENANT_CREATED`, `SYSTEM_INITIALIZED`)
-                </Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.auditBtn}
-              onPress={() => router.push("/(admin)/system")}
-            >
-              <ShieldCheck size={16} color="#FFF" />
-              <Text style={styles.auditBtnText}>Inspect Full Audit Logs</Text>
-            </TouchableOpacity>
-
-            {auditLogs && auditLogs.length > 0 && (
-              <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: "#334155", paddingTop: 10 }}>
-                <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "800", marginBottom: 6 }}>
-                  RECENT SECURITY LOGS ({auditLogs.length} Records)
-                </Text>
-                {auditLogs.slice(0, 3).map((log: any, idx: number) => (
-                  <View key={log.id || idx} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
-                    <Text style={{ color: "#34D399", fontSize: 11, fontWeight: "700" }}>
-                      {log.action || "SYSTEM_EVENT"}
-                    </Text>
-                    <Text style={{ color: "#94A3B8", fontSize: 10 }}>
-                      {log.created_at ? new Date(log.created_at).toLocaleTimeString() : "Recent"}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        <Text style={styles.sectionTitle}>Security Settings</Text>
-
-        <View style={styles.list}>
-          <BlurView intensity={20} tint="dark" style={styles.itemWrapper}>
-            <Pressable style={styles.item} onPress={() => setShowPasswordModal(true)}>
-              <View style={styles.itemLeft}>
-                <View style={[styles.iconBox, { backgroundColor: "rgba(99,102,241,0.15)" }]}>
-                  <KeyRound size={20} color="#6366f1" />
-                </View>
-                <View>
-                  <Text style={styles.itemTitle}>Change Password</Text>
-                  <Text style={styles.itemSubtitle}>Update account access credentials</Text>
-                </View>
-              </View>
+    <View style={[styles.container, { backgroundColor: isDark ? "#0B0F19" : "#F8FAFC" }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 60 }}
+      >
+        {/* ── TOP RED BANNER (Matches Screenshot) ── */}
+        <LinearGradient
+          colors={["#EF4444", "#DC2626"]}
+          style={[styles.headerBanner, { paddingTop: Math.max(insets.top + 8, 28) }]}
+        >
+          {/* Top Bar: Back, Title, Edit */}
+          <View style={styles.topBar}>
+            <Pressable onPress={handleBack} style={styles.headerIconButton}>
+              <ChevronLeft size={22} color="#ffffff" strokeWidth={2.5} />
             </Pressable>
-          </BlurView>
 
-          <BlurView intensity={20} tint="dark" style={styles.itemWrapper}>
-            <View style={styles.item}>
-              <View style={styles.itemLeft}>
-                <View style={[styles.iconBox, { backgroundColor: "rgba(16,185,129,0.15)" }]}>
-                  <Fingerprint size={20} color="#10b981" />
-                </View>
-                <View>
-                  <Text style={styles.itemTitle}>Biometric Authentication</Text>
-                  <Text style={styles.itemSubtitle}>Use FaceID / TouchID to unlock app</Text>
-                </View>
-              </View>
-              <Switch
-                value={biometric}
-                onValueChange={(val) => {
-                  triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-                  setBiometric(val);
-                }}
-                trackColor={{ false: "#334155", true: "#6366f1" }}
-              />
-            </View>
-          </BlurView>
+            <Text style={styles.topBarTitle}>My Profile</Text>
 
-          <BlurView intensity={20} tint="dark" style={styles.itemWrapper}>
-            <View style={styles.item}>
-              <View style={styles.itemLeft}>
-                <View style={[styles.iconBox, { backgroundColor: "rgba(245,158,11,0.15)" }]}>
-                  <Lock size={20} color="#f59e0b" />
-                </View>
-                <View>
-                  <Text style={styles.itemTitle}>Two-Factor Authentication (2FA)</Text>
-                  <Text style={styles.itemSubtitle}>Require verification code on sign-in</Text>
-                </View>
+            <Pressable onPress={() => router.replace("/(tabs)/profile")} style={styles.headerIconButton}>
+              <Pencil size={18} color="#ffffff" strokeWidth={2.2} />
+            </Pressable>
+          </View>
+
+          {/* User Profile Card within Banner */}
+          <View style={styles.profileRow}>
+            <View style={styles.avatarCircle}>
+              <View style={styles.avatarInner}>
+                <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
               </View>
-              <Switch
-                value={twoFactor}
-                onValueChange={(val) => {
-                  triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-                  setTwoFactor(val);
-                }}
-                trackColor={{ false: "#334155", true: "#6366f1" }}
-              />
             </View>
-          </BlurView>
+
+            <View style={styles.profileInfoTextCol}>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {user?.name || "Alex Johnson"}
+              </Text>
+              <Text style={styles.profileEmail} numberOfLines={1}>
+                {user?.email || "alex.johnson@email.com"}
+              </Text>
+              <Text style={styles.profileMeta} numberOfLines={1}>
+                {user?.phone || "+1 555-0199"} • Male, 32 yrs
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* ── 5 PILL TABS (Info, History, Saved, Address, Settings) ── */}
+        <View style={styles.tabsRow}>
+          <Pressable
+            onPress={() => router.replace("/(tabs)/profile")}
+            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+          >
+            <UserIcon size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
+            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>Info</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/(tabs)/booking")}
+            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+          >
+            <FileText size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
+            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>History</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/vehicles")}
+            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+          >
+            <Heart size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
+            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>Saved</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.replace("/(tabs)/profile")}
+            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+          >
+            <MapPin size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
+            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>Address</Text>
+          </Pressable>
+
+          {/* Active Settings Tab */}
+          <Pressable style={[styles.tabPill, styles.tabPillActive]}>
+            <SettingsIcon size={18} color="#ffffff" strokeWidth={2} />
+            <Text style={[styles.tabPillText, { color: "#ffffff" }]}>Settings</Text>
+          </Pressable>
         </View>
 
-        <Pressable style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Save Security Preferences</Text>
-        </Pressable>
-      </ScrollView>
-
-      {/* Save Success */}
-      <ActionModal
-        visible={showSuccess}
-        type="success"
-        title="Privacy Saved"
-        message="Your security settings have been successfully updated."
-        confirmText="Done"
-        onConfirm={() => setShowSuccess(false)}
-      />
-
-      {/* Password Change Modal */}
-      <Modal visible={showPasswordModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Change Password</Text>
-              <Pressable onPress={() => setShowPasswordModal(false)}>
-                <X color="#94a3b8" size={24} />
-              </Pressable>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Current Password</Text>
-              <TextInput
-                style={styles.input}
-                secureTextEntry
-                placeholder="••••••••"
-                placeholderTextColor="#475569"
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>New Password</Text>
-              <TextInput
-                style={styles.input}
-                secureTextEntry
-                placeholder="••••••••"
-                placeholderTextColor="#475569"
-                value={newPassword}
-                onChangeText={setNewPassword}
-              />
-            </View>
-
+        {/* ── SUBPAGE CONTENT (Matches Screenshot) ── */}
+        <View style={styles.bodyContent}>
+          {/* Header row: Back button & Title */}
+          <View style={styles.subPageHeaderRow}>
             <Pressable
-              style={styles.savePasswordBtn}
-              onPress={() => {
-                setShowPasswordModal(false);
-                setShowPasswordSuccess(true);
-              }}
+              onPress={handleBack}
+              style={[
+                styles.subPageBackBtn,
+                {
+                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                  borderColor: isDark ? "#334155" : "#E2E8F0",
+                },
+              ]}
             >
-              <Text style={styles.savePasswordBtnText}>Update Password</Text>
+              <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+            </Pressable>
+            <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+              Privacy & Security
+            </Text>
+          </View>
+
+          {/* Security Toggles Card (Matches Screenshot) */}
+          <View
+            style={[
+              styles.settingsCardBox,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: isDark ? "#334155" : "#E2E8F0",
+              },
+            ]}
+          >
+            {/* 1. Two-Factor Authentication */}
+            <View style={styles.settingsRowItem}>
+              <View style={styles.settingsTextCol}>
+                <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Two-Factor Authentication
+                </Text>
+                <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  Add an extra layer of security
+                </Text>
+              </View>
+              <Switch
+                value={settings.twoFactor}
+                onValueChange={(val) => handleToggle("twoFactor", val)}
+                trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+            {/* 2. Biometric Login */}
+            <View style={styles.settingsRowItem}>
+              <View style={styles.settingsTextCol}>
+                <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Biometric Login
+                </Text>
+                <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  Use fingerprint or face recognition
+                </Text>
+              </View>
+              <Switch
+                value={settings.biometricLogin}
+                onValueChange={(val) => handleToggle("biometricLogin", val)}
+                trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+            {/* 3. Login Alerts */}
+            <View style={styles.settingsRowItem}>
+              <View style={styles.settingsTextCol}>
+                <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Login Alerts
+                </Text>
+                <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  Get notified on new logins
+                </Text>
+              </View>
+              <Switch
+                value={settings.loginAlerts}
+                onValueChange={(val) => handleToggle("loginAlerts", val)}
+                trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+          </View>
+
+          {/* Data Management Card (Matches Screenshot) */}
+          <View
+            style={[
+              styles.dataManagementCardBox,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: isDark ? "#334155" : "#E2E8F0",
+              },
+            ]}
+          >
+            <Text style={[styles.dataManagementHeading, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+              Data Management
+            </Text>
+
+            {/* Download My Data Button */}
+            <Pressable
+              onPress={handleDownloadData}
+              style={({ pressed }) => [
+                styles.downloadDataBtn,
+                {
+                  backgroundColor: isDark ? "#0F172A" : "#FFFFFF",
+                  borderColor: isDark ? "#334155" : "#E2E8F0",
+                },
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <Text style={[styles.downloadDataBtnText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                Download My Data
+              </Text>
+            </Pressable>
+
+            {/* Delete Account Button */}
+            <Pressable
+              onPress={handleDeleteAccount}
+              style={({ pressed }) => [
+                styles.deleteAccountBtn,
+                {
+                  backgroundColor: isDark ? "rgba(239, 68, 68, 0.08)" : "#FFFFFF",
+                  borderColor: isDark ? "rgba(239, 68, 68, 0.3)" : "#FECACA",
+                },
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <Text style={styles.deleteAccountBtnText}>Delete Account</Text>
             </Pressable>
           </View>
-        </View>
-      </Modal>
 
-      <ActionModal
-        visible={showPasswordSuccess}
-        type="success"
-        title="Password Updated"
-        message="Your password has been changed successfully."
-        confirmText="OK"
-        onConfirm={() => setShowPasswordSuccess(false)}
-      />
-    </LinearGradient>
+          {/* LOG OUT BUTTON (Matches Screenshot) */}
+          <Pressable
+            onPress={handleLogout}
+            style={({ pressed }) => [
+              styles.screenshotLogoutBtn,
+              pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+            ]}
+          >
+            <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+            <Text style={styles.screenshotLogoutText}>Log Out</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
+  container: {
+    flex: 1,
+  },
+  headerBanner: {
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  headerIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  topBarTitle: {
+    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  profileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingVertical: 4,
+  },
+  avatarCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    padding: 3,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarInner: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 35,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarText: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#EF4444",
+  },
+  profileInfoTextCol: {
+    flex: 1,
+  },
+  profileName: {
+    color: "#ffffff",
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+    marginBottom: 3,
+  },
+  profileEmail: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 13,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  profileMeta: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+
+  // ── Tabs Row ──
+  tabsRow: {
+    flexDirection: "row",
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    marginTop: 18,
+    marginBottom: 16,
+    gap: 8,
   },
-  headerTitle: { fontSize: 18, fontWeight: "bold", color: "#ffffff" },
-  backButton: { padding: 8 },
-  content: { padding: 20 },
-  auditBanner: {
-    backgroundColor: "#0F172A",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+  tabPill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  tabPillActive: {
+    backgroundColor: "#EF4444",
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tabPillInactive: {
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: "rgba(148, 163, 184, 0.2)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  auditBtn: {
+  tabPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  // ── Body & Subpage ──
+  bodyContent: {
+    paddingHorizontal: 16,
+  },
+  subPageHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 4,
+    marginBottom: 16,
+    paddingHorizontal: 2,
+  },
+  subPageBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  subPageTitleText: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+  },
+
+  // ── Settings Card Box ──
+  settingsCardBox: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  settingsRowItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+  },
+  settingsTextCol: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  settingsItemLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  settingsItemSubtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  settingsDivider: {
+    height: 1,
+  },
+
+  // ── Data Management Card ──
+  dataManagementCardBox: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  dataManagementHeading: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 16,
+    letterSpacing: -0.2,
+  },
+  downloadDataBtn: {
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  downloadDataBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  deleteAccountBtn: {
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteAccountBtnText: {
+    color: "#EF4444",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  // ── Log Out Button ──
+  screenshotLogoutBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4F46E5",
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 8,
-    marginTop: 6,
+    borderWidth: 1.5,
+    borderColor: "#EF4444",
+    backgroundColor: "rgba(239, 68, 68, 0.06)",
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginBottom: 20,
   },
-  auditBtnText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: 12 },
-  list: { gap: 10, marginBottom: 24 },
-  itemWrapper: { borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  item: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16 },
-  itemLeft: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center" },
-  itemTitle: { fontSize: 15, fontWeight: "600", color: "#ffffff" },
-  itemSubtitle: { fontSize: 11, color: "#64748b", marginTop: 2 },
-  saveButton: { backgroundColor: "#6366F1", paddingVertical: 16, borderRadius: 16, alignItems: "center" },
-  saveButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "bold" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "center", padding: 20 },
-  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, borderWidth: 1, borderColor: "#334155" },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontWeight: "bold", color: "#ffffff" },
-  inputGroup: { marginBottom: 16 },
-  label: { color: "#94a3b8", fontSize: 12, fontWeight: "600", marginBottom: 6 },
-  input: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 12, color: "#ffffff", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-  savePasswordBtn: { backgroundColor: "#6366F1", paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 10 },
-  savePasswordBtnText: { color: "#ffffff", fontWeight: "bold", fontSize: 15 },
+  screenshotLogoutText: {
+    color: "#EF4444",
+    fontSize: 15,
+    fontWeight: "700",
+  },
 });

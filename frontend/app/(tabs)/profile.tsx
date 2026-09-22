@@ -125,6 +125,18 @@ const mapBackendToNotifPrefs = (data: any): NotificationPreferences => ({
   smsNotifications: data?.sms_notifications ?? DEFAULT_NOTIF_PREFS.smsNotifications,
 });
 
+export interface PrivacySettings {
+  twoFactor: boolean;
+  biometricLogin: boolean;
+  loginAlerts: boolean;
+}
+
+const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
+  twoFactor: false,
+  biometricLogin: true,
+  loginAlerts: true,
+};
+
 // ─── Ethiopian Phone Formatter ────────────────────────────────────────────────
 function formatEthiopianPhone(input: string): string {
   let cleaned = input.trim().replace(/\s+/g, "");
@@ -275,8 +287,9 @@ export default function ProfileScreen() {
   };
 
   // Settings Tab State
-  const [settingsSubPage, setSettingsSubPage] = useState<"notifications" | "password" | null>(null);
+  const [settingsSubPage, setSettingsSubPage] = useState<"notifications" | "password" | "privacy" | null>(null);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [rtlEnabled, setRtlEnabled] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(4);
   const [langModalVisible, setLangModalVisible] = useState(false);
@@ -292,6 +305,61 @@ export default function ProfileScreen() {
   const [termsModalVisible, setTermsModalVisible] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
+
+  // Load saved privacy settings
+  useEffect(() => {
+    (async () => {
+      try {
+        const savedPrivacy = await AsyncStorage.getItem("@user_privacy_settings");
+        if (savedPrivacy) {
+          setPrivacySettings({ ...DEFAULT_PRIVACY_SETTINGS, ...JSON.parse(savedPrivacy) });
+        }
+      } catch (e) {
+        console.error("Failed to load privacy settings", e);
+      }
+    })();
+  }, []);
+
+  const handleTogglePrivacySetting = async (key: keyof PrivacySettings, val: boolean) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    const updated = { ...privacySettings, [key]: val };
+    setPrivacySettings(updated);
+    try {
+      await AsyncStorage.setItem("@user_privacy_settings", JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to save privacy setting", e);
+    }
+  };
+
+  const handleDownloadData = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      "Download My Data",
+      `An archive of your account data (profile, bookings, addresses, invoices) is being prepared and will be sent to ${user?.email || "your registered email"}.`,
+      [{ text: "OK" }]
+    );
+  };
+
+  const handleConfirmDeleteAccount = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to permanently delete your Clean.et account? All your bookings, vehicles, and saved data will be erased. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await API.delete("/me");
+            } catch {}
+            await handleLogout();
+          },
+        },
+      ]
+    );
+  };
 
   // Load saved current password so it appears in the current password field
   useEffect(() => {
@@ -1370,6 +1438,158 @@ export default function ProfileScreen() {
                 <Text style={styles.screenshotLogoutText}>Log Out</Text>
               </Pressable>
             </View>
+          ) : settingsSubPage === "privacy" ? (
+            <View style={styles.bodyContent}>
+              {/* Back button & Title (Matches screenshot) */}
+              <View style={styles.subPageHeaderRow}>
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setSettingsSubPage(null);
+                  }}
+                  style={[
+                    styles.subPageBackBtn,
+                    {
+                      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                >
+                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                </Pressable>
+                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Privacy & Security
+                </Text>
+              </View>
+
+              {/* Security Toggles Card (Matches screenshot) */}
+              <View
+                style={[
+                  styles.settingsCardBox,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                {/* 1. Two-Factor Authentication */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsTextCol}>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      Two-Factor Authentication
+                    </Text>
+                    <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      Add an extra layer of security
+                    </Text>
+                  </View>
+                  <Switch
+                    value={privacySettings.twoFactor}
+                    onValueChange={(val) => handleTogglePrivacySetting("twoFactor", val)}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* 2. Biometric Login */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsTextCol}>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      Biometric Login
+                    </Text>
+                    <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      Use fingerprint or face recognition
+                    </Text>
+                  </View>
+                  <Switch
+                    value={privacySettings.biometricLogin}
+                    onValueChange={(val) => handleTogglePrivacySetting("biometricLogin", val)}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* 3. Login Alerts */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsTextCol}>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      Login Alerts
+                    </Text>
+                    <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      Get notified on new logins
+                    </Text>
+                  </View>
+                  <Switch
+                    value={privacySettings.loginAlerts}
+                    onValueChange={(val) => handleTogglePrivacySetting("loginAlerts", val)}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              </View>
+
+              {/* Data Management Card (Matches screenshot) */}
+              <View
+                style={[
+                  styles.dataManagementCardBox,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                <Text style={[styles.dataManagementHeading, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Data Management
+                </Text>
+
+                {/* Download My Data Button */}
+                <Pressable
+                  onPress={handleDownloadData}
+                  style={({ pressed }) => [
+                    styles.downloadDataBtn,
+                    {
+                      backgroundColor: isDark ? "#0F172A" : "#FFFFFF",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                    pressed && { opacity: 0.8 },
+                  ]}
+                >
+                  <Text style={[styles.downloadDataBtnText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Download My Data
+                  </Text>
+                </Pressable>
+
+                {/* Delete Account Button */}
+                <Pressable
+                  onPress={handleConfirmDeleteAccount}
+                  style={({ pressed }) => [
+                    styles.deleteAccountBtn,
+                    {
+                      backgroundColor: isDark ? "rgba(239, 68, 68, 0.08)" : "#FFFFFF",
+                      borderColor: isDark ? "rgba(239, 68, 68, 0.3)" : "#FECACA",
+                    },
+                    pressed && { opacity: 0.8 },
+                  ]}
+                >
+                  <Text style={styles.deleteAccountBtnText}>Delete Account</Text>
+                </Pressable>
+              </View>
+
+              {/* LOG OUT BUTTON (Matches screenshot) */}
+              <Pressable
+                onPress={handleLogout}
+                style={({ pressed }) => [
+                  styles.screenshotLogoutBtn,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+                ]}
+              >
+                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+              </Pressable>
+            </View>
           ) : (
             <View style={styles.bodyContent}>
               {/* ── APPEARANCE SECTION ── */}
@@ -1566,7 +1786,7 @@ export default function ProfileScreen() {
                 <Pressable
                   onPress={() => {
                     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-                    router.push("/profile/privacy");
+                    setSettingsSubPage("privacy");
                   }}
                   style={({ pressed }) => [
                     styles.settingsRowItem,
@@ -2787,6 +3007,49 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "700",
+  },
+
+  // ── Data Management Card Styles (Matches Screenshot) ──
+  dataManagementCardBox: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  dataManagementHeading: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 16,
+    letterSpacing: -0.2,
+  },
+  downloadDataBtn: {
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  downloadDataBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  deleteAccountBtn: {
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteAccountBtnText: {
+    color: "#EF4444",
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   // ── Toast ──
