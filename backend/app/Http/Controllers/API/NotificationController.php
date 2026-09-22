@@ -72,6 +72,43 @@ class NotificationController extends Controller
         return response()->json(['unread_count' => $count]);
     }
 
+    // ── GET /notifications/preferences ─────────────────────────────────
+    public function getPreferences(Request $request): JsonResponse
+    {
+        $prefs = $request->user()->getNotificationPreferences();
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $prefs,
+        ]);
+    }
+
+    // ── POST /notifications/preferences ────────────────────────────────
+    public function updatePreferences(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'appointment_updates' => 'sometimes|boolean',
+            'reminders'           => 'sometimes|boolean',
+            'chat_messages'       => 'sometimes|boolean',
+            'promotions'          => 'sometimes|boolean',
+            'email_notifications' => 'sometimes|boolean',
+            'sms_notifications'   => 'sometimes|boolean',
+        ]);
+
+        $user = $request->user();
+        $current = $user->getNotificationPreferences();
+        $updated = array_merge($current, $validated);
+
+        $user->notification_preferences = $updated;
+        $user->save();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Notification preferences updated successfully.',
+            'data'    => $updated,
+        ]);
+    }
+
     // ── Format helper ──────────────────────────────────────────────────
     private function format(Notification $n): array
     {

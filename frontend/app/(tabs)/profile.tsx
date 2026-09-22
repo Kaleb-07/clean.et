@@ -44,6 +44,16 @@ import {
   CheckCircle2,
   Plus,
   Trash2,
+  Lock,
+  Languages,
+  Info,
+  ShieldCheck,
+  X,
+  Check,
+  ArrowLeft,
+  Mail,
+  Phone,
+  MessageCircle,
 } from "lucide-react-native";
 
 import { useAuth } from "../../contexts/AuthContext";
@@ -51,6 +61,7 @@ import { useColors } from "../../hooks/useColors";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import ActionModal from "../../src/components/ActionModal";
+import API from "../../src/api/client";
 
 type ProfileTab = "info" | "history" | "saved" | "address" | "settings";
 
@@ -75,6 +86,42 @@ const DEFAULT_ADDRESSES: UserAddress[] = [
     isDefault: false,
   },
 ];
+
+export interface NotificationPreferences {
+  appointmentUpdates: boolean;
+  reminders: boolean;
+  chatMessages: boolean;
+  promotions: boolean;
+  emailNotifications: boolean;
+  smsNotifications: boolean;
+}
+
+const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
+  appointmentUpdates: true,
+  reminders: true,
+  chatMessages: true,
+  promotions: false,
+  emailNotifications: true,
+  smsNotifications: false,
+};
+
+const CAMEL_TO_SNAKE_NOTIF_KEY: Record<keyof NotificationPreferences, string> = {
+  appointmentUpdates: "appointment_updates",
+  reminders: "reminders",
+  chatMessages: "chat_messages",
+  promotions: "promotions",
+  emailNotifications: "email_notifications",
+  smsNotifications: "sms_notifications",
+};
+
+const mapBackendToNotifPrefs = (data: any): NotificationPreferences => ({
+  appointmentUpdates: data?.appointment_updates ?? DEFAULT_NOTIF_PREFS.appointmentUpdates,
+  reminders: data?.reminders ?? DEFAULT_NOTIF_PREFS.reminders,
+  chatMessages: data?.chat_messages ?? DEFAULT_NOTIF_PREFS.chatMessages,
+  promotions: data?.promotions ?? DEFAULT_NOTIF_PREFS.promotions,
+  emailNotifications: data?.email_notifications ?? DEFAULT_NOTIF_PREFS.emailNotifications,
+  smsNotifications: data?.sms_notifications ?? DEFAULT_NOTIF_PREFS.smsNotifications,
+});
 
 // ─── Ethiopian Phone Formatter ────────────────────────────────────────────────
 function formatEthiopianPhone(input: string): string {
@@ -225,6 +272,145 @@ export default function ProfileScreen() {
     setAddressModalVisible(false);
   };
 
+  // Settings Tab State
+  const [settingsSubPage, setSettingsSubPage] = useState<"notifications" | null>(null);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
+  const [rtlEnabled, setRtlEnabled] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(4);
+  const [langModalVisible, setLangModalVisible] = useState(false);
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [termsModalVisible, setTermsModalVisible] = useState(false);
+  const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
+  const [aboutModalVisible, setAboutModalVisible] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      // 1. Instant load from local storage
+      try {
+        const savedNotif = await AsyncStorage.getItem("@user_notification_preferences");
+        if (savedNotif) {
+          setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...JSON.parse(savedNotif) });
+        }
+      } catch (e) {
+        console.error("Failed to load local notif prefs", e);
+      }
+
+      // 2. Sync from backend API
+      try {
+        const res = await API.get("/notifications/preferences");
+        if (res.data?.data) {
+          const remotePrefs = mapBackendToNotifPrefs(res.data.data);
+          setNotifPrefs(remotePrefs);
+          await AsyncStorage.setItem("@user_notification_preferences", JSON.stringify(remotePrefs));
+        }
+      } catch (e) {
+        // Silent fallback to local prefs if offline
+      }
+    })();
+  }, []);
+
+  const handleToggleNotifPref = async (key: keyof NotificationPreferences, val: boolean) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    const updated = { ...notifPrefs, [key]: val };
+    setNotifPrefs(updated);
+
+    // Save locally
+    try {
+      await AsyncStorage.setItem("@user_notification_preferences", JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to save notif prefs locally", e);
+    }
+
+    // Persist to backend database
+    try {
+      const snakeKey = CAMEL_TO_SNAKE_NOTIF_KEY[key];
+      await API.post("/notifications/preferences", {
+        [snakeKey]: val,
+      });
+    } catch (e) {
+      console.error("Failed to persist notification preference to backend", e);
+    }
+  };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const savedRtl = await AsyncStorage.getItem("@user_rtl_layout");
+        if (savedRtl !== null) {
+          setRtlEnabled(savedRtl === "true");
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await API.get("/notifications");
+        if (typeof res.data?.unread_count === "number") {
+          setUnreadNotificationsCount(res.data.unread_count);
+        }
+      } catch {
+        // Fallback default
+      }
+    })();
+  }, []);
+
+  const handleToggleRtl = async (val: boolean) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    setRtlEnabled(val);
+    try {
+      await AsyncStorage.setItem("@user_rtl_layout", String(val));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("All password fields are required.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordError("");
+    try {
+      await API.post("/user/change-password", {
+        current_password: currentPassword,
+        password: newPassword,
+        password_confirmation: confirmPassword,
+      });
+      setPasswordModalVisible(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
+    } catch (e: any) {
+      const msg =
+        e?.response?.data?.message ||
+        (e instanceof Error ? e.message : "Failed to change password.");
+      setPasswordError(msg);
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(style).catch(() => {});
@@ -233,6 +419,7 @@ export default function ProfileScreen() {
 
   const handleTabPress = (tab: ProfileTab) => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    setSettingsSubPage(null);
     if (tab === "history") {
       router.push("/(tabs)/booking");
       return;
@@ -742,116 +929,536 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* ── TAB CONTENT: SETTINGS VIEW (Current Profile page set here) ── */}
+        {/* ── TAB CONTENT: SETTINGS VIEW (Matches user's screenshot) ── */}
         {activeTab === "settings" && (
-          <View style={styles.bodyContent}>
-            {/* Quick Preferences: Dark Mode & Language */}
-            <View
-              style={[
-                styles.settingsCardBox,
-                {
-                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                  borderColor: isDark ? "#334155" : "#E2E8F0",
-                },
-              ]}
-            >
-              <View style={styles.settingsRowItem}>
-                <View style={styles.settingsRowLeft}>
-                  <View style={[styles.settingsIconPill, { backgroundColor: "rgba(139,92,246,0.15)" }]}>
-                    {isDark ? <Moon size={18} color="#8B5CF6" /> : <Sun size={18} color="#F59E0B" />}
-                  </View>
-                  <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
-                    Dark Mode Theme
-                  </Text>
-                </View>
-                <Switch
-                  value={isDark}
-                  onValueChange={(val) => toggleDark(val)}
-                  trackColor={{ false: "#CBD5E1", true: "#8B5CF6" }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-
-              <View style={[styles.detailTableDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
-
-              <Pressable
-                onPress={() => router.push("/profile/settings")}
-                style={styles.settingsRowItem}
-              >
-                <View style={styles.settingsRowLeft}>
-                  <View style={[styles.settingsIconPill, { backgroundColor: "rgba(16,185,129,0.15)" }]}>
-                    <Globe size={18} color="#10B981" />
-                  </View>
-                  <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
-                    App Language & Preferences
-                  </Text>
-                </View>
-                <ChevronRight size={18} color="#94A3B8" />
-              </Pressable>
-            </View>
-
-            {/* Menu Groups from Current Profile Page */}
-            {menuGroups.map((group, gIndex) => (
-              <View key={gIndex} style={styles.settingsGroupBlock}>
-                <Text style={[styles.groupTitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                  {group.title}
-                </Text>
-                <View
+          settingsSubPage === "notifications" ? (
+            <View style={styles.bodyContent}>
+              {/* Back button & Title */}
+              <View style={styles.subPageHeaderRow}>
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setSettingsSubPage(null);
+                  }}
                   style={[
-                    styles.settingsCardBox,
+                    styles.subPageBackBtn,
                     {
                       backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
                       borderColor: isDark ? "#334155" : "#E2E8F0",
                     },
                   ]}
                 >
-                  {group.items.map((item, index) => (
-                    <React.Fragment key={index}>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.settingsRowItem,
-                          pressed && { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" },
-                        ]}
-                        onPress={() => {
-                          triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-                          router.push(item.route as any);
-                        }}
-                      >
-                        <View style={styles.settingsRowLeft}>
-                          <View style={[styles.settingsIconPill, { backgroundColor: `${item.color}15` }]}>
-                            <item.icon size={18} color={item.color} />
-                          </View>
-                          <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
-                            {item.label}
-                          </Text>
-                        </View>
-                        <ChevronRight size={18} color="#94A3B8" />
-                      </Pressable>
-                      {index < group.items.length - 1 && (
-                        <View style={[styles.detailTableDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
-                      )}
-                    </React.Fragment>
-                  ))}
+                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                </Pressable>
+                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Notifications
+                </Text>
+              </View>
+
+              {/* Notification Settings Card (Matches Screenshot) */}
+              <View
+                style={[
+                  styles.settingsCardBox,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                {/* 1. Appointment Updates */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Bell size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.settingsTextCol}>
+                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                        Appointment Updates
+                      </Text>
+                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                        Get notified about appointment changes
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={notifPrefs.appointmentUpdates}
+                    onValueChange={(val) => handleToggleNotifPref("appointmentUpdates", val)}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* 2. Reminders */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Bell size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.settingsTextCol}>
+                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                        Reminders
+                      </Text>
+                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                        Reminders before upcoming appointments
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={notifPrefs.reminders}
+                    onValueChange={(val) => handleToggleNotifPref("reminders", val)}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* 3. Chat Messages */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <MessageCircle size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.settingsTextCol}>
+                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                        Chat Messages
+                      </Text>
+                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                        New messages from doctors
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={notifPrefs.chatMessages}
+                    onValueChange={(val) => handleToggleNotifPref("chatMessages", val)}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* 4. Promotions & Offers */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Info size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.settingsTextCol}>
+                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                        Promotions & Offers
+                      </Text>
+                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                        Promotional offers and discounts
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={notifPrefs.promotions}
+                    onValueChange={(val) => handleToggleNotifPref("promotions", val)}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* 5. Email Notifications */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Mail size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.settingsTextCol}>
+                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                        Email Notifications
+                      </Text>
+                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                        Receive updates via email
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={notifPrefs.emailNotifications}
+                    onValueChange={(val) => handleToggleNotifPref("emailNotifications", val)}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* 6. SMS Notifications */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Phone size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.settingsTextCol}>
+                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                        SMS Notifications
+                      </Text>
+                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                        Receive updates via text message
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={notifPrefs.smsNotifications}
+                    onValueChange={(val) => handleToggleNotifPref("smsNotifications", val)}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
                 </View>
               </View>
-            ))}
 
-            {/* LOG OUT BUTTON */}
-            <Pressable
-              onPress={handleLogout}
-              style={({ pressed }) => [
-                styles.screenshotLogoutBtn,
-                pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
-              ]}
-            >
-              <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-              <Text style={styles.screenshotLogoutText}>Log Out</Text>
-            </Pressable>
+              {/* LOG OUT BUTTON (Matches screenshot) */}
+              <Pressable
+                onPress={handleLogout}
+                style={({ pressed }) => [
+                  styles.screenshotLogoutBtn,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+                ]}
+              >
+                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.bodyContent}>
+              {/* ── APPEARANCE SECTION ── */}
+              <Text style={[styles.sectionHeading, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                APPEARANCE
+              </Text>
+              <View
+                style={[
+                  styles.settingsCardBox,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                {/* Dark Mode */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      {isDark ? (
+                        <Moon size={18} color="#EF4444" strokeWidth={2.2} />
+                      ) : (
+                        <Sun size={18} color="#EF4444" strokeWidth={2.2} />
+                      )}
+                    </View>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      Dark Mode
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isDark}
+                    onValueChange={(val) => {
+                      triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                      toggleDark(val);
+                    }}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
 
-            <Text style={[styles.versionText, { color: isDark ? "#64748B" : "#94A3B8" }]}>
-              Clean.et App Version 1.0.4 (Build 48)
-            </Text>
-          </View>
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* RTL Layout (Arabic) */}
+                <View style={styles.settingsRowItem}>
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Languages size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      RTL Layout (Arabic)
+                    </Text>
+                  </View>
+                  <Switch
+                    value={rtlEnabled}
+                    onValueChange={handleToggleRtl}
+                    trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* Language */}
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setLangModalVisible(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingsRowItem,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Globe size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.settingsTextCol}>
+                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                        Language
+                      </Text>
+                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                        {language || "English"}
+                      </Text>
+                    </View>
+                  </View>
+                  <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
+                </Pressable>
+              </View>
+
+              {/* ── ACCOUNT SECTION ── */}
+              <Text style={[styles.sectionHeading, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                ACCOUNT
+              </Text>
+              <View
+                style={[
+                  styles.settingsCardBox,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                {/* Notifications */}
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setSettingsSubPage("notifications");
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingsRowItem,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Bell size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.settingsTextCol}>
+                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                        Notifications
+                      </Text>
+                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                        {unreadNotificationsCount > 0 ? `${unreadNotificationsCount} active` : "4 active"}
+                      </Text>
+                    </View>
+                  </View>
+                  <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
+                </Pressable>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* Change Password */}
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setPasswordError("");
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                    setPasswordModalVisible(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingsRowItem,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Lock size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      Change Password
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
+                </Pressable>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* Payment Methods */}
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    router.push("/profile/payments");
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingsRowItem,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <CreditCard size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      Payment Methods
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
+                </Pressable>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* Privacy & Security */}
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    router.push("/profile/privacy");
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingsRowItem,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Shield size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      Privacy & Security
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
+                </Pressable>
+              </View>
+
+              {/* ── SUPPORT SECTION ── */}
+              <Text style={[styles.sectionHeading, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                SUPPORT
+              </Text>
+              <View
+                style={[
+                  styles.settingsCardBox,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                {/* Help Center */}
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    router.push("/profile/help");
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingsRowItem,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <HelpCircle size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      Help Center
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
+                </Pressable>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* Terms of Service */}
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setTermsModalVisible(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingsRowItem,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <FileText size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      Terms of Service
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
+                </Pressable>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* Privacy Policy */}
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setPrivacyModalVisible(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingsRowItem,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <ShieldCheck size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      Privacy Policy
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
+                </Pressable>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* About Docly Pro */}
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setAboutModalVisible(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingsRowItem,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={styles.settingsRowLeft}>
+                    <View style={styles.settingsIconCircle}>
+                      <Info size={18} color="#EF4444" strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.settingsTextCol}>
+                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                        About Docly Pro
+                      </Text>
+                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                        Version 2.5.0
+                      </Text>
+                    </View>
+                  </View>
+                  <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
+                </Pressable>
+              </View>
+
+              {/* LOG OUT BUTTON (Matches screenshot) */}
+              <Pressable
+                onPress={handleLogout}
+                style={({ pressed }) => [
+                  styles.screenshotLogoutBtn,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+                ]}
+              >
+                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+              </Pressable>
+            </View>
+          )
         )}
       </ScrollView>
 
@@ -1101,6 +1708,351 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* ── Language Selection Modal ── */}
+      <Modal
+        visible={langModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLangModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.editModalContainer}>
+            <View
+              style={[
+                styles.editModalContent,
+                {
+                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                  borderColor: isDark ? "#334155" : "#E2E8F0",
+                },
+              ]}
+            >
+              <View style={styles.modalHeaderRow}>
+                <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 0 }]}>
+                  Select Language
+                </Text>
+                <Pressable onPress={() => setLangModalVisible(false)} hitSlop={10}>
+                  <X size={20} color={isDark ? "#94A3B8" : "#64748B"} />
+                </Pressable>
+              </View>
+
+              {["English", "Amharic", "Oromo", "French", "Spanish"].map((lang) => {
+                const isSelected = (language || "English") === lang;
+                return (
+                  <Pressable
+                    key={lang}
+                    style={[
+                      styles.langOptionRow,
+                      isSelected && {
+                        backgroundColor: isDark ? "rgba(239, 68, 68, 0.15)" : "rgba(239, 68, 68, 0.08)",
+                      },
+                    ]}
+                    onPress={async () => {
+                      triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+                      await setLanguage(lang as any);
+                      setLangModalVisible(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.langOptionText,
+                        { color: isSelected ? "#EF4444" : isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
+                      {lang}
+                    </Text>
+                    {isSelected && <Check size={18} color="#EF4444" strokeWidth={2.4} />}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Change Password Modal ── */}
+      <Modal
+        visible={passwordModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !passwordLoading && setPasswordModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.editModalContainer}>
+            <View
+              style={[
+                styles.editModalContent,
+                {
+                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                  borderColor: isDark ? "#334155" : "#E2E8F0",
+                },
+              ]}
+            >
+              <View style={styles.modalHeaderRow}>
+                <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 0 }]}>
+                  Change Password
+                </Text>
+                <Pressable
+                  onPress={() => !passwordLoading && setPasswordModalVisible(false)}
+                  hitSlop={10}
+                >
+                  <X size={20} color={isDark ? "#94A3B8" : "#64748B"} />
+                </Pressable>
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  Current Password
+                </Text>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    {
+                      backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
+                      color: isDark ? "#FFFFFF" : "#0F172A",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                  secureTextEntry
+                  value={currentPassword}
+                  onChangeText={(t) => {
+                    setCurrentPassword(t);
+                    setPasswordError("");
+                  }}
+                  placeholder="••••••••"
+                  placeholderTextColor="#64748B"
+                  editable={!passwordLoading}
+                />
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  New Password
+                </Text>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    {
+                      backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
+                      color: isDark ? "#FFFFFF" : "#0F172A",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                  secureTextEntry
+                  value={newPassword}
+                  onChangeText={(t) => {
+                    setNewPassword(t);
+                    setPasswordError("");
+                  }}
+                  placeholder="••••••••"
+                  placeholderTextColor="#64748B"
+                  editable={!passwordLoading}
+                />
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  Confirm New Password
+                </Text>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    {
+                      backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
+                      color: isDark ? "#FFFFFF" : "#0F172A",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                  secureTextEntry
+                  value={confirmPassword}
+                  onChangeText={(t) => {
+                    setConfirmPassword(t);
+                    setPasswordError("");
+                  }}
+                  placeholder="••••••••"
+                  placeholderTextColor="#64748B"
+                  editable={!passwordLoading}
+                />
+              </View>
+
+              {passwordError ? <Text style={styles.editErrorText}>{passwordError}</Text> : null}
+
+              <View style={styles.modalActionsRow}>
+                <Pressable
+                  style={[styles.modalCancelBtn, passwordLoading && { opacity: 0.5 }]}
+                  onPress={() => !passwordLoading && setPasswordModalVisible(false)}
+                >
+                  <Text style={[styles.modalCancelBtnText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    Cancel
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.modalSaveBtn, passwordLoading && { opacity: 0.7 }]}
+                  onPress={handleChangePassword}
+                  disabled={passwordLoading}
+                >
+                  {passwordLoading ? (
+                    <ActivityIndicator color="#ffffff" size="small" />
+                  ) : (
+                    <Text style={styles.modalSaveBtnText}>Update Password</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Terms of Service Modal ── */}
+      <Modal
+        visible={termsModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTermsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.editModalContainer}>
+            <View
+              style={[
+                styles.editModalContent,
+                {
+                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                  borderColor: isDark ? "#334155" : "#E2E8F0",
+                },
+              ]}
+            >
+              <View style={styles.modalHeaderRow}>
+                <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 0 }]}>
+                  Terms of Service
+                </Text>
+                <Pressable onPress={() => setTermsModalVisible(false)} hitSlop={10}>
+                  <X size={20} color={isDark ? "#94A3B8" : "#64748B"} />
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 260, marginVertical: 8 }}>
+                <Text style={[styles.modalBodyText, { color: isDark ? "#CBD5E1" : "#475569" }]}>
+                  Welcome to Clean.et (Docly Pro). By accessing or using our on-demand cleaning, vehicle detailing, and property hygiene management platform, you agree to comply with our terms and standards.
+                  {"\n\n"}
+                  1. All booked cleaning services are scheduled based on verified partner technician availability.
+                  {"\n\n"}
+                  2. Cancellations and rescheduling must be performed at least 2 hours prior to scheduled service time to avoid cancellation fees.
+                  {"\n\n"}
+                  3. Service guarantees ensure customer satisfaction with comprehensive quality inspections.
+                </Text>
+              </ScrollView>
+
+              <Pressable
+                style={styles.modalSaveBtn}
+                onPress={() => setTermsModalVisible(false)}
+              >
+                <Text style={styles.modalSaveBtnText}>I Understand</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Privacy Policy Modal ── */}
+      <Modal
+        visible={privacyModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPrivacyModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.editModalContainer}>
+            <View
+              style={[
+                styles.editModalContent,
+                {
+                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                  borderColor: isDark ? "#334155" : "#E2E8F0",
+                },
+              ]}
+            >
+              <View style={styles.modalHeaderRow}>
+                <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 0 }]}>
+                  Privacy Policy
+                </Text>
+                <Pressable onPress={() => setPrivacyModalVisible(false)} hitSlop={10}>
+                  <X size={20} color={isDark ? "#94A3B8" : "#64748B"} />
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ maxHeight: 260, marginVertical: 8 }}>
+                <Text style={[styles.modalBodyText, { color: isDark ? "#CBD5E1" : "#475569" }]}>
+                  Your privacy and data security are our highest priority.
+                  {"\n\n"}
+                  1. Information We Collect: We collect your name, email, phone number, saved addresses, and vehicle/property details necessary to fulfill your cleaning requests.
+                  {"\n\n"}
+                  2. Secure Storage: All location, payment, and account information is encrypted in transit and at rest using modern encryption standards.
+                  {"\n\n"}
+                  3. Control: You can review, update, or remove your saved addresses, payment methods, and profile at any time.
+                </Text>
+              </ScrollView>
+
+              <Pressable
+                style={styles.modalSaveBtn}
+                onPress={() => setPrivacyModalVisible(false)}
+              >
+                <Text style={styles.modalSaveBtnText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── About Docly Pro Modal ── */}
+      <Modal
+        visible={aboutModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAboutModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.editModalContainer}>
+            <View
+              style={[
+                styles.editModalContent,
+                {
+                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                  borderColor: isDark ? "#334155" : "#E2E8F0",
+                  alignItems: "center",
+                },
+              ]}
+            >
+              <View style={styles.aboutBadge}>
+                <Text style={styles.aboutBadgeText}>Docly Pro Platform</Text>
+              </View>
+
+              <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 6 }]}>
+                Clean.et Mobile App
+              </Text>
+              <Text style={{ fontSize: 13, color: isDark ? "#94A3B8" : "#64748B", marginBottom: 16 }}>
+                Version 2.5.0 (Build 48)
+              </Text>
+
+              <Text style={[styles.modalBodyText, { color: isDark ? "#CBD5E1" : "#475569", textAlign: "center" }]}>
+                Next-generation automated hygiene management, residential and commercial cleaning services, vehicle detailing, and scheduled sanitation.
+              </Text>
+
+              <Pressable
+                style={[styles.modalSaveBtn, { width: "100%", marginTop: 10 }]}
+                onPress={() => setAboutModalVisible(false)}
+              >
+                <Text style={styles.modalSaveBtnText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── Toast Feedback ── */}
       {showSuccessToast && (
         <View style={styles.successToast}>
@@ -1345,18 +2297,49 @@ const styles = StyleSheet.create({
   },
 
   // ── Settings View Styles ──
+  subPageHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 4,
+    marginBottom: 16,
+    paddingHorizontal: 2,
+  },
+  subPageBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  subPageTitleText: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+  },
   settingsCardBox: {
     borderRadius: 20,
     borderWidth: 1,
     paddingHorizontal: 16,
-    marginBottom: 18,
+    marginBottom: 20,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   settingsRowItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 14,
+    paddingVertical: 13,
   },
   settingsRowLeft: {
     flexDirection: "row",
@@ -1364,33 +2347,65 @@ const styles = StyleSheet.create({
     gap: 12,
     flex: 1,
   },
-  settingsIconPill: {
+  settingsIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
     justifyContent: "center",
     alignItems: "center",
   },
+  settingsTextCol: {
+    flex: 1,
+  },
   settingsItemLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
   },
-  settingsGroupBlock: {
-    marginBottom: 8,
+  settingsItemSubtitle: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 2,
   },
-  groupTitle: {
+  settingsDivider: {
+    height: 1,
+  },
+  modalHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 18,
+  },
+  langOptionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 6,
+  },
+  langOptionText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  modalBodyText: {
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  aboutBadge: {
+    alignSelf: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    marginBottom: 12,
+  },
+  aboutBadgeText: {
+    color: "#EF4444",
     fontSize: 13,
     fontWeight: "700",
-    marginBottom: 10,
-    marginLeft: 4,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  versionText: {
-    textAlign: "center",
-    fontSize: 12,
-    marginTop: 8,
-    marginBottom: 16,
   },
 
   // ── Modal Styles ──

@@ -63,6 +63,36 @@ class NotificationService
     // ── Core: persist + push ───────────────────────────────────────────────────
 
     /**
+     * Check if user preferences allow receiving this notification type.
+     */
+    public function isAllowedByUser(User $user, string $type): bool
+    {
+        $prefs = $user->getNotificationPreferences();
+
+        // 1. Appointment updates
+        if (in_array($type, ['booking_update', 'booking_confirmed', 'driver_assigned', 'picked_up', 'in_progress', 'completed', 'cancelled'])) {
+            return !empty($prefs['appointment_updates']);
+        }
+
+        // 2. Reminders
+        if (in_array($type, ['reminder', 'appointment_reminder', 'schedule_reminder'])) {
+            return !empty($prefs['reminders']);
+        }
+
+        // 3. Chat messages
+        if (in_array($type, ['chat', 'message', 'chat_message', 'doctor_message', 'staff_message'])) {
+            return !empty($prefs['chat_messages']);
+        }
+
+        // 4. Promotions & Offers
+        if (in_array($type, ['promo', 'promotion', 'discount', 'offer'])) {
+            return !empty($prefs['promotions']);
+        }
+
+        return true;
+    }
+
+    /**
      * Save a notification to the database AND optionally send an Expo push.
      */
     public function notify(
@@ -72,6 +102,12 @@ class NotificationService
         array  $data = [],
         string $type = 'system'
     ): void {
+        // Enforce user notification preferences
+        if (!$this->isAllowedByUser($user, $type)) {
+            Log::info("Notification skipped due to user preference: user #{$user->id}, type: {$type}");
+            return;
+        }
+
         // 1. Always persist to DB
         try {
             Notification::create([

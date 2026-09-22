@@ -20,6 +20,7 @@ class User extends Authenticatable
         'role',
         'language',
         'push_token',
+        'notification_preferences',
     ];
 
     protected $hidden = [
@@ -29,7 +30,22 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'notification_preferences' => 'array',
     ];
+
+    public function getNotificationPreferences(): array
+    {
+        $defaults = [
+            'appointment_updates' => true,
+            'reminders'           => true,
+            'chat_messages'       => true,
+            'promotions'          => false,
+            'email_notifications' => true,
+            'sms_notifications'   => false,
+        ];
+
+        return array_merge($defaults, $this->notification_preferences ?? []);
+    }
 
     // ================= RELATIONSHIPS =================
 
