@@ -12,6 +12,8 @@ export interface User {
   role: "super_admin" | "tenant_admin" | "staff" | "customer";
   language: string;
   push_token?: string | null;
+  address?: string | null;
+  created_at?: string | null;
   tenant?: {
     id: number | string;
     business_name?: string;
