@@ -59,11 +59,30 @@ export default function BookingStatusScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { getBooking, isLoading, refreshBookings } = useBookings();
+  const { getBooking, isLoading, refreshBookings, cancelBooking } = useBookings();
   const { t } = useLanguage();
   const { user } = useAuth();
 
   const booking = useMemo(() => getBooking(bookingId!), [bookingId, getBooking]);
+
+  const [cancelConfirmModal, setCancelConfirmModal] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const canCancel = booking && ["pending", "confirmed"].includes(booking.status);
+
+  const handleCancelBooking = async () => {
+    if (!bookingId) return;
+    setCancelling(true);
+    try {
+      await cancelBooking(bookingId);
+      setCancelConfirmModal(false);
+      Alert.alert("Booking Cancelled", "Your booking has been cancelled successfully.");
+    } catch (e: any) {
+      Alert.alert("Cancellation Failed", e?.response?.data?.message || e.message || "Failed to cancel booking.");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   // ── Proof upload state & Refresh state ──────────────────────────────────────
   const [proofModal, setProofModal] = useState(false);
@@ -379,6 +398,26 @@ export default function BookingStatusScreen() {
           </BlurView>
         </Animated.View>
 
+        {/* ── CUSTOMER ACTION BUTTONS: CANCEL & RESCHEDULE ── */}
+        {canCancel && (
+          <Animated.View entering={FadeInUp.delay(250)} style={styles.actionsSection}>
+            <Pressable
+              onPress={() => setCancelConfirmModal(true)}
+              style={styles.cancelBookingBtn}
+            >
+              <Text style={styles.cancelBookingBtnText}>Cancel Booking</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push(`/booking/edit/${booking.id}` as any)}
+              style={styles.rescheduleBookingBtn}
+            >
+              <Clock size={16} color="#ffffff" style={{ marginRight: 6 }} />
+              <Text style={styles.rescheduleBookingBtnText}>Reschedule</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+
         {/* ── COMPLETION PROOFS ─────────────────────────────────────── */}
         {(proofs.length > 0 || (booking.completion_proofs && booking.completion_proofs.length > 0) || isStaff) && (
           <Animated.View entering={FadeInUp.delay(300)} style={styles.proofsSection}>
@@ -472,6 +511,49 @@ export default function BookingStatusScreen() {
         </BlurView>
       </View>
     </Modal>
+
+    {/* ── CANCEL CONFIRMATION MODAL ── */}
+    <Modal
+      visible={cancelConfirmModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => {
+        if (!cancelling) setCancelConfirmModal(false);
+      }}
+    >
+      <View style={styles.cancelModalOverlay}>
+        <BlurView intensity={Platform.OS === "ios" ? 40 : 100} tint="dark" style={styles.cancelModalBox}>
+          <View style={styles.cancelIconWrap}>
+            <XCircle size={36} color="#ef4444" />
+          </View>
+          <Text style={styles.cancelModalTitle}>Cancel Booking?</Text>
+          <Text style={styles.cancelModalMsg}>
+            Are you sure you want to cancel your booking for {bookingName}? This action cannot be undone.
+          </Text>
+
+          <View style={styles.cancelModalRow}>
+            <Pressable
+              disabled={cancelling}
+              onPress={() => setCancelConfirmModal(false)}
+              style={styles.cancelModalKeepBtn}
+            >
+              <Text style={styles.cancelModalKeepText}>Keep Booking</Text>
+            </Pressable>
+            <Pressable
+              disabled={cancelling}
+              onPress={handleCancelBooking}
+              style={[styles.cancelModalConfirmBtn, cancelling && { opacity: 0.7 }]}
+            >
+              {cancelling ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.cancelModalConfirmText}>Yes, Cancel</Text>
+              )}
+            </Pressable>
+          </View>
+        </BlurView>
+      </View>
+    </Modal>
   </>
   );
 }
@@ -517,7 +599,7 @@ const styles = StyleSheet.create({
   staffRole: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
   callBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#6d28d9", justifyContent: "center", alignItems: "center" },
   // Details card
-  detailsSection: { marginBottom: 24 },
+  detailsSection: { marginBottom: 20 },
   sectionTitle: { fontSize: 16, fontWeight: "bold", color: "#ffffff", marginBottom: 12, marginLeft: 4 },
   detailsCard: { borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
   detailRow: { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 4 },
@@ -525,6 +607,41 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 12, color: "#64748b", textTransform: "uppercase", fontWeight: "600" },
   detailValue: { fontSize: 15, color: "#ffffff", fontWeight: "600", marginTop: 2 },
   divider: { height: 1, backgroundColor: "rgba(255,255,255,0.05)", marginVertical: 12 },
+  // Customer Actions Section
+  actionsSection: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  cancelBookingBtn: {
+    flex: 1,
+    paddingVertical: 15,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(239,68,68,0.3)",
+    backgroundColor: "rgba(239,68,68,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelBookingBtnText: {
+    color: "#ef4444",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  rescheduleBookingBtn: {
+    flex: 1.2,
+    flexDirection: "row",
+    paddingVertical: 15,
+    borderRadius: 16,
+    backgroundColor: "#6d28d9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rescheduleBookingBtnText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
   // Proofs
   proofsSection: { marginBottom: 24 },
   proofsSectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
@@ -551,6 +668,78 @@ const styles = StyleSheet.create({
   uploadBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   cancelLink: { alignItems: "center", marginTop: 14, paddingVertical: 4 },
   cancelLinkText: { color: "#475569", fontSize: 13 },
+  // Cancel Confirmation Modal
+  cancelModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  cancelModalBox: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "#16162e",
+    overflow: "hidden",
+  },
+  cancelIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(239,68,68,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  cancelModalTitle: {
+    color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  cancelModalMsg: {
+    color: "#94a3b8",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  cancelModalRow: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  cancelModalKeepBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+  },
+  cancelModalKeepText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  cancelModalConfirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: "#ef4444",
+    alignItems: "center",
+  },
+  cancelModalConfirmText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
 });
 
 export { };

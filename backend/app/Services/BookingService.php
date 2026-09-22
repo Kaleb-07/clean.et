@@ -146,9 +146,17 @@ class BookingService
         $booking = Booking::findOrFail($id);
         $this->authorizeModify($booking, $user);
 
+        if (isset($data['booking_date']) || isset($data['booking_time'])) {
+            $bDate = $data['booking_date'] ?? ($booking->booking_date ? (is_string($booking->booking_date) ? $booking->booking_date : $booking->booking_date->format('Y-m-d')) : null);
+            $bTime = $data['booking_time'] ?? substr($booking->getRawOriginal('booking_time') ?? '00:00', 0, 5);
+            if ($bDate && $bTime) {
+                $data['scheduled_at'] = $bDate . ' ' . $bTime;
+            }
+        }
+
         $booking->update($data);
 
-        return $booking->load(['sector.category', 'customer.user', 'vehicle', 'building', 'service']);
+        return $booking->load(['tenant', 'sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service', 'user']);
     }
 
     public function cancel(int $id, User $user): Booking
@@ -168,7 +176,7 @@ class BookingService
             $this->notifications->notifyBookingCancelled($targetUser, $booking->id);
         }
 
-        return $booking->load(['sector.category', 'customer.user', 'vehicle', 'service']);
+        return $booking->load(['tenant', 'sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service', 'user']);
     }
 
     public function updateStatus(int $id, string $status): Booking

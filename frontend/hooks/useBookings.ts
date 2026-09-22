@@ -47,6 +47,7 @@ export interface Booking {
     area_sqm: number;
   } | null;
   requirement_data: Record<string, any> | null;
+  price?: number | string | null;
   estimated_price: number | null;
   booking_date: string;   // "YYYY-MM-DD"
   booking_time: string;   // "HH:MM" 24h
@@ -66,18 +67,30 @@ export interface Booking {
  * Convert "09:00 AM" / "01:30 PM" → "09:00" / "13:30"  (H:i, 24-hour)
  * so Laravel's date_format:H:i validation passes.
  */
-function to24h(time12: string): string {
-  const [timePart, modifier] = time12.split(" ");
-  let [hours, minutes] = timePart.split(":");
+function to24h(timeStr: string): string {
+  if (!timeStr) return "09:00";
+  const trimmed = timeStr.trim();
+  // If already in 24h format (e.g. "09:00", "09:00:00", "14:30")
+  if (!trimmed.toUpperCase().includes("AM") && !trimmed.toUpperCase().includes("PM")) {
+    const parts = trimmed.split(":");
+    const h = parseInt(parts[0] || "0", 10);
+    const m = parts[1] ? parts[1].slice(0, 2) : "00";
+    return `${String(h).padStart(2, "0")}:${m}`;
+  }
+
+  const parts = trimmed.split(" ");
+  const timePart = parts[0];
+  const modifier = (parts[1] || "").toUpperCase();
+  const [hours, minutes] = timePart.split(":");
   let h = parseInt(hours, 10);
 
   if (modifier === "AM") {
     if (h === 12) h = 0;                  // 12:xx AM → 00:xx
-  } else {
+  } else if (modifier === "PM") {
     if (h !== 12) h += 12;               // x PM (not noon) → x+12
   }
 
-  return `${String(h).padStart(2, "0")}:${minutes}`;
+  return `${String(h).padStart(2, "0")}:${minutes || "00"}`;
 }
 
 export function useBookings() {

@@ -60,18 +60,18 @@ const TYPE_CONFIG: Record<
 > = {
   booking_update: {
     Icon: Calendar,
-    iconColor: "#EF4444",
-    bgColor: "rgba(239, 68, 68, 0.12)",
+    iconColor: "#3B82F6",
+    bgColor: "rgba(59, 130, 246, 0.15)",
   },
   booking_confirmed: {
     Icon: Calendar,
-    iconColor: "#EF4444",
-    bgColor: "rgba(239, 68, 68, 0.12)",
+    iconColor: "#10B981",
+    bgColor: "rgba(16, 185, 129, 0.15)",
   },
   payment: {
     Icon: CreditCard,
     iconColor: "#10B981",
-    bgColor: "rgba(16, 185, 129, 0.12)",
+    bgColor: "rgba(16, 185, 129, 0.15)",
   },
   message: {
     Icon: MessageSquare,
@@ -238,7 +238,7 @@ export default function NotificationsScreen() {
             {
               backgroundColor: colors.card,
               borderColor: colors.cardBorder,
-              borderLeftColor: item.is_unread ? "#EF4444" : colors.cardBorder,
+              borderLeftColor: item.is_unread ? colors.primary : colors.cardBorder,
               borderLeftWidth: item.is_unread ? 4 : 1,
               opacity: pressed ? 0.92 : 1,
             },
@@ -315,8 +315,8 @@ export default function NotificationsScreen() {
 
         {unreadCount > 0 ? (
           <Pressable onPress={markAllRead} style={styles.markAllBtn}>
-            <CheckCheck size={15} color="#EF4444" />
-            <Text style={styles.markAllText}>Mark all read</Text>
+            <CheckCheck size={15} color={colors.primary} />
+            <Text style={[styles.markAllText, { color: colors.primary }]}>Mark all read</Text>
           </Pressable>
         ) : (
           <View style={{ width: 95 }} />
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     minWidth: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: "#EF4444",
+    backgroundColor: "#3B82F6",
     paddingHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
   markAllText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#EF4444",
+    color: "#3B82F6",
   },
 
   // ── List ──────────────────────────────────────────────────────────────────
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#EF4444",
+    backgroundColor: "#3B82F6",
     flexShrink: 0,
   },
   cardBody: {
