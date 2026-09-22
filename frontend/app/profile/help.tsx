@@ -1,1050 +1,569 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Pressable,
   ScrollView,
-  Platform,
-  Modal,
-  TextInput,
-  LayoutAnimation,
-  UIManager,
-  TouchableOpacity,
+  Pressable,
   Alert,
+  Platform,
   Linking,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import {
   ChevronLeft,
+  Pencil,
+  User as UserIcon,
+  FileText,
+  Heart,
+  MapPin,
+  Settings as SettingsIcon,
+  ArrowLeft,
   HelpCircle,
-  Mail,
-  MessageCircle,
   ChevronDown,
   ChevronUp,
-  X,
-  Search,
-  Send,
-  BookOpen,
-  CheckCircle2,
-  BarChart2,
-  Sliders,
-  Megaphone,
-  Plus,
-  Building2,
-  Trash2,
-  Pencil,
-  RotateCcw,
-  Clock,
-  AlertTriangle,
-  ExternalLink,
+  LogOut,
 } from "lucide-react-native";
-import { BlurView } from "expo-blur";
-import * as Haptics from "expo-haptics";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import ActionModal from "../../src/components/ActionModal";
+
 import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
 
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-const STORAGE_KEY_FAQS = "@super_admin_faqs";
-const STORAGE_KEY_TICKETS = "@super_admin_tickets";
-
-interface FAQItem {
+interface HelpFAQ {
   id: string;
-  category: string;
   q: string;
   a: string;
 }
 
-interface SupportTicket {
-  id: string;
-  subject: string;
-  system: string;
-  priority: "Low" | "Medium" | "High" | "Critical Incident";
-  message: string;
-  status: "Active" | "In Review" | "Resolved";
-  createdAt: string;
-}
-
-const CATEGORIES = [
-  { id: "all", label: "All Governance Topics" },
-  { id: "blueprint", label: "🏛️ Master Blueprint" },
-  { id: "finance", label: "💰 Financial & Payouts" },
-  { id: "division", label: "🏢 Division Setup" },
-  { id: "security", label: "🔒 Security & Audit" },
-];
-
-const INITIAL_FAQS: FAQItem[] = [
+const CLEAN_ET_FAQS: HelpFAQ[] = [
   {
     id: "1",
-    category: "blueprint",
-    q: "What is the Clean.et Enterprise Multi-Department Platform Blueprint?",
-    a: "Clean.et is engineered as an Ethiopian internal multi-department enterprise platform for cleaning operations. It governs operational Service Divisions: Car Washing & Auto Detailing and Building & Property Cleaning, with centralized Super Admin executive control over commissions, financial statements, and security.",
+    q: "How do I book an appointment?",
+    a: "Select your desired cleaning service from the Home screen (such as Car Washing, Building Cleaning, or Detailing), choose your vehicle or address, pick an available date and time slot, and confirm your booking.",
   },
   {
     id: "2",
-    category: "finance",
-    q: "How are platform commission fees and vendor payouts calculated?",
-    a: "Platform commission defaults to 10.0% of Gross Merchandise Volume (GMV) on all completed/invoiced orders. Net Vendor Payout = GMV - Platform Commission (10%). Super Admins can generate and export PDF/CSV statements via /admin/reports.",
+    q: "Can I cancel an appointment?",
+    a: "Yes, you can cancel or reschedule an upcoming booking from your Bookings tab at any time before the crew is dispatched. Simply open the booking details and tap 'Cancel Booking'.",
   },
   {
     id: "3",
-    category: "finance",
-    q: "How do I export certified monthly or annual financial statements?",
-    a: "Open the Executive Reports page (/admin/reports), select your desired timeframe (Monthly, Annual, or Custom Date Range), select your target Division or Sector, then tap 'Download Filtered CSV' or 'Print / PDF Statement'.",
+    q: "How do I make a payment?",
+    a: "Clean.et supports secure mobile and card payments via Telebirr, CBE Birr, Chapa, and Cash on Delivery. When your service invoice is ready, you can pay directly in the app or choose your preferred method.",
   },
   {
     id: "4",
-    category: "division",
-    q: "How do I register a new Cleaning Division and assign manager credentials?",
-    a: "Navigate to /admin/tenants and tap 'Add New Division'. Fill in the business name, slug, sector categories enabled (Car Wash, Building Clean, Laundry, HVAC), and provide the assigned Division Manager's email and initial password.",
+    q: "Is my data secure?",
+    a: "All personal information, address records, and payment credentials are encrypted using industry-standard protocols. We never share your private data with unauthorized third parties.",
   },
   {
     id: "5",
-    category: "division",
-    q: "Can dynamic sector categories be expanded for new divisions?",
-    a: "Yes! Super Admins can configure sector categories globally under /admin/system or /super-admin/settings, enabling seamless expansion into Laundry and Facility HVAC services.",
-  },
-  {
-    id: "6",
-    category: "security",
-    q: "How does system audit logging and compliance work?",
-    a: "Every critical administrative action (TENANT_CREATED, SYSTEM_INITIALIZED, EXECUTIVE_REPORT_EXPORTED) is logged permanently in the system_audit_logs table. Inspect live audit trails at /admin/system under the Audit Logs tab.",
-  },
-  {
-    id: "7",
-    category: "security",
-    q: "How do network push broadcasts reach field staff and managers?",
-    a: "Super Admins can dispatch platform-wide push announcements from /admin/broadcast targeting customers, division managers, or field staff with instant device alerts.",
-  },
-];
-
-const INITIAL_TICKETS: SupportTicket[] = [
-  {
-    id: "tk-101",
-    subject: "Platform Gateway Commission Adjustment",
-    system: "Car Washing Division",
-    priority: "High",
-    message: "Requested verification of platform commission rate calculation for monthly auto detailing volume.",
-    status: "Active",
-    createdAt: new Date(Date.now() - 86400000).toLocaleString(),
+    q: "How do I contact support?",
+    a: "You can reach our customer support team 24/7 by emailing support@clean.et, calling our hotline, or tapping the 'Need Help?' card above to send us an email directly.",
   },
 ];
 
 export default function HelpScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const isSuperAdmin = user?.role === "super_admin";
+  const { user, logout } = useAuth();
+  const { isDark } = useTheme();
 
-  const [faqs, setFaqs] = useState<FAQItem[]>(INITIAL_FAQS);
-  const [tickets, setTickets] = useState<SupportTicket[]>(INITIAL_TICKETS);
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
-
-  // Support Ticket Modal state
-  const [ticketModalVisible, setTicketModalVisible] = useState(false);
-  const [priority, setPriority] = useState<"Low" | "Medium" | "High" | "Critical Incident">("High");
-  const [ticketSubject, setTicketSubject] = useState("");
-  const [ticketSystem, setTicketSystem] = useState("Car Washing Division");
-  const [ticketMessage, setTicketMessage] = useState("");
-
-  // Email Dispatch Modal state
-  const [emailModalVisible, setEmailModalVisible] = useState(false);
-  const [emailRecipient] = useState("support@clean.et");
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailMessage, setEmailMessage] = useState("");
-
-  // Add/Edit FAQ Modal state
-  const [faqModalVisible, setFaqModalVisible] = useState(false);
-  const [editingFaq, setEditingFaq] = useState<FAQItem | null>(null);
-  const [faqCategory, setFaqCategory] = useState("blueprint");
-  const [faqQuestion, setFaqQuestion] = useState("");
-  const [faqAnswer, setFaqAnswer] = useState("");
-
-  // Delete confirmation modal state
-  const [deletingFaqId, setDeletingFaqId] = useState<string | null>(null);
-  const [deletingTicketId, setDeletingTicketId] = useState<string | null>(null);
-
-  // Toast confirmation modal
-  const [successToast, setSuccessToast] = useState<{ title: string; message: string } | null>(null);
-
-  useEffect(() => {
-    loadStoredFaqs();
-    loadStoredTickets();
-  }, []);
-
-  const loadStoredFaqs = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY_FAQS);
-      if (stored) {
-        setFaqs(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error("Failed to load FAQs from storage", e);
-    }
-  };
-
-  const saveFaqsToStorage = async (updatedFaqs: FAQItem[]) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_FAQS, JSON.stringify(updatedFaqs));
-      setFaqs(updatedFaqs);
-    } catch (e) {
-      console.error("Failed to save FAQs to storage", e);
-    }
-  };
-
-  const loadStoredTickets = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY_TICKETS);
-      if (stored) {
-        setTickets(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error("Failed to load tickets from storage", e);
-    }
-  };
-
-  const saveTicketsToStorage = async (updatedTickets: SupportTicket[]) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(updatedTickets));
-      setTickets(updatedTickets);
-    } catch (e) {
-      console.error("Failed to save tickets to storage", e);
-    }
-  };
+  const [expandedFaqId, setExpandedFaqId] = useState<string | null>(null);
 
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
-    if (Platform.OS !== "web") Haptics.impactAsync(style).catch(() => {});
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(style).catch(() => {});
+    }
+  };
+
+  const handleToggleFaq = (id: string) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    setExpandedFaqId((prev) => (prev === id ? null : id));
+  };
+
+  const handleContactSupport = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    Linking.openURL("mailto:support@clean.et").catch(() => {
+      Alert.alert("Contact Support", "Please email us at support@clean.et");
+    });
+  };
+
+  const handleLogout = async () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: async () => {
+          await logout();
+          router.replace("/(auth)/login");
+        },
+      },
+    ]);
   };
 
   const handleBack = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/(admin)/(tabs)/Profile");
+      router.replace("/(tabs)/profile");
     }
   };
 
-  const filteredFaqs = faqs.filter((faq) => {
-    const matchesCategory = activeCategory === "all" || faq.category === activeCategory;
-    const matchesQuery =
-      faq.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      faq.a.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesQuery;
-  });
-
-  const toggleFaq = (index: number) => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedIndex(expandedIndex === index ? null : index);
-  };
-
-  // Launch Native Mail App
-  const handleLaunchNativeEmail = async () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
-    const mailtoUrl = `mailto:${emailRecipient}?subject=Clean.et%20Executive%20Support%20Inquiry`;
-    try {
-      const canOpen = await Linking.canOpenURL(mailtoUrl);
-      if (canOpen) {
-        await Linking.openURL(mailtoUrl);
-      } else {
-        setEmailModalVisible(true);
-      }
-    } catch (e) {
-      setEmailModalVisible(true);
-    }
-  };
-
-  const handleSendTicket = async () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
-    if (!ticketSubject || !ticketMessage) {
-      Alert.alert("Required Fields", "Please provide a subject and message for the support ticket.");
-      return;
-    }
-
-    const newTicket: SupportTicket = {
-      id: `tk-${Date.now().toString().slice(-4)}`,
-      subject: ticketSubject,
-      system: ticketSystem,
-      priority,
-      message: ticketMessage,
-      status: "Active",
-      createdAt: new Date().toLocaleString(),
-    };
-
-    const updated = [newTicket, ...tickets];
-    await saveTicketsToStorage(updated);
-
-    setTicketModalVisible(false);
-    setTicketSubject("");
-    setTicketMessage("");
-    setSuccessToast({
-      title: "Support Ticket Logged",
-      message: `Priority [${priority}] ticket #${newTicket.id} logged for ${ticketSystem}.`,
-    });
-  };
-
-  const handleSendEmail = () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
-    if (!emailSubject || !emailMessage) {
-      Alert.alert("Required Fields", "Please enter an email subject and body message.");
-      return;
-    }
-    setEmailModalVisible(false);
-    setEmailSubject("");
-    setEmailMessage("");
-    setSuccessToast({
-      title: "Executive Email Sent",
-      message: `Email successfully dispatched to ${emailRecipient}. Copy saved to executive log.`,
-    });
-  };
-
-  const handleToggleTicketStatus = async (ticketId: string) => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-    const updated = tickets.map((t) => {
-      if (t.id === ticketId) {
-        const nextStatus = t.status === "Active" ? "In Review" : t.status === "In Review" ? "Resolved" : "Active";
-        return { ...t, status: nextStatus as any };
-      }
-      return t;
-    });
-    await saveTicketsToStorage(updated);
-  };
-
-  const confirmDeleteTicket = async () => {
-    if (deletingTicketId) {
-      const updated = tickets.filter((t) => t.id !== deletingTicketId);
-      await saveTicketsToStorage(updated);
-      setDeletingTicketId(null);
-      setSuccessToast({
-        title: "Ticket Deleted",
-        message: "Support ticket record has been removed.",
-      });
-    }
-  };
-
-  const openAddFaqModal = () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-    setEditingFaq(null);
-    setFaqCategory("blueprint");
-    setFaqQuestion("");
-    setFaqAnswer("");
-    setFaqModalVisible(true);
-  };
-
-  const openEditFaqModal = (faq: FAQItem) => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-    setEditingFaq(faq);
-    setFaqCategory(faq.category);
-    setFaqQuestion(faq.q);
-    setFaqAnswer(faq.a);
-    setFaqModalVisible(true);
-  };
-
-  const handleSaveFaq = async () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
-    if (!faqQuestion || !faqAnswer) {
-      Alert.alert("Required Fields", "Please enter both question title and answer text.");
-      return;
-    }
-
-    let updatedList: FAQItem[];
-    if (editingFaq) {
-      updatedList = faqs.map((f) =>
-        f.id === editingFaq.id ? { ...f, category: faqCategory, q: faqQuestion, a: faqAnswer } : f
-      );
-    } else {
-      const newItem: FAQItem = {
-        id: Date.now().toString(),
-        category: faqCategory,
-        q: faqQuestion,
-        a: faqAnswer,
-      };
-      updatedList = [newItem, ...faqs];
-    }
-
-    await saveFaqsToStorage(updatedList);
-    setFaqModalVisible(false);
-    setSuccessToast({
-      title: editingFaq ? "FAQ Updated" : "FAQ Created",
-      message: editingFaq
-        ? "Knowledge article changes saved to storage."
-        : "New FAQ item created and saved to governance articles.",
-    });
-  };
-
-  const confirmDeleteFaq = async () => {
-    if (deletingFaqId) {
-      const updated = faqs.filter((f) => f.id !== deletingFaqId);
-      await saveFaqsToStorage(updated);
-      setDeletingFaqId(null);
-      setSuccessToast({
-        title: "FAQ Deleted",
-        message: "Article removed from governance FAQ database.",
-      });
-    }
-  };
-
-  const handleResetDefaults = async () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
-    await saveFaqsToStorage(INITIAL_FAQS);
-    setSuccessToast({
-      title: "FAQs Reset",
-      message: "Governance FAQs have been restored to Blueprint default items.",
-    });
+  const getInitials = (name?: string | null) => {
+    if (!name) return "AJ";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return name.slice(0, 2).toUpperCase();
   };
 
   return (
-    <LinearGradient colors={["#0B0F19", "#111827", "#1E1B4B"]} style={styles.container}>
-      {/* ── EXECUTIVE HEADER ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable onPress={handleBack} style={styles.backButton}>
-          <ChevronLeft color="#ffffff" size={28} />
-        </Pressable>
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={styles.headerTitle}>👑 Executive Governance & Help Portal</Text>
-          <Text style={styles.headerSubtitle}>Clean.et Master Blueprint & Support Suite</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={[styles.container, { backgroundColor: isDark ? "#0B0F19" : "#F8FAFC" }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 60 }}
+      >
+        {/* ── TOP RED BANNER (Matches Screenshot) ── */}
+        <LinearGradient
+          colors={["#EF4444", "#DC2626"]}
+          style={[styles.headerBanner, { paddingTop: Math.max(insets.top + 8, 28) }]}
+        >
+          {/* Top Bar: Back, Title, Edit */}
+          <View style={styles.topBar}>
+            <Pressable onPress={handleBack} style={styles.headerIconButton}>
+              <ChevronLeft size={22} color="#ffffff" strokeWidth={2.5} />
+            </Pressable>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* ── SYSTEM STATUS CARD ── */}
-        <View style={styles.statusCard}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <CheckCircle2 size={18} color="#34D399" />
-              <Text style={{ color: "#34D399", fontWeight: "800", fontSize: 13 }}>
-                Platform Gateway Online
+            <Text style={styles.topBarTitle}>My Profile</Text>
+
+            <Pressable onPress={() => router.replace("/(tabs)/profile")} style={styles.headerIconButton}>
+              <Pencil size={18} color="#ffffff" strokeWidth={2.2} />
+            </Pressable>
+          </View>
+
+          {/* User Profile Card within Banner */}
+          <View style={styles.profileRow}>
+            <View style={styles.avatarCircle}>
+              <View style={styles.avatarInner}>
+                <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.profileInfoTextCol}>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {user?.name || "Alex Johnson"}
+              </Text>
+              <Text style={styles.profileEmail} numberOfLines={1}>
+                {user?.email || "alex.johnson@email.com"}
+              </Text>
+              <Text style={styles.profileMeta} numberOfLines={1}>
+                {user?.phone || "+1 555-0199"} • Male, 32 yrs
               </Text>
             </View>
-            <Text style={{ color: "#60A5FA", fontWeight: "800", fontSize: 11 }}>
-              Sanctum Auth REST API v1.0
+          </View>
+        </LinearGradient>
+
+        {/* ── 5 PILL TABS (Info, History, Saved, Address, Settings) ── */}
+        <View style={styles.tabsRow}>
+          <Pressable
+            onPress={() => router.replace("/(tabs)/profile")}
+            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+          >
+            <UserIcon size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
+            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>Info</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/(tabs)/booking")}
+            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+          >
+            <FileText size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
+            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>History</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/vehicles")}
+            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+          >
+            <Heart size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
+            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>Saved</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.replace("/(tabs)/profile")}
+            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+          >
+            <MapPin size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
+            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>Address</Text>
+          </Pressable>
+
+          {/* Active Settings Tab */}
+          <Pressable style={[styles.tabPill, styles.tabPillActive]}>
+            <SettingsIcon size={18} color="#ffffff" strokeWidth={2} />
+            <Text style={[styles.tabPillText, { color: "#ffffff" }]}>Settings</Text>
+          </Pressable>
+        </View>
+
+        {/* ── SUBPAGE CONTENT (Matches Screenshot) ── */}
+        <View style={styles.bodyContent}>
+          {/* Header row: Back button & Title */}
+          <View style={styles.subPageHeaderRow}>
+            <Pressable
+              onPress={handleBack}
+              style={[
+                styles.subPageBackBtn,
+                {
+                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                  borderColor: isDark ? "#334155" : "#E2E8F0",
+                },
+              ]}
+            >
+              <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+            </Pressable>
+            <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+              Help Center
             </Text>
           </View>
-          <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 4 }}>
-            System Latency: &lt; 45ms &bull; Database Status: Synced &bull; Default Currency: ETB
+
+          {/* Need Help Card (Matches screenshot) */}
+          <Pressable
+            onPress={handleContactSupport}
+            style={({ pressed }) => [
+              styles.needHelpCard,
+              {
+                backgroundColor: isDark ? "rgba(239, 68, 68, 0.1)" : "#FFF1F2",
+                borderColor: isDark ? "rgba(239, 68, 68, 0.25)" : "#FFE4E6",
+              },
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <View style={styles.needHelpIconContainer}>
+              <HelpCircle size={32} color="#EF4444" strokeWidth={2.2} />
+            </View>
+            <View style={styles.needHelpTextCol}>
+              <Text style={[styles.needHelpTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                Need Help?
+              </Text>
+              <Text style={[styles.needHelpEmail, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                support@clean.et
+              </Text>
+            </View>
+          </Pressable>
+
+          {/* FREQUENTLY ASKED QUESTIONS Heading */}
+          <Text style={[styles.faqSectionHeading, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+            FREQUENTLY ASKED QUESTIONS
           </Text>
-        </View>
 
-        {/* ── MASTER ARCHITECTURE BLUEPRINT HIGHLIGHT ── */}
-        <View style={styles.blueprintCard}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
-            <BookOpen size={22} color="#F472B6" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
-                Ethiopian Enterprise Multi-Department Architecture
-              </Text>
-              <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 1 }}>
-                Global Super Admin Governance over Operational Divisions & Settlements
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.specsBox}>
-            <Text style={{ color: "#F8FAFC", fontWeight: "800", fontSize: 12, marginBottom: 4 }}>
-              🏢 Operational Service Divisions:
-            </Text>
-            <Text style={{ color: "#CBD5E1", fontSize: 11 }}>
-              &bull; <Text style={{ fontWeight: "700", color: "#60A5FA" }}>Car Washing Division</Text>: Sub-centers (Corporate Fleet, Mobile Doorstep, Valet Pickup, Bay Station).
-            </Text>
-            <Text style={{ color: "#CBD5E1", fontSize: 11, marginTop: 2 }}>
-              &bull; <Text style={{ fontWeight: "700", color: "#34D399" }}>Building Cleaning Division</Text>: Sub-centers (High-Rise Facade Glass, Interior Deep Sanitization).
-            </Text>
-          </View>
-
-          {/* Quick Shortcuts Toolbar */}
-          <View style={styles.shortcutRow}>
-            <TouchableOpacity
-              style={styles.shortcutBtn}
-              onPress={() => router.push("/(admin)/reports")}
-            >
-              <BarChart2 size={14} color="#FFF" />
-              <Text style={styles.shortcutText}>Reports Page</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.shortcutBtn}
-              onPress={() => router.push("/(admin)/system")}
-            >
-              <Sliders size={14} color="#FFF" />
-              <Text style={styles.shortcutText}>Infrastructure</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.shortcutBtn}
-              onPress={() => router.push("/(admin)/broadcast")}
-            >
-              <Megaphone size={14} color="#FFF" />
-              <Text style={styles.shortcutText}>Broadcast</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.shortcutBtn}
-              onPress={() => router.push("/(admin)/tenants")}
-            >
-              <Building2 size={14} color="#FFF" />
-              <Text style={styles.shortcutText}>Divisions</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ── EXECUTIVE SUPPORT & INCIDENT CHANNELS ── */}
-        <Text style={styles.sectionTitle}>Executive Support & Incident Escalation</Text>
-
-        <View style={styles.contactRow}>
-          <TouchableOpacity
-            style={[styles.contactCard, { borderColor: "#EC489955" }]}
-            onPress={() => setTicketModalVisible(true)}
+          {/* FAQ Accordion Card (Matches screenshot) */}
+          <View
+            style={[
+              styles.faqCardBox,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: isDark ? "#334155" : "#E2E8F0",
+              },
+            ]}
           >
-            <View style={[styles.contactIconBox, { backgroundColor: "#EC489922" }]}>
-              <MessageCircle size={22} color="#EC4899" />
-            </View>
-            <Text style={styles.contactTitle}>Support Ticket</Text>
-            <Text style={styles.contactSub}>Log technical incident ticket</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.contactCard, { borderColor: "#3B82F655" }]}
-            onPress={handleLaunchNativeEmail}
-          >
-            <View style={[styles.contactIconBox, { backgroundColor: "#3B82F622" }]}>
-              <Mail size={22} color="#3B82F6" />
-            </View>
-
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10 }}>
-              <Text style={styles.contactTitle}>Email Support</Text>
-              <ExternalLink size={12} color="#60A5FA" />
-            </View>
-            <Text style={styles.contactSub}>Direct mail to support@clean.et</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── LOGGED SUPPORT TICKETS LIST ── */}
-        {tickets.length > 0 && (
-          <View style={styles.ticketsSection}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <Text style={styles.sectionTitleNoMargin}>📋 Logged Support Tickets ({tickets.length})</Text>
-              <Text style={{ color: "#94A3B8", fontSize: 10 }}>Tap status badge to update</Text>
-            </View>
-
-            {tickets.map((t) => {
-              const statusColor = t.status === "Active" ? "#F59E0B" : t.status === "In Review" ? "#60A5FA" : "#34D399";
-              const priorityColor = t.priority === "Critical Incident" ? "#EF4444" : t.priority === "High" ? "#F87171" : "#F59E0B";
-
+            {CLEAN_ET_FAQS.map((faq, index) => {
+              const isExpanded = expandedFaqId === faq.id;
+              const isLast = index === CLEAN_ET_FAQS.length - 1;
               return (
-                <View key={t.id} style={styles.ticketCard}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                        <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>{t.subject}</Text>
-                        <View style={[styles.priorityBadge, { borderColor: priorityColor }]}>
-                          <Text style={[styles.priorityBadgeText, { color: priorityColor }]}>{t.priority}</Text>
-                        </View>
-                      </View>
+                <View key={faq.id}>
+                  <Pressable
+                    onPress={() => handleToggleFaq(faq.id)}
+                    style={({ pressed }) => [
+                      styles.faqRowItem,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Text style={[styles.faqQuestionText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      {faq.q}
+                    </Text>
+                    {isExpanded ? (
+                      <ChevronUp size={18} color="#94A3B8" strokeWidth={2} />
+                    ) : (
+                      <ChevronDown size={18} color="#94A3B8" strokeWidth={2} />
+                    )}
+                  </Pressable>
 
-                      <Text style={{ color: "#94A3B8", fontSize: 11 }}>
-                        {t.system} &bull; Ticket #{t.id} &bull; {t.createdAt}
+                  {isExpanded && (
+                    <View style={styles.faqAnswerContainer}>
+                      <Text style={[styles.faqAnswerText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                        {faq.a}
                       </Text>
-                      <Text style={{ color: "#CBD5E1", fontSize: 12, marginTop: 4, lineHeight: 16 }}>{t.message}</Text>
                     </View>
+                  )}
 
-                    <View style={{ alignItems: "flex-end", gap: 6 }}>
-                      <TouchableOpacity
-                        style={[styles.statusBadge, { backgroundColor: `${statusColor}22`, borderColor: statusColor }]}
-                        onPress={() => handleToggleTicketStatus(t.id)}
-                      >
-                        <Text style={[styles.statusBadgeText, { color: statusColor }]}>{t.status}</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity onPress={() => setDeletingTicketId(t.id)}>
-                        <Trash2 size={14} color="#EF4444" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                  {!isLast && (
+                    <View
+                      style={[
+                        styles.settingsDivider,
+                        { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                      ]}
+                    />
+                  )}
                 </View>
               );
             })}
           </View>
-        )}
 
-        {/* ── FAQ & KNOWLEDGE BASE HEADER WITH ADD/RESET ACTIONS ── */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 14, marginBottom: 12 }}>
-          <Text style={styles.sectionTitleNoMargin}>Governance Knowledge Base ({filteredFaqs.length})</Text>
-
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <TouchableOpacity style={styles.resetFaqBtn} onPress={handleResetDefaults}>
-              <RotateCcw size={12} color="#94A3B8" />
-              <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700" }}>Reset</Text>
-            </TouchableOpacity>
-
-            {isSuperAdmin && (
-              <TouchableOpacity style={styles.addFaqBtn} onPress={openAddFaqModal}>
-                <Plus size={14} color="#34D399" />
-                <Text style={{ color: "#34D399", fontSize: 11, fontWeight: "800" }}>Add FAQ Item</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* SEARCH BAR */}
-        <View style={styles.searchContainer}>
-          <Search size={18} color="#64748b" style={{ marginRight: 10 }} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search FAQs, API endpoints, or governance terms..."
-            placeholderTextColor="#475569"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-
-        {/* CATEGORY PILL SELECTOR */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 16 }}>
-          {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[styles.catPill, activeCategory === cat.id && styles.catPillActive]}
-              onPress={() => {
-                triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-                setActiveCategory(cat.id);
-              }}
-            >
-              <Text style={[styles.catPillText, activeCategory === cat.id && styles.catPillTextActive]}>
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* FAQS ACCORDION WITH FULL CRUD CONTROLS */}
-        <View style={styles.faqList}>
-          {filteredFaqs.map((faq, index) => {
-            const isExpanded = expandedIndex === index;
-            return (
-              <BlurView key={faq.id || index} intensity={20} tint="dark" style={styles.faqWrapper}>
-                <View style={styles.faqHeader}>
-                  <Pressable style={{ flex: 1 }} onPress={() => toggleFaq(index)}>
-                    <Text style={styles.faqQuestion}>{faq.q}</Text>
-                  </Pressable>
-
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                    {isSuperAdmin && (
-                      <>
-                        <TouchableOpacity onPress={() => openEditFaqModal(faq)}>
-                          <Pencil size={16} color="#60A5FA" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setDeletingFaqId(faq.id)}>
-                          <Trash2 size={16} color="#F87171" />
-                        </TouchableOpacity>
-                      </>
-                    )}
-                    <Pressable onPress={() => toggleFaq(index)}>
-                      {isExpanded ? <ChevronUp size={18} color="#EC4899" /> : <ChevronDown size={18} color="#64748b" />}
-                    </Pressable>
-                  </View>
-                </View>
-
-                {isExpanded && (
-                  <View style={styles.faqBody}>
-                    <Text style={styles.faqAnswer}>{faq.a}</Text>
-                  </View>
-                )}
-              </BlurView>
-            );
-          })}
+          {/* LOG OUT BUTTON (Matches screenshot) */}
+          <Pressable
+            onPress={handleLogout}
+            style={({ pressed }) => [
+              styles.screenshotLogoutBtn,
+              pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+            ]}
+          >
+            <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+            <Text style={styles.screenshotLogoutText}>Log Out</Text>
+          </Pressable>
         </View>
       </ScrollView>
-
-      {/* ── 1. EXECUTIVE SUPPORT TICKET MODAL ── */}
-      <Modal visible={ticketModalVisible} transparent animationType="slide" onRequestClose={() => setTicketModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <MessageCircle size={20} color="#EC4899" />
-                <Text style={styles.modalTitle}>Log Executive Support Ticket</Text>
-              </View>
-              <Pressable onPress={() => setTicketModalVisible(false)}>
-                <X color="#94a3b8" size={24} />
-              </Pressable>
-            </View>
-
-            <Text style={styles.inputLabel}>INCIDENT PRIORITY LEVEL</Text>
-            <View style={{ flexDirection: "row", gap: 6, marginBottom: 14 }}>
-              {(["Low", "Medium", "High", "Critical Incident"] as const).map((p) => (
-                <TouchableOpacity
-                  key={p}
-                  style={[styles.priorityPill, priority === p && styles.priorityPillActive]}
-                  onPress={() => setPriority(p)}
-                >
-                  <Text style={[styles.priorityText, priority === p && styles.priorityTextActive]}>{p}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>AFFECTED SYSTEM / DIVISION</Text>
-              <TextInput
-                style={styles.input}
-                value={ticketSystem}
-                onChangeText={setTicketSystem}
-                placeholder="e.g. Car Washing Division / API Gateway"
-                placeholderTextColor="#475569"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>TICKET SUBJECT</Text>
-              <TextInput
-                style={styles.input}
-                value={ticketSubject}
-                onChangeText={setTicketSubject}
-                placeholder="Brief summary of incident or request..."
-                placeholderTextColor="#475569"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>INCIDENT DETAILS & MESSAGE</Text>
-              <TextInput
-                style={[styles.input, { height: 90, textAlignVertical: "top" }]}
-                multiline
-                value={ticketMessage}
-                onChangeText={setTicketMessage}
-                placeholder="Provide full technical details..."
-                placeholderTextColor="#475569"
-              />
-            </View>
-
-            <Pressable style={styles.sendBtn} onPress={handleSendTicket}>
-              <Send size={16} color="#FFF" style={{ marginRight: 6 }} />
-              <Text style={styles.sendBtnText}>Dispatch Support Ticket</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── 2. DIRECT EXECUTIVE EMAIL DISPATCH MODAL ── */}
-      <Modal visible={emailModalVisible} transparent animationType="slide" onRequestClose={() => setEmailModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Mail size={20} color="#3B82F6" />
-                <Text style={styles.modalTitle}>Executive Email Dispatch</Text>
-              </View>
-              <Pressable onPress={() => setEmailModalVisible(false)}>
-                <X color="#94a3b8" size={24} />
-              </Pressable>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>TARGET RECIPIENT</Text>
-              <TextInput
-                style={[styles.input, { color: "#60A5FA" }]}
-                value={emailRecipient}
-                editable={false}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>EMAIL SUBJECT</Text>
-              <TextInput
-                style={styles.input}
-                value={emailSubject}
-                onChangeText={setEmailSubject}
-                placeholder="Super Admin Executive Inquiry..."
-                placeholderTextColor="#475569"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>EMAIL BODY</Text>
-              <TextInput
-                style={[styles.input, { height: 100, textAlignVertical: "top" }]}
-                multiline
-                value={emailMessage}
-                onChangeText={setEmailMessage}
-                placeholder="Write your email message..."
-                placeholderTextColor="#475569"
-              />
-            </View>
-
-            <Pressable style={[styles.sendBtn, { backgroundColor: "#2563EB" }]} onPress={handleSendEmail}>
-              <Send size={16} color="#FFF" style={{ marginRight: 6 }} />
-              <Text style={styles.sendBtnText}>Send Executive Email</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── 3. ADD / EDIT FAQ ITEM MODAL ── */}
-      <Modal visible={faqModalVisible} transparent animationType="slide" onRequestClose={() => setFaqModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                {editingFaq ? <Pencil size={20} color="#60A5FA" /> : <Plus size={20} color="#34D399" />}
-                <Text style={styles.modalTitle}>{editingFaq ? "Edit FAQ Article" : "Add FAQ Knowledge Article"}</Text>
-              </View>
-              <Pressable onPress={() => setFaqModalVisible(false)}>
-                <X color="#94a3b8" size={24} />
-              </Pressable>
-            </View>
-
-            <Text style={styles.inputLabel}>CATEGORY</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-              {[
-                { id: "blueprint", label: "Master Blueprint" },
-                { id: "finance", label: "Financial & Payouts" },
-                { id: "division", label: "Division Setup" },
-                { id: "security", label: "Security & Audit" },
-              ].map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[styles.priorityPill, faqCategory === c.id && styles.priorityPillActive]}
-                  onPress={() => setFaqCategory(c.id)}
-                >
-                  <Text style={[styles.priorityText, faqCategory === c.id && styles.priorityTextActive]}>{c.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>QUESTION TITLE</Text>
-              <TextInput
-                style={styles.input}
-                value={faqQuestion}
-                onChangeText={setFaqQuestion}
-                placeholder="e.g. How are division commission rates set?"
-                placeholderTextColor="#475569"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>ANSWER DESCRIPTION</Text>
-              <TextInput
-                style={[styles.input, { height: 90, textAlignVertical: "top" }]}
-                multiline
-                value={faqAnswer}
-                onChangeText={setFaqAnswer}
-                placeholder="Provide complete explanation..."
-                placeholderTextColor="#475569"
-              />
-            </View>
-
-            <Pressable style={[styles.sendBtn, { backgroundColor: editingFaq ? "#2563EB" : "#10B981" }]} onPress={handleSaveFaq}>
-              {editingFaq ? (
-                <Pencil size={16} color="#FFF" style={{ marginRight: 6 }} />
-              ) : (
-                <Plus size={16} color="#FFF" style={{ marginRight: 6 }} />
-              )}
-              <Text style={styles.sendBtnText}>{editingFaq ? "Update Article" : "Save Article"}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Delete Confirmation Modal for FAQ */}
-      <ActionModal
-        visible={!!deletingFaqId}
-        type="danger"
-        title="Delete FAQ Article?"
-        message="Are you sure you want to remove this article from the governance FAQ database?"
-        confirmText="Delete Article"
-        onConfirm={confirmDeleteFaq}
-        onCancel={() => setDeletingFaqId(null)}
-      />
-
-      {/* Delete Confirmation Modal for Ticket */}
-      <ActionModal
-        visible={!!deletingTicketId}
-        type="danger"
-        title="Delete Support Ticket Record?"
-        message="Are you sure you want to remove this incident ticket record?"
-        confirmText="Delete Record"
-        onConfirm={confirmDeleteTicket}
-        onCancel={() => setDeletingTicketId(null)}
-      />
-
-      {/* Success Toast Modal */}
-      {successToast && (
-        <ActionModal
-          visible={!!successToast}
-          type="success"
-          title={successToast.title}
-          message={successToast.message}
-          confirmText="Done"
-          onConfirm={() => setSuccessToast(null)}
-        />
-      )}
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
+  container: {
+    flex: 1,
+  },
+  headerBanner: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+  },
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  headerTitle: { fontSize: 16, fontWeight: "800", color: "#ffffff" },
-  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
-  backButton: { padding: 8 },
-  content: { padding: 20 },
-  statusCard: {
-    backgroundColor: "#0F172A",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
-  blueprintCard: {
-    backgroundColor: "#0F172A",
-    borderRadius: 16,
-    padding: 16,
+    justifyContent: "space-between",
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#334155",
   },
-  specsBox: {
-    backgroundColor: "#1E293B",
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: "#334155",
+  headerIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  shortcutRow: { flexDirection: "row", gap: 6, marginTop: 12 },
-  shortcutBtn: {
+  topBarTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  profileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingHorizontal: 4,
+    paddingBottom: 6,
+  },
+  avatarCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    padding: 3,
+  },
+  avatarInner: {
     flex: 1,
+    borderRadius: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarText: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  profileInfoTextCol: {
+    flex: 1,
+  },
+  profileName: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 3,
+  },
+  profileEmail: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 13,
+    fontWeight: "500",
+    marginBottom: 3,
+  },
+  profileMeta: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    fontWeight: "400",
+  },
+
+  // ── 5 PILL TABS ──
+  tabsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginTop: 18,
+    marginBottom: 20,
+  },
+  tabPill: {
+    flex: 1,
+    marginHorizontal: 3,
+    paddingVertical: 10,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  tabPillActive: {
+    backgroundColor: "#EF4444",
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  tabPillInactive: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  tabPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  // ── SUBPAGE BODY ──
+  bodyContent: {
+    paddingHorizontal: 18,
+  },
+  subPageHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginBottom: 20,
+  },
+  subPageBackBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  subPageTitleText: {
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+
+  // ── Need Help Card ──
+  needHelpCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 22,
+  },
+  needHelpIconContainer: {
+    marginRight: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  needHelpTextCol: {
+    flex: 1,
+  },
+  needHelpTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  needHelpEmail: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+
+  // ── FAQ ──
+  faqSectionHeading: {
+    fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 12,
+    paddingLeft: 4,
+  },
+  faqCardBox: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  faqRowItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
+  faqQuestionText: {
+    fontSize: 14,
+    fontWeight: "700",
+    flex: 1,
+    marginRight: 12,
+    letterSpacing: -0.2,
+  },
+  faqAnswerContainer: {
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+    paddingTop: 2,
+  },
+  faqAnswerText: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "400",
+  },
+  settingsDivider: {
+    height: 1,
+  },
+
+  // ── Log Out Button ──
+  screenshotLogoutBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#1E293B",
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
-  shortcutText: { color: "#FFF", fontSize: 10, fontWeight: "700" },
-  sectionTitle: { fontSize: 13, fontWeight: "800", color: "#64748b", textTransform: "uppercase", marginBottom: 12 },
-  sectionTitleNoMargin: { fontSize: 13, fontWeight: "800", color: "#64748b", textTransform: "uppercase" },
-  contactRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
-  contactCard: {
-    flex: 1,
-    backgroundColor: "#0F172A",
+    borderWidth: 1.5,
+    borderColor: "#FECACA",
+    backgroundColor: "#FFF1F2",
     borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    alignItems: "center",
+    paddingVertical: 14,
+    marginTop: 6,
+    marginBottom: 16,
   },
-  contactIconBox: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  contactTitle: { color: "#FFF", fontSize: 13, fontWeight: "800", marginTop: 6 },
-  contactSub: { color: "#94a3b8", fontSize: 11, marginTop: 2, textAlign: "center" },
-  ticketsSection: {
-    backgroundColor: "#0F172A",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#334155",
+  screenshotLogoutText: {
+    color: "#EF4444",
+    fontSize: 15,
+    fontWeight: "700",
   },
-  ticketCard: {
-    backgroundColor: "#1E293B",
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
-  priorityBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  priorityBadgeText: { fontSize: 9, fontWeight: "800" },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  statusBadgeText: { fontSize: 10, fontWeight: "800" },
-  addFaqBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#064E3B",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#10B98155",
-  },
-  resetFaqBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#0F172A",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  searchInput: { flex: 1, color: "#ffffff", fontSize: 14 },
-  catPill: {
-    backgroundColor: "#0F172A",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
-  catPillActive: { backgroundColor: "#EC489922", borderColor: "#EC4899" },
-  catPillText: { color: "#94A3B8", fontSize: 11, fontWeight: "700" },
-  catPillTextActive: { color: "#F472B6" },
-  faqList: { gap: 10, marginBottom: 24 },
-  faqWrapper: { borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  faqHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16 },
-  faqQuestion: { fontSize: 14, fontWeight: "600", color: "#ffffff", flex: 1, marginRight: 10 },
-  faqBody: { paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)", paddingTop: 12 },
-  faqAnswer: { color: "#94a3b8", fontSize: 13, lineHeight: 20 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "center", padding: 20 },
-  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, borderWidth: 1, borderColor: "#334155" },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  modalTitle: { fontSize: 17, fontWeight: "800", color: "#ffffff" },
-  inputGroup: { marginBottom: 12 },
-  inputLabel: { color: "#94a3b8", fontSize: 10, fontWeight: "800", marginBottom: 4 },
-  input: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 12, color: "#ffffff", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", fontSize: 13 },
-  priorityPill: { flex: 1, paddingVertical: 8, borderRadius: 8, backgroundColor: "#0F172A", alignItems: "center", borderWidth: 1, borderColor: "#334155" },
-  priorityPillActive: { backgroundColor: "#EC489922", borderColor: "#EC4899" },
-  priorityText: { color: "#94A3B8", fontSize: 10, fontWeight: "700" },
-  priorityTextActive: { color: "#F472B6" },
-  sendBtn: { flexDirection: "row", backgroundColor: "#EC4899", paddingVertical: 14, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 8 },
-  sendBtnText: { color: "#ffffff", fontWeight: "bold", fontSize: 14 },
 });

@@ -11,6 +11,7 @@ import {
   Modal,
   TextInput,
   Switch,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -56,6 +57,8 @@ import {
   MessageCircle,
   Eye,
   EyeOff,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react-native";
 
 import { useAuth } from "../../contexts/AuthContext";
@@ -136,6 +139,40 @@ const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
   biometricLogin: true,
   loginAlerts: true,
 };
+
+interface HelpFAQ {
+  id: string;
+  q: string;
+  a: string;
+}
+
+const CLEAN_ET_FAQS: HelpFAQ[] = [
+  {
+    id: "1",
+    q: "How do I book an appointment?",
+    a: "Select your desired cleaning service from the Home screen (such as Car Washing, Building Cleaning, or Detailing), choose your vehicle or address, pick an available date and time slot, and confirm your booking.",
+  },
+  {
+    id: "2",
+    q: "Can I cancel an appointment?",
+    a: "Yes, you can cancel or reschedule an upcoming booking from your Bookings tab at any time before the crew is dispatched. Simply open the booking details and tap 'Cancel Booking'.",
+  },
+  {
+    id: "3",
+    q: "How do I make a payment?",
+    a: "Clean.et supports secure mobile and card payments via Telebirr, CBE Birr, Chapa, and Cash on Delivery. When your service invoice is ready, you can pay directly in the app or choose your preferred method.",
+  },
+  {
+    id: "4",
+    q: "Is my data secure?",
+    a: "All personal information, address records, and payment credentials are encrypted using industry-standard protocols. We never share your private data with unauthorized third parties.",
+  },
+  {
+    id: "5",
+    q: "How do I contact support?",
+    a: "You can reach our customer support team 24/7 by emailing support@clean.et, calling our hotline, or tapping the 'Need Help?' card above to send us an email directly.",
+  },
+];
 
 // ─── Ethiopian Phone Formatter ────────────────────────────────────────────────
 function formatEthiopianPhone(input: string): string {
@@ -287,9 +324,10 @@ export default function ProfileScreen() {
   };
 
   // Settings Tab State
-  const [settingsSubPage, setSettingsSubPage] = useState<"notifications" | "password" | "privacy" | null>(null);
+  const [settingsSubPage, setSettingsSubPage] = useState<"notifications" | "password" | "privacy" | "help" | null>(null);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
+  const [expandedFaqId, setExpandedFaqId] = useState<string | null>(null);
   const [rtlEnabled, setRtlEnabled] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(4);
   const [langModalVisible, setLangModalVisible] = useState(false);
@@ -305,6 +343,18 @@ export default function ProfileScreen() {
   const [termsModalVisible, setTermsModalVisible] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
+
+  const handleToggleFaq = (id: string) => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    setExpandedFaqId((prev) => (prev === id ? null : id));
+  };
+
+  const handleContactSupport = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    Linking.openURL("mailto:support@clean.et").catch(() => {
+      Alert.alert("Contact Support", "Please email us at support@clean.et");
+    });
+  };
 
   // Load saved privacy settings
   useEffect(() => {
@@ -1590,6 +1640,125 @@ export default function ProfileScreen() {
                 <Text style={styles.screenshotLogoutText}>Log Out</Text>
               </Pressable>
             </View>
+          ) : settingsSubPage === "help" ? (
+            <View style={styles.bodyContent}>
+              {/* Back button & Title (Matches screenshot) */}
+              <View style={styles.subPageHeaderRow}>
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setSettingsSubPage(null);
+                  }}
+                  style={[
+                    styles.subPageBackBtn,
+                    {
+                      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                >
+                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                </Pressable>
+                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Help Center
+                </Text>
+              </View>
+
+              {/* Need Help Card (Matches screenshot) */}
+              <Pressable
+                onPress={handleContactSupport}
+                style={({ pressed }) => [
+                  styles.needHelpCard,
+                  {
+                    backgroundColor: isDark ? "rgba(239, 68, 68, 0.1)" : "#FFF1F2",
+                    borderColor: isDark ? "rgba(239, 68, 68, 0.25)" : "#FFE4E6",
+                  },
+                  pressed && { opacity: 0.85 },
+                ]}
+              >
+                <View style={styles.needHelpIconContainer}>
+                  <HelpCircle size={32} color="#EF4444" strokeWidth={2.2} />
+                </View>
+                <View style={styles.needHelpTextCol}>
+                  <Text style={[styles.needHelpTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Need Help?
+                  </Text>
+                  <Text style={[styles.needHelpEmail, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    support@clean.et
+                  </Text>
+                </View>
+              </Pressable>
+
+              {/* FREQUENTLY ASKED QUESTIONS Heading */}
+              <Text style={[styles.faqSectionHeading, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                FREQUENTLY ASKED QUESTIONS
+              </Text>
+
+              {/* FAQ Accordion Card (Matches screenshot) */}
+              <View
+                style={[
+                  styles.faqCardBox,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                {CLEAN_ET_FAQS.map((faq, index) => {
+                  const isExpanded = expandedFaqId === faq.id;
+                  const isLast = index === CLEAN_ET_FAQS.length - 1;
+                  return (
+                    <View key={faq.id}>
+                      <Pressable
+                        onPress={() => handleToggleFaq(faq.id)}
+                        style={({ pressed }) => [
+                          styles.faqRowItem,
+                          pressed && { opacity: 0.7 },
+                        ]}
+                      >
+                        <Text style={[styles.faqQuestionText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                          {faq.q}
+                        </Text>
+                        {isExpanded ? (
+                          <ChevronUp size={18} color="#94A3B8" strokeWidth={2} />
+                        ) : (
+                          <ChevronDown size={18} color="#94A3B8" strokeWidth={2} />
+                        )}
+                      </Pressable>
+
+                      {isExpanded && (
+                        <View style={styles.faqAnswerContainer}>
+                          <Text style={[styles.faqAnswerText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                            {faq.a}
+                          </Text>
+                        </View>
+                      )}
+
+                      {!isLast && (
+                        <View
+                          style={[
+                            styles.settingsDivider,
+                            { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                          ]}
+                        />
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* LOG OUT BUTTON (Matches screenshot) */}
+              <Pressable
+                onPress={handleLogout}
+                style={({ pressed }) => [
+                  styles.screenshotLogoutBtn,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+                ]}
+              >
+                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+              </Pressable>
+            </View>
           ) : (
             <View style={styles.bodyContent}>
               {/* ── APPEARANCE SECTION ── */}
@@ -1822,7 +1991,7 @@ export default function ProfileScreen() {
                 <Pressable
                   onPress={() => {
                     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-                    router.push("/profile/help");
+                    setSettingsSubPage("help");
                   }}
                   style={({ pressed }) => [
                     styles.settingsRowItem,
@@ -3050,6 +3219,77 @@ const styles = StyleSheet.create({
     color: "#EF4444",
     fontSize: 14,
     fontWeight: "600",
+  },
+
+  // ── Help Center Subpage Styles (Matches Screenshot) ──
+  needHelpCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 22,
+  },
+  needHelpIconContainer: {
+    marginRight: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  needHelpTextCol: {
+    flex: 1,
+  },
+  needHelpTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  needHelpEmail: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  faqSectionHeading: {
+    fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 12,
+    paddingLeft: 4,
+  },
+  faqCardBox: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  faqRowItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
+  faqQuestionText: {
+    fontSize: 14,
+    fontWeight: "700",
+    flex: 1,
+    marginRight: 12,
+    letterSpacing: -0.2,
+  },
+  faqAnswerContainer: {
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+    paddingTop: 2,
+  },
+  faqAnswerText: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "400",
   },
 
   // ── Toast ──
