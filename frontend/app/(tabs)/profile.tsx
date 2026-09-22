@@ -325,7 +325,7 @@ export default function ProfileScreen() {
 
   // Settings Tab State
   const [settingsSubPage, setSettingsSubPage] = useState<
-    "notifications" | "password" | "privacy" | "help" | "terms" | "privacy_policy" | null
+    "notifications" | "password" | "privacy" | "help" | "terms" | "privacy_policy" | "about" | null
   >(null);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
@@ -342,7 +342,6 @@ export default function ProfileScreen() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccessMsg, setPasswordSuccessMsg] = useState("");
-  const [aboutModalVisible, setAboutModalVisible] = useState(false);
 
   const handleToggleFaq = (id: string) => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
@@ -2001,6 +2000,130 @@ export default function ProfileScreen() {
                 <Text style={styles.screenshotLogoutText}>Log Out</Text>
               </Pressable>
             </View>
+          ) : settingsSubPage === "about" ? (
+            <View style={styles.bodyContent}>
+              {/* Back button & Title (Matches screenshot) */}
+              <View style={styles.subPageHeaderRow}>
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+                    setSettingsSubPage(null);
+                  }}
+                  style={[
+                    styles.subPageBackBtn,
+                    {
+                      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                >
+                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                </Pressable>
+                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  About Clean.et
+                </Text>
+              </View>
+
+              {/* 1. Top Card: Version & Description (Matches screenshot) */}
+              <View
+                style={[
+                  styles.aboutHeroCard,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                <Text style={[styles.aboutHeroVersion, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  Version 2.5.0
+                </Text>
+
+                <Text style={[styles.aboutHeroDesc, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  Clean.et is a premium cleaning and hygiene service platform designed to connect clients with verified service professionals seamlessly.
+                </Text>
+              </View>
+
+              {/* 2. Bottom Card: Specs / Info Table (Matches screenshot) */}
+              <View
+                style={[
+                  styles.aboutSpecsCard,
+                  {
+                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                    borderColor: isDark ? "#334155" : "#E2E8F0",
+                  },
+                ]}
+              >
+                {/* Developer */}
+                <View style={styles.aboutSpecRow}>
+                  <Text style={[styles.aboutSpecLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    Developer
+                  </Text>
+                  <Text style={[styles.aboutSpecValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Clean.et Team
+                  </Text>
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* Email */}
+                <View style={styles.aboutSpecRow}>
+                  <Text style={[styles.aboutSpecLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    Email
+                  </Text>
+                  <Text style={[styles.aboutSpecValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    support@clean.et
+                  </Text>
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* Framework */}
+                <View style={styles.aboutSpecRow}>
+                  <Text style={[styles.aboutSpecLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    Framework
+                  </Text>
+                  <Text style={[styles.aboutSpecValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    React Native + TypeScript
+                  </Text>
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* UI Library */}
+                <View style={styles.aboutSpecRow}>
+                  <Text style={[styles.aboutSpecLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    UI Library
+                  </Text>
+                  <Text style={[styles.aboutSpecValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Tailwind CSS + shadcn/ui
+                  </Text>
+                </View>
+
+                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+
+                {/* License */}
+                <View style={styles.aboutSpecRow}>
+                  <Text style={[styles.aboutSpecLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    License
+                  </Text>
+                  <Text style={[styles.aboutSpecValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    Regular / Extended
+                  </Text>
+                </View>
+              </View>
+
+              {/* LOG OUT BUTTON (Matches screenshot) */}
+              <Pressable
+                onPress={handleLogout}
+                style={({ pressed }) => [
+                  styles.screenshotLogoutBtn,
+                  pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
+                ]}
+              >
+                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+              </Pressable>
+            </View>
           ) : (
             <View style={styles.bodyContent}>
               {/* ── APPEARANCE SECTION ── */}
@@ -2301,11 +2424,11 @@ export default function ProfileScreen() {
 
                 <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
 
-                {/* About Docly Pro */}
+                {/* About Clean.et */}
                 <Pressable
                   onPress={() => {
                     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
-                    setAboutModalVisible(true);
+                    setSettingsSubPage("about");
                   }}
                   style={({ pressed }) => [
                     styles.settingsRowItem,
@@ -2318,7 +2441,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.settingsTextCol}>
                       <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
-                        About Docly Pro
+                        About Clean.et
                       </Text>
                       <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
                         Version 2.5.0
@@ -2657,51 +2780,7 @@ export default function ProfileScreen() {
 
 
 
-      {/* ── About Docly Pro Modal ── */}
-      <Modal
-        visible={aboutModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAboutModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.editModalContainer}>
-            <View
-              style={[
-                styles.editModalContent,
-                {
-                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                  borderColor: isDark ? "#334155" : "#E2E8F0",
-                  alignItems: "center",
-                },
-              ]}
-            >
-              <View style={styles.aboutBadge}>
-                <Text style={styles.aboutBadgeText}>Docly Pro Platform</Text>
-              </View>
 
-              <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 6 }]}>
-                Clean.et Mobile App
-              </Text>
-              <Text style={{ fontSize: 13, color: isDark ? "#94A3B8" : "#64748B", marginBottom: 16 }}>
-                Version 2.5.0 (Build 48)
-              </Text>
-
-              <Text style={[styles.modalBodyText, { color: isDark ? "#CBD5E1" : "#475569", textAlign: "center" }]}>
-                Next-generation automated hygiene management, residential and commercial cleaning services, vehicle detailing, and scheduled sanitation.
-              </Text>
-
-              <Pressable
-                style={[styles.modalSaveBtn, { width: "100%", marginTop: 10 }]}
-                onPress={() => setAboutModalVisible(false)}
-              >
-                <Text style={styles.modalSaveBtnText}>Close</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* ── Toast Feedback ── */}
       {showSuccessToast && (
@@ -3464,6 +3543,59 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "400",
+  },
+
+  // ── About Clean.et Subpage Styles (Matches Screenshot) ──
+  aboutHeroCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingVertical: 36,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  aboutHeroVersion: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  aboutHeroDesc: {
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: "center",
+    maxWidth: 320,
+  },
+  aboutSpecsCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 20,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  aboutSpecRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 18,
+  },
+  aboutSpecLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  aboutSpecValue: {
+    fontSize: 14,
+    fontWeight: "700",
   },
 
   // ── Toast ──
