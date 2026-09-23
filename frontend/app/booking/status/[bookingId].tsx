@@ -487,7 +487,7 @@ export default function BookingStatusScreen() {
           </Pressable>
 
           <TextInput
-            style={[styles.noteInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+            style={[styles.noteInput, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent", color: colors.text }]}
             placeholder="Add a checklist note (optional)…"
             placeholderTextColor={colors.placeholder}
             value={proofNote}
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   previewImage: { width: "100%" as any, height: 160, borderRadius: 12, marginBottom: 12 },
   pickImageBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(139,92,246,0.4)", backgroundColor: "rgba(139,92,246,0.1)", marginBottom: 12 },
   pickImageText: { color: "#a78bfa", fontWeight: "600", fontSize: 14 },
-  noteInput: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 14, color: "#fff", fontSize: 13, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", marginBottom: 16, minHeight: 80, textAlignVertical: "top" },
+  noteInput: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 14, color: "#fff", fontSize: 13, borderWidth: 0, borderColor: "transparent", marginBottom: 16, minHeight: 80, textAlignVertical: "top" },
   uploadBtn: { backgroundColor: "#7c3aed", borderRadius: 16, paddingVertical: 16, alignItems: "center" },
   uploadBtnDisabled: { backgroundColor: "rgba(124,58,237,0.4)" },
   uploadBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },

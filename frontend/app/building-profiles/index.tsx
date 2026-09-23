@@ -220,7 +220,7 @@ export default function BuildingProfilesScreen() {
 
               <Text style={[styles.label, { color: colors.text }]}>Building Name *</Text>
               <TextInput
-                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                style={[styles.input, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent", color: colors.text }]}
                 placeholder="e.g. Atlas Tower, Home"
                 placeholderTextColor={colors.placeholder}
                 value={form.name}
@@ -231,7 +231,7 @@ export default function BuildingProfilesScreen() {
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={[styles.label, { color: colors.text }]}>Area (sqm) *</Text>
                   <TextInput
-                    style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                    style={[styles.input, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent", color: colors.text }]}
                     placeholder="500"
                     placeholderTextColor={colors.placeholder}
                     keyboardType="numeric"
@@ -247,7 +247,7 @@ export default function BuildingProfilesScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.label, { color: colors.text }]}>Floors *</Text>
                   <TextInput
-                    style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                    style={[styles.input, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent", color: colors.text }]}
                     placeholder="5"
                     placeholderTextColor={colors.placeholder}
                     keyboardType="numeric"
@@ -287,7 +287,7 @@ export default function BuildingProfilesScreen() {
 
               <Text style={[styles.label, { color: colors.text }]}>Access Notes (optional)</Text>
               <TextInput
-                style={[styles.input, { height: 80, textAlignVertical: "top", backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                style={[styles.input, { height: 80, textAlignVertical: "top", backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent", color: colors.text }]}
                 placeholder="Gate code, parking info, etc."
                 placeholderTextColor={colors.placeholder}
                 multiline
@@ -416,8 +416,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: "#fff",
     fontSize: 15,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderWidth: 0,
+    borderColor: "transparent",
   },
   row: { flexDirection: "row" },
   tierPreview: {

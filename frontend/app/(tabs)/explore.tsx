@@ -311,13 +311,14 @@ export default function ExploreScreen() {
             styles.searchBar,
             {
               backgroundColor: colors.inputBg,
-              borderColor: colors.border,
+              borderWidth: 0,
+              borderColor: "transparent",
             },
           ]}
         >
           <Search size={19} color={colors.subtext} />
           <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
+            style={[styles.searchInput, { color: colors.text, borderWidth: 0, outlineStyle: "none" } as any]}
             placeholder="Search mobile car wash, building, sofa..."
             placeholderTextColor={colors.placeholder}
             value={searchQuery}
@@ -662,7 +663,8 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
+    borderWidth: 0,
+    borderColor: "transparent",
     borderRadius: 14,
     paddingHorizontal: 12,
     height: 44,
@@ -673,6 +675,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     height: "100%",
+    borderWidth: 0,
   },
   clearBtn: {
     padding: 4,

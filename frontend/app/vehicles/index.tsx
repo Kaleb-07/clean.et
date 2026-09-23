@@ -213,7 +213,7 @@ export default function VehiclesScreen() {
 
             <Text style={[styles.label, { color: colors.text }]}>Make (optional)</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent", color: colors.text }]}
               placeholder="e.g. Toyota"
               placeholderTextColor={colors.placeholder}
               value={form.make ?? ""}
@@ -222,7 +222,7 @@ export default function VehiclesScreen() {
 
             <Text style={[styles.label, { color: colors.text }]}>Model (optional)</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent", color: colors.text }]}
               placeholder="e.g. Corolla"
               placeholderTextColor={colors.placeholder}
               value={form.model ?? ""}
@@ -233,7 +233,7 @@ export default function VehiclesScreen() {
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={[styles.label, { color: colors.text }]}>Year</Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent", color: colors.text }]}
                   placeholder="2022"
                   placeholderTextColor={colors.placeholder}
                   keyboardType="numeric"
@@ -246,7 +246,7 @@ export default function VehiclesScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.label, { color: colors.text }]}>Color</Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent", color: colors.text }]}
                   placeholder="White"
                   placeholderTextColor={colors.placeholder}
                   value={form.color ?? ""}
@@ -257,7 +257,7 @@ export default function VehiclesScreen() {
 
             <Text style={[styles.label, { color: colors.text }]}>Plate Number (optional)</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent", color: colors.text }]}
               placeholder="AA 12345"
               placeholderTextColor={colors.placeholder}
               value={form.plate_number ?? ""}
@@ -366,8 +366,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: "#fff",
     fontSize: 15,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderWidth: 0,
+    borderColor: "transparent",
   },
   classPicker: {
     flexDirection: "row",

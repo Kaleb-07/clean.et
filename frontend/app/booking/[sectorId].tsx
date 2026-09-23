@@ -426,7 +426,7 @@ export default function DynamicBookingScreen() {
                             }}
                             style={[
                               styles.selectChip,
-                              { backgroundColor: colors.surface, borderColor: colors.border },
+                              { backgroundColor: colors.surface, borderWidth: 0, borderColor: "transparent" },
                               isSelectedOpt && styles.selectChipActive
                             ]}
                           >
@@ -440,7 +440,7 @@ export default function DynamicBookingScreen() {
                   )}
 
                   {field.type === "boolean" && (
-                    <View style={[styles.switchRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={[styles.switchRow, { backgroundColor: colors.surface, borderWidth: 0, borderColor: "transparent" }]}>
                       <Text style={[styles.switchLabel, { color: colors.text }]}>Yes / No</Text>
                       <Switch
                         value={!!val}
@@ -452,12 +452,12 @@ export default function DynamicBookingScreen() {
                   )}
 
                   {field.type === "number" && (
-                    <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                    <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent" }]}>
                       <TextInput
                         keyboardType="numeric"
                         placeholder="Enter value"
                         placeholderTextColor={colors.placeholder}
-                        style={[styles.textInput, { color: colors.text }]}
+                        style={[styles.textInput, { color: colors.text, borderWidth: 0, outlineStyle: "none" } as any]}
                         value={val !== undefined ? String(val) : ""}
                         onChangeText={(text) => handleFieldChange(field.key, text === "" ? "" : Number(text))}
                       />
@@ -465,12 +465,12 @@ export default function DynamicBookingScreen() {
                   )}
 
                   {(field.type === "text" || field.type === "address") && (
-                    <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                    <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderWidth: 0, borderColor: "transparent" }]}>
                       {field.type === "address" && <MapPin size={16} color={colors.subtext} style={{ marginRight: 8 }} />}
                       <TextInput
                         placeholder={field.type === "address" ? "Enter address details" : "Enter details"}
                         placeholderTextColor={colors.placeholder}
-                        style={[styles.textInput, { color: colors.text }]}
+                        style={[styles.textInput, { color: colors.text, borderWidth: 0, outlineStyle: "none" } as any]}
                         value={val || ""}
                         onChangeText={(text) => handleFieldChange(field.key, text)}
                       />
@@ -821,8 +821,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.02)",
     padding: 12,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 0,
+    borderColor: "transparent",
   },
   switchLabel: {
     color: "#a3a3a3",
@@ -839,14 +839,15 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 12,
     paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderWidth: 0,
+    borderColor: "transparent",
   },
   textInput: {
     flex: 1,
     height: 48,
     color: "#ffffff",
     fontSize: 15,
+    borderWidth: 0,
   },
   dateList: {
     gap: 12,

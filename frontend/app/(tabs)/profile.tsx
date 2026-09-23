@@ -1330,7 +1330,8 @@ export default function ProfileScreen() {
                       styles.passwordInputContainer,
                       {
                         backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
-                        borderColor: isDark ? "#334155" : "#E2E8F0",
+                        borderWidth: 0,
+                        borderColor: "transparent",
                       },
                     ]}
                   >
@@ -1343,7 +1344,7 @@ export default function ProfileScreen() {
                       secureTextEntry={!showCurrentPassword}
                       style={[
                         styles.passwordTextInput,
-                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        { color: isDark ? "#FFFFFF" : "#0F172A", borderWidth: 0, outlineStyle: "none" } as any,
                       ]}
                       autoCapitalize="none"
                     />
@@ -1374,7 +1375,8 @@ export default function ProfileScreen() {
                       styles.passwordInputContainer,
                       {
                         backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
-                        borderColor: isDark ? "#334155" : "#E2E8F0",
+                        borderWidth: 0,
+                        borderColor: "transparent",
                       },
                     ]}
                   >
@@ -1387,7 +1389,7 @@ export default function ProfileScreen() {
                       secureTextEntry={!showNewPassword}
                       style={[
                         styles.passwordTextInput,
-                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        { color: isDark ? "#FFFFFF" : "#0F172A", borderWidth: 0, outlineStyle: "none" } as any,
                       ]}
                       autoCapitalize="none"
                     />
@@ -1418,7 +1420,8 @@ export default function ProfileScreen() {
                       styles.passwordInputContainer,
                       {
                         backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
-                        borderColor: isDark ? "#334155" : "#E2E8F0",
+                        borderWidth: 0,
+                        borderColor: "transparent",
                       },
                     ]}
                   >
@@ -1431,7 +1434,7 @@ export default function ProfileScreen() {
                       secureTextEntry={!showConfirmPassword}
                       style={[
                         styles.passwordTextInput,
-                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        { color: isDark ? "#FFFFFF" : "#0F172A", borderWidth: 0, outlineStyle: "none" } as any,
                       ]}
                       autoCapitalize="none"
                     />
@@ -2521,8 +2524,10 @@ export default function ProfileScreen() {
                     {
                       backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
                       color: isDark ? "#FFFFFF" : "#0F172A",
-                      borderColor: isDark ? "#334155" : "#E2E8F0",
-                    },
+                      borderWidth: 0,
+                      borderColor: "transparent",
+                      outlineStyle: "none",
+                    } as any,
                   ]}
                   value={editName}
                   onChangeText={(t) => {
@@ -2543,8 +2548,10 @@ export default function ProfileScreen() {
                     {
                       backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
                       color: isDark ? "#FFFFFF" : "#0F172A",
-                      borderColor: isDark ? "#334155" : "#E2E8F0",
-                    },
+                      borderWidth: 0,
+                      borderColor: "transparent",
+                      outlineStyle: "none",
+                    } as any,
                   ]}
                   value={editPhone}
                   onChangeText={(t) => {
@@ -2566,8 +2573,10 @@ export default function ProfileScreen() {
                     {
                       backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
                       color: isDark ? "#FFFFFF" : "#0F172A",
-                      borderColor: isDark ? "#334155" : "#E2E8F0",
-                    },
+                      borderWidth: 0,
+                      borderColor: "transparent",
+                      outlineStyle: "none",
+                    } as any,
                   ]}
                   value={editEmail}
                   onChangeText={(t) => {
@@ -2642,8 +2651,10 @@ export default function ProfileScreen() {
                     {
                       backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
                       color: isDark ? "#FFFFFF" : "#0F172A",
-                      borderColor: isDark ? "#334155" : "#E2E8F0",
-                    },
+                      borderWidth: 0,
+                      borderColor: "transparent",
+                      outlineStyle: "none",
+                    } as any,
                   ]}
                   value={addressTitle}
                   onChangeText={(t) => {
@@ -2667,8 +2678,10 @@ export default function ProfileScreen() {
                       paddingTop: 10,
                       backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
                       color: isDark ? "#FFFFFF" : "#0F172A",
-                      borderColor: isDark ? "#334155" : "#E2E8F0",
-                    },
+                      borderWidth: 0,
+                      borderColor: "transparent",
+                      outlineStyle: "none",
+                    } as any,
                   ]}
                   value={addressText}
                   onChangeText={(t) => {
@@ -3187,7 +3200,8 @@ const styles = StyleSheet.create({
   textInput: {
     height: 48,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 0,
+    borderColor: "transparent",
     paddingHorizontal: 14,
     fontSize: 14,
   },
@@ -3346,7 +3360,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     height: 50,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 0,
+    borderColor: "transparent",
     paddingHorizontal: 14,
   },
   passwordInputLeftIcon: {
@@ -3356,6 +3371,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     paddingVertical: 0,
+    borderWidth: 0,
   },
   passwordEyeBtn: {
     padding: 6,

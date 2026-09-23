@@ -316,14 +316,14 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* ── 2. SEARCH INPUT TAB ── */}
-        <Animated.View entering={FadeInDown.delay(150)} style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+        <Animated.View entering={FadeInDown.delay(150)} style={[styles.searchContainer, { backgroundColor: colors.card, borderWidth: 0, borderColor: "transparent" }]}>
           <Search size={18} color={colors.subtext} />
           <TextInput
             placeholder="Search services, sectors, packages..."
             placeholderTextColor={colors.subtext}
             value={search}
             onChangeText={setSearch}
-            style={[styles.searchInput, { color: colors.text, outlineStyle: "none" } as any]}
+            style={[styles.searchInput, { color: colors.text, borderWidth: 0, outlineStyle: "none" } as any]}
           />
         </Animated.View>
 
@@ -825,7 +825,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
+    borderWidth: 0,
+    borderColor: "transparent",
   },
   searchInput: {
     marginLeft: 10,
