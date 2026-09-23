@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   Pressable,
-  Image,
   Platform,
   RefreshControl,
   Dimensions,
@@ -14,7 +13,6 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import {
   Search,
   X,
@@ -27,7 +25,6 @@ import {
   Star,
   Clock,
   ChevronRight,
-  Droplets,
   ArrowRight,
   CheckCircle2,
   Zap,
@@ -261,7 +258,6 @@ export default function ExploreScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    // Route to booking flow
     router.push({
       pathname: "/booking/[sectorId]",
       params: {
@@ -281,13 +277,13 @@ export default function ExploreScreen() {
           {
             paddingTop: insets.top + (Platform.OS === "ios" ? 8 : 16),
             backgroundColor: colors.surface,
-            borderBottomColor: colors.isDark ? "#1E293B" : "#F1F5F9",
+            borderBottomColor: colors.border,
           },
         ]}
       >
         <View style={styles.headerTopRow}>
           <View>
-            <Text style={[styles.headerSubtitle, { color: colors.isDark ? "#94A3B8" : "#64748B" }]}>
+            <Text style={[styles.headerSubtitle, { color: colors.primary }]}>
               DISCOVER CLEAN.ET
             </Text>
             <Text style={[styles.headerTitle, { color: colors.text }]}>
@@ -295,9 +291,17 @@ export default function ExploreScreen() {
             </Text>
           </View>
 
-          <View style={styles.headerBadge}>
-            <Sparkles size={14} color="#EF4444" />
-            <Text style={styles.headerBadgeText}>Addis Ababa</Text>
+          <View
+            style={[
+              styles.headerBadge,
+              {
+                backgroundColor: colors.primaryLight,
+                borderColor: colors.isDark ? "rgba(59, 130, 246, 0.3)" : "rgba(37, 99, 235, 0.2)",
+              },
+            ]}
+          >
+            <Sparkles size={14} color={colors.primary} />
+            <Text style={[styles.headerBadgeText, { color: colors.primary }]}>Addis Ababa</Text>
           </View>
         </View>
 
@@ -306,16 +310,16 @@ export default function ExploreScreen() {
           style={[
             styles.searchBar,
             {
-              backgroundColor: colors.isDark ? "#0F172A" : "#F8FAFC",
-              borderColor: colors.isDark ? "#334155" : "#E2E8F0",
+              backgroundColor: colors.inputBg,
+              borderColor: colors.border,
             },
           ]}
         >
-          <Search size={19} color={colors.isDark ? "#94A3B8" : "#64748B"} />
+          <Search size={19} color={colors.subtext} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
             placeholder="Search mobile car wash, building, sofa..."
-            placeholderTextColor={colors.isDark ? "#64748B" : "#94A3B8"}
+            placeholderTextColor={colors.placeholder}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
@@ -326,7 +330,7 @@ export default function ExploreScreen() {
               hitSlop={8}
               style={styles.clearBtn}
             >
-              <X size={16} color={colors.isDark ? "#94A3B8" : "#64748B"} />
+              <X size={16} color={colors.subtext} />
             </Pressable>
           ) : null}
         </View>
@@ -354,28 +358,24 @@ export default function ExploreScreen() {
                   styles.filterPill,
                   isSelected
                     ? {
-                        backgroundColor: "#EF4444",
-                        borderColor: "#EF4444",
+                        backgroundColor: colors.primary,
+                        borderColor: colors.primary,
                       }
                     : {
-                        backgroundColor: colors.isDark ? "#0F172A" : "#F1F5F9",
-                        borderColor: colors.isDark ? "#334155" : "#E2E8F0",
+                        backgroundColor: colors.isDark ? colors.surface : "#F1F5F9",
+                        borderColor: colors.border,
                       },
                 ]}
               >
                 <Icon
                   size={15}
-                  color={isSelected ? "#FFFFFF" : colors.isDark ? "#94A3B8" : "#64748B"}
+                  color={isSelected ? "#FFFFFF" : colors.subtext}
                 />
                 <Text
                   style={[
                     styles.filterPillText,
                     {
-                      color: isSelected
-                        ? "#FFFFFF"
-                        : colors.isDark
-                        ? "#94A3B8"
-                        : "#64748B",
+                      color: isSelected ? "#FFFFFF" : colors.subtext,
                       fontWeight: isSelected ? "700" : "500",
                     },
                   ]}
@@ -399,14 +399,14 @@ export default function ExploreScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#EF4444"
-            colors={["#EF4444"]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
         {/* ── QUICK POPULAR TAGS ── */}
         <View style={styles.quickTagsSection}>
-          <Text style={[styles.sectionCaption, { color: colors.isDark ? "#94A3B8" : "#64748B" }]}>
+          <Text style={[styles.sectionCaption, { color: colors.subtext }]}>
             POPULAR SEARCHES
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickTagsRow}>
@@ -420,12 +420,12 @@ export default function ExploreScreen() {
                 style={[
                   styles.quickTagChip,
                   {
-                    backgroundColor: colors.isDark ? "rgba(255, 255, 255, 0.05)" : "#F1F5F9",
-                    borderColor: colors.isDark ? "#334155" : "#E2E8F0",
+                    backgroundColor: colors.chipBg,
+                    borderColor: colors.chipBorder,
                   },
                 ]}
               >
-                <Text style={[styles.quickTagText, { color: colors.isDark ? "#CBD5E1" : "#475569" }]}>
+                <Text style={[styles.quickTagText, { color: colors.text }]}>
                   #{tag}
                 </Text>
               </Pressable>
@@ -436,15 +436,15 @@ export default function ExploreScreen() {
         {/* ── PROMO BANNER ── */}
         <View style={styles.promoCardContainer}>
           <LinearGradient
-            colors={["#EF4444", "#DC2626"]}
+            colors={colors.isDark ? ["#1E3A8A", "#2563EB"] : ["#2563EB", "#1D4ED8"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.promoCard}
           >
             <View style={styles.promoContent}>
               <View style={styles.promoTag}>
-                <Zap size={12} color="#EF4444" fill="#EF4444" />
-                <Text style={styles.promoTagText}>SPECIAL PROMO</Text>
+                <Zap size={12} color={colors.primary} fill={colors.primary} />
+                <Text style={[styles.promoTagText, { color: colors.primary }]}>SPECIAL PROMO</Text>
               </View>
               <Text style={styles.promoTitle}>Doorstep Steam Detailing Combo</Text>
               <Text style={styles.promoSubtitle}>Get 20% off your first full exterior + interior steam booking</Text>
@@ -458,8 +458,8 @@ export default function ExploreScreen() {
                 }}
                 style={styles.promoBtn}
               >
-                <Text style={styles.promoBtnText}>Claim Offer</Text>
-                <ArrowRight size={14} color="#EF4444" />
+                <Text style={[styles.promoBtnText, { color: colors.primary }]}>Claim Offer</Text>
+                <ArrowRight size={14} color={colors.primary} />
               </Pressable>
             </View>
           </LinearGradient>
@@ -479,13 +479,13 @@ export default function ExploreScreen() {
               style={[
                 styles.sortButton,
                 {
-                  backgroundColor: colors.isDark ? "#1E293B" : "#F1F5F9",
-                  borderColor: colors.isDark ? "#334155" : "#E2E8F0",
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
                 },
               ]}
             >
-              <SlidersHorizontal size={13} color={colors.isDark ? "#94A3B8" : "#64748B"} />
-              <Text style={[styles.sortButtonText, { color: colors.isDark ? "#CBD5E1" : "#475569" }]}>
+              <SlidersHorizontal size={13} color={colors.subtext} />
+              <Text style={[styles.sortButtonText, { color: colors.text }]}>
                 {sortBy === "popular" ? "Popular" : sortBy === "price_asc" ? "Price: Low to High" : "Top Rated"}
               </Text>
             </Pressable>
@@ -495,9 +495,9 @@ export default function ExploreScreen() {
         {/* ── SERVICE CARDS ── */}
         {filteredServices.length === 0 ? (
           <View style={[styles.emptyContainer, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-            <Search size={44} color={colors.isDark ? "#475569" : "#CBD5E1"} />
+            <Search size={44} color={colors.subtext} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No services matched</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.isDark ? "#94A3B8" : "#64748B" }]}>
+            <Text style={[styles.emptySubtitle, { color: colors.subtext }]}>
               Try adjusting your search terms or filter selection.
             </Text>
             <Pressable
@@ -505,7 +505,7 @@ export default function ExploreScreen() {
                 setSearchQuery("");
                 setSelectedCategory("all");
               }}
-              style={styles.emptyResetBtn}
+              style={[styles.emptyResetBtn, { backgroundColor: colors.primary }]}
             >
               <Text style={styles.emptyResetBtnText}>Reset All Filters</Text>
             </Pressable>
@@ -518,29 +518,29 @@ export default function ExploreScreen() {
                 styles.serviceCard,
                 {
                   backgroundColor: colors.surface,
-                  borderColor: colors.isDark ? "#1E293B" : "#F1F5F9",
+                  borderColor: colors.border,
                   shadowColor: colors.isDark ? "#000000" : "#64748B",
                 },
               ]}
             >
               {/* Badge & Category */}
               <View style={styles.cardTopRow}>
-                <View style={[styles.categoryTag, { backgroundColor: colors.isDark ? "#1E293B" : "#F8FAFC" }]}>
+                <View style={[styles.categoryTag, { backgroundColor: colors.primaryLight }]}>
                   {service.categorySlug === "car-washing" ? (
-                    <Car size={13} color="#EF4444" />
+                    <Car size={13} color={colors.primary} />
                   ) : service.categorySlug === "building-cleaning" ? (
-                    <Building2 size={13} color="#3B82F6" />
+                    <Building2 size={13} color={colors.secondary} />
                   ) : (
-                    <Shirt size={13} color="#10B981" />
+                    <Shirt size={13} color="#8B5CF6" />
                   )}
-                  <Text style={[styles.categoryTagText, { color: colors.isDark ? "#CBD5E1" : "#475569" }]}>
+                  <Text style={[styles.categoryTagText, { color: colors.text }]}>
                     {service.sectorName}
                   </Text>
                 </View>
 
                 {service.badge ? (
-                  <View style={styles.badgePill}>
-                    <Text style={styles.badgePillText}>{service.badge}</Text>
+                  <View style={[styles.badgePill, { backgroundColor: colors.primaryLight }]}>
+                    <Text style={[styles.badgePillText, { color: colors.primary }]}>{service.badge}</Text>
                   </View>
                 ) : null}
               </View>
@@ -549,7 +549,7 @@ export default function ExploreScreen() {
               <Text style={[styles.serviceTitle, { color: colors.text }]}>
                 {service.title}
               </Text>
-              <Text style={[styles.serviceSubtitle, { color: colors.isDark ? "#94A3B8" : "#64748B" }]}>
+              <Text style={[styles.serviceSubtitle, { color: colors.subtext }]}>
                 {service.subtitle}
               </Text>
 
@@ -557,8 +557,8 @@ export default function ExploreScreen() {
               <View style={styles.featuresList}>
                 {service.features.map((feat, fIdx) => (
                   <View key={fIdx} style={styles.featureItem}>
-                    <CheckCircle2 size={13} color="#10B981" />
-                    <Text style={[styles.featureText, { color: colors.isDark ? "#94A3B8" : "#475569" }]}>
+                    <CheckCircle2 size={13} color={colors.secondary} />
+                    <Text style={[styles.featureText, { color: colors.subtext }]}>
                       {feat}
                     </Text>
                   </View>
@@ -566,7 +566,7 @@ export default function ExploreScreen() {
               </View>
 
               {/* Divider */}
-              <View style={[styles.cardDivider, { backgroundColor: colors.isDark ? "#1E293B" : "#F1F5F9" }]} />
+              <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
 
               {/* Footer: Rating, Duration, Price & Action */}
               <View style={styles.cardFooter}>
@@ -574,7 +574,7 @@ export default function ExploreScreen() {
                   <View style={styles.ratingBox}>
                     <Star size={13} color="#F59E0B" fill="#F59E0B" />
                     <Text style={[styles.ratingVal, { color: colors.text }]}>{service.rating}</Text>
-                    <Text style={[styles.ratingCount, { color: colors.isDark ? "#64748B" : "#94A3B8" }]}>
+                    <Text style={[styles.ratingCount, { color: colors.subtext }]}>
                       ({service.reviewCount})
                     </Text>
                   </View>
@@ -582,8 +582,8 @@ export default function ExploreScreen() {
                   <View style={styles.metaDot} />
 
                   <View style={styles.durationBox}>
-                    <Clock size={13} color={colors.isDark ? "#94A3B8" : "#64748B"} />
-                    <Text style={[styles.durationVal, { color: colors.isDark ? "#94A3B8" : "#64748B" }]}>
+                    <Clock size={13} color={colors.subtext} />
+                    <Text style={[styles.durationVal, { color: colors.subtext }]}>
                       {service.duration}
                     </Text>
                   </View>
@@ -591,7 +591,7 @@ export default function ExploreScreen() {
 
                 <View style={styles.actionContainer}>
                   <View style={styles.priceContainer}>
-                    <Text style={[styles.pricePrefix, { color: colors.isDark ? "#64748B" : "#94A3B8" }]}>
+                    <Text style={[styles.pricePrefix, { color: colors.subtext }]}>
                       from
                     </Text>
                     <Text style={[styles.priceVal, { color: colors.text }]}>
@@ -603,6 +603,7 @@ export default function ExploreScreen() {
                     onPress={() => handleBookService(service)}
                     style={({ pressed }) => [
                       styles.bookBtn,
+                      { backgroundColor: colors.primary },
                       pressed && { opacity: 0.85 },
                     ]}
                   >
@@ -649,17 +650,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.2)",
   },
   headerBadgeText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#EF4444",
   },
   searchBar: {
     flexDirection: "row",
@@ -747,7 +745,6 @@ const styles = StyleSheet.create({
   promoTagText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#EF4444",
     letterSpacing: 0.4,
   },
   promoTitle: {
@@ -775,7 +772,6 @@ const styles = StyleSheet.create({
   promoBtnText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#EF4444",
   },
   resultsHeader: {
     flexDirection: "row",
@@ -831,7 +827,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   badgePill: {
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
@@ -839,7 +834,6 @@ const styles = StyleSheet.create({
   badgePillText: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#EF4444",
   },
   serviceTitle: {
     fontSize: 16,
@@ -924,7 +918,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#EF4444",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
@@ -956,7 +949,6 @@ const styles = StyleSheet.create({
   },
   emptyResetBtn: {
     marginTop: 8,
-    backgroundColor: "#EF4444",
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 10,

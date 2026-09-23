@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { Home, Search, Calendar, User } from "lucide-react-native";
 import React from "react";
-import { Platform, StyleSheet, View, Text } from "react-native";
+import { StyleSheet, View, Text } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -9,21 +9,23 @@ interface TabIconProps {
   IconComponent: React.ComponentType<any>;
   focused: boolean;
   isDark: boolean;
+  primaryColor: string;
+  primaryLight: string;
 }
 
-function TabIcon({ IconComponent, focused, isDark }: TabIconProps) {
+function TabIcon({ IconComponent, focused, isDark, primaryColor, primaryLight }: TabIconProps) {
   return (
     <View
       style={[
         styles.iconSquircle,
         focused && {
-          backgroundColor: isDark ? "rgba(239, 68, 68, 0.22)" : "#FEE2E2",
+          backgroundColor: primaryLight,
         },
       ]}
     >
       <IconComponent
         size={20}
-        color={focused ? "#EF4444" : isDark ? "#94A3B8" : "#64748B"}
+        color={focused ? primaryColor : isDark ? "#94A3B8" : "#64748B"}
         strokeWidth={focused ? 2.2 : 1.9}
       />
     </View>
@@ -34,15 +36,16 @@ interface TabLabelProps {
   title: string;
   focused: boolean;
   isDark: boolean;
+  primaryColor: string;
 }
 
-function TabLabel({ title, focused, isDark }: TabLabelProps) {
+function TabLabel({ title, focused, isDark, primaryColor }: TabLabelProps) {
   return (
     <Text
       style={[
         styles.tabLabel,
         {
-          color: focused ? "#EF4444" : isDark ? "#94A3B8" : "#64748B",
+          color: focused ? primaryColor : isDark ? "#94A3B8" : "#64748B",
           fontWeight: focused ? "700" : "500",
         },
       ]}
@@ -56,15 +59,17 @@ export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const isDark = colors.isDark;
+  const primaryColor = colors.primary;
+  const primaryLight = colors.primaryLight;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: isDark ? "#0B0F19" : "#FFFFFF",
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: isDark ? "#1E293B" : "#F1F5F9",
+          borderTopColor: colors.border,
           elevation: isDark ? 0 : 8,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
@@ -81,10 +86,21 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ focused }) => (
-            <TabIcon IconComponent={Home} focused={focused} isDark={isDark} />
+            <TabIcon
+              IconComponent={Home}
+              focused={focused}
+              isDark={isDark}
+              primaryColor={primaryColor}
+              primaryLight={primaryLight}
+            />
           ),
           tabBarLabel: ({ focused }) => (
-            <TabLabel title="Home" focused={focused} isDark={isDark} />
+            <TabLabel
+              title="Home"
+              focused={focused}
+              isDark={isDark}
+              primaryColor={primaryColor}
+            />
           ),
         }}
       />
@@ -93,10 +109,21 @@ export default function TabLayout() {
         options={{
           title: "Explore",
           tabBarIcon: ({ focused }) => (
-            <TabIcon IconComponent={Search} focused={focused} isDark={isDark} />
+            <TabIcon
+              IconComponent={Search}
+              focused={focused}
+              isDark={isDark}
+              primaryColor={primaryColor}
+              primaryLight={primaryLight}
+            />
           ),
           tabBarLabel: ({ focused }) => (
-            <TabLabel title="Explore" focused={focused} isDark={isDark} />
+            <TabLabel
+              title="Explore"
+              focused={focused}
+              isDark={isDark}
+              primaryColor={primaryColor}
+            />
           ),
         }}
       />
@@ -105,10 +132,21 @@ export default function TabLayout() {
         options={{
           title: "Bookings",
           tabBarIcon: ({ focused }) => (
-            <TabIcon IconComponent={Calendar} focused={focused} isDark={isDark} />
+            <TabIcon
+              IconComponent={Calendar}
+              focused={focused}
+              isDark={isDark}
+              primaryColor={primaryColor}
+              primaryLight={primaryLight}
+            />
           ),
           tabBarLabel: ({ focused }) => (
-            <TabLabel title="Bookings" focused={focused} isDark={isDark} />
+            <TabLabel
+              title="Bookings"
+              focused={focused}
+              isDark={isDark}
+              primaryColor={primaryColor}
+            />
           ),
         }}
       />
@@ -117,10 +155,21 @@ export default function TabLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ focused }) => (
-            <TabIcon IconComponent={User} focused={focused} isDark={isDark} />
+            <TabIcon
+              IconComponent={User}
+              focused={focused}
+              isDark={isDark}
+              primaryColor={primaryColor}
+              primaryLight={primaryLight}
+            />
           ),
           tabBarLabel: ({ focused }) => (
-            <TabLabel title="Profile" focused={focused} isDark={isDark} />
+            <TabLabel
+              title="Profile"
+              focused={focused}
+              isDark={isDark}
+              primaryColor={primaryColor}
+            />
           ),
         }}
       />
