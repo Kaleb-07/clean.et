@@ -20,7 +20,6 @@ import {
   Car,
   Building2,
   Sparkles,
-  ShieldCheck,
   Star,
   Clock,
   ChevronRight,
@@ -37,7 +36,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 interface ExploreServiceItem {
   id: string;
   sectorId: number;
-  categorySlug: "car-washing" | "building-cleaning" | "specialized";
+  categorySlug: "car-washing" | "building-cleaning";
   categoryName: string;
   sectorName: string;
   title: string;
@@ -174,39 +173,12 @@ const EXPLORE_SERVICES: ExploreServiceItem[] = [
     reviewCount: 112,
     features: ["High-Touch Surface Sterilization", "Industrial HEPA Vacuuming", "Trash Removal & Restroom Scrub", "Eco-friendly Odor Neutralizer"],
   },
-  {
-    id: "sp-1",
-    sectorId: 2,
-    categorySlug: "specialized",
-    categoryName: "Specialized",
-    sectorName: "Sanitization & Disinfection",
-    title: "Post-Construction Handover Clean",
-    subtitle: "Fine drywall dust removal, paint splatter scraping & polishing",
-    description: "Turnkey ready finish for newly constructed or renovated buildings, apartments, and villas.",
-    price: "4,500 ETB",
-    priceNum: 4500,
-    duration: "1 - 2 Days",
-    rating: 4.97,
-    reviewCount: 63,
-    badge: "Turnkey Ready",
-    features: ["Paint & Cement Droplet Removal", "High-Volume Dust Extraction", "Floor Polishing & Buffing", "Sanitary Fixture Commissioning"],
-  },
 ];
 
 const CATEGORY_FILTERS = [
   { id: "all", label: "All Services", icon: Sparkles },
   { id: "car-washing", label: "Car Wash", icon: Car },
   { id: "building-cleaning", label: "Building", icon: Building2 },
-  { id: "specialized", label: "Specialized", icon: ShieldCheck },
-];
-
-const QUICK_TAGS = [
-  "Mobile Wash",
-  "Engine Steam",
-  "Valet Pickup",
-  "Apartment Clean",
-  "Ceramic Polish",
-  "Facade Glass",
 ];
 
 export default function ExploreScreen() {
@@ -403,35 +375,6 @@ export default function ExploreScreen() {
           />
         }
       >
-        {/* ── QUICK POPULAR TAGS ── */}
-        <View style={styles.quickTagsSection}>
-          <Text style={[styles.sectionCaption, { color: colors.subtext }]}>
-            POPULAR SEARCHES
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickTagsRow}>
-            {QUICK_TAGS.map((tag, idx) => (
-              <Pressable
-                key={idx}
-                onPress={() => {
-                  setSearchQuery(tag);
-                  if (Platform.OS !== "web") Haptics.selectionAsync();
-                }}
-                style={[
-                  styles.quickTagChip,
-                  {
-                    backgroundColor: colors.chipBg,
-                    borderColor: colors.chipBorder,
-                  },
-                ]}
-              >
-                <Text style={[styles.quickTagText, { color: colors.text }]}>
-                  #{tag}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-
         {/* ── PROMO BANNER ── */}
         <View style={styles.promoCardContainer}>
           <LinearGradient
@@ -527,10 +470,8 @@ export default function ExploreScreen() {
                 <View style={[styles.categoryTag, { backgroundColor: colors.primaryLight }]}>
                   {service.categorySlug === "car-washing" ? (
                     <Car size={13} color={colors.primary} />
-                  ) : service.categorySlug === "building-cleaning" ? (
-                    <Building2 size={13} color={colors.secondary} />
                   ) : (
-                    <ShieldCheck size={13} color="#8B5CF6" />
+                    <Building2 size={13} color={colors.secondary} />
                   )}
                   <Text style={[styles.categoryTagText, { color: colors.text }]}>
                     {service.sectorName}
@@ -700,27 +641,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     gap: 16,
-  },
-  quickTagsSection: {
-    gap: 8,
-  },
-  sectionCaption: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-  },
-  quickTagsRow: {
-    gap: 8,
-  },
-  quickTagChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  quickTagText: {
-    fontSize: 12,
-    fontWeight: "600",
   },
   promoCardContainer: {
     borderRadius: 18,
