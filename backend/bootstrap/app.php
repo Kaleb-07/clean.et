@@ -32,7 +32,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (ValidationException $e, Request $request) {
             if ($request->expectsJson() || $request->is('api/*')) {
-                return response()->json(['errors' => $e->errors()], 422);
+                $firstError = collect($e->errors())->flatten()->first() ?? 'Validation failed.';
+                return response()->json([
+                    'message' => $firstError,
+                    'errors'  => $e->errors(),
+                ], 422);
             }
             return null; // Let Laravel handle non‑API requests
         });

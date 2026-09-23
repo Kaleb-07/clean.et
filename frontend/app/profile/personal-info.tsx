@@ -33,17 +33,30 @@ export default function PersonalInfoScreen() {
     setIsSaving(true);
     try {
       if (updateUser) {
-        await updateUser({ name: name.trim(), email: email.trim(), phone: phone.trim() });
+        await updateUser({
+          name: name.trim(),
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+        });
       }
-
-      await API.put("/user/profile", {
-        name: name.trim(),
-        phone: phone.trim(),
-      }).catch(() => {});
 
       setShowSuccess(true);
     } catch (e: any) {
-      Alert.alert("Error", e?.message || "Failed to update profile info.");
+      const resData = e?.response?.data;
+      let msg = "Failed to update profile info.";
+      if (resData?.errors) {
+        const firstField = Object.keys(resData.errors)[0];
+        if (firstField && Array.isArray(resData.errors[firstField]) && resData.errors[firstField].length > 0) {
+          msg = resData.errors[firstField][0];
+        } else if (resData.message) {
+          msg = resData.message;
+        }
+      } else if (resData?.message) {
+        msg = resData.message;
+      } else if (e instanceof Error) {
+        msg = e.message;
+      }
+      Alert.alert("Error", msg);
     } finally {
       setIsSaving(false);
     }

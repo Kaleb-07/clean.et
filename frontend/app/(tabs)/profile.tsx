@@ -176,15 +176,18 @@ const CLEAN_ET_FAQS: HelpFAQ[] = [
 
 // ─── Ethiopian Phone Formatter ────────────────────────────────────────────────
 function formatEthiopianPhone(input: string): string {
-  let cleaned = input.trim().replace(/\s+/g, "");
+  let cleaned = input.trim().replace(/[^\d+]/g, "");
+  if (!cleaned) return "";
   if (cleaned.startsWith("+251")) {
+    return cleaned;
+  }
+  if (cleaned.startsWith("+")) {
     return cleaned;
   }
   if (cleaned.startsWith("0")) {
     cleaned = cleaned.substring(1);
-  }
-  if (cleaned.startsWith("251")) {
-    return "+" + cleaned;
+  } else if (cleaned.startsWith("251")) {
+    cleaned = cleaned.substring(3);
   }
   return "+251" + cleaned;
 }
@@ -601,15 +604,15 @@ export default function ProfileScreen() {
   };
 
   const handleUpdateProfile = async () => {
-    if (!editName.trim() || !editPhone.trim()) {
-      setEditError("Name and phone number are required.");
+    if (!editName.trim()) {
+      setEditError("Full name is required.");
       return;
     }
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     setEditLoading(true);
     setEditError("");
     try {
-      const formattedPhone = formatEthiopianPhone(editPhone);
+      const formattedPhone = editPhone.trim() ? formatEthiopianPhone(editPhone) : null;
       await updateUser({
         name: editName.trim(),
         email: editEmail.trim() || null,
@@ -619,9 +622,20 @@ export default function ProfileScreen() {
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 3000);
     } catch (e: any) {
-      const msg =
-        e?.response?.data?.message ||
-        (e instanceof Error ? e.message : "Failed to update profile.");
+      const resData = e?.response?.data;
+      let msg = "Failed to update profile.";
+      if (resData?.errors) {
+        const firstField = Object.keys(resData.errors)[0];
+        if (firstField && Array.isArray(resData.errors[firstField]) && resData.errors[firstField].length > 0) {
+          msg = resData.errors[firstField][0];
+        } else if (resData.message) {
+          msg = resData.message;
+        }
+      } else if (resData?.message) {
+        msg = resData.message;
+      } else if (e instanceof Error) {
+        msg = e.message;
+      }
       setEditError(msg);
     } finally {
       setEditLoading(false);
