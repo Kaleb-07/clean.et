@@ -19,7 +19,6 @@ import {
   SlidersHorizontal,
   Car,
   Building2,
-  Shirt,
   Sparkles,
   ShieldCheck,
   Star,
@@ -38,7 +37,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 interface ExploreServiceItem {
   id: string;
   sectorId: number;
-  categorySlug: "car-washing" | "building-cleaning" | "laundry" | "specialized";
+  categorySlug: "car-washing" | "building-cleaning" | "specialized";
   categoryName: string;
   sectorName: string;
   title: string;
@@ -142,38 +141,38 @@ const EXPLORE_SERVICES: ExploreServiceItem[] = [
     features: ["Water-Fed Pole Reach Up to 4 Stories", "Spot-Free Demineralized Rinse", "Frame & Mullion Detailing", "OSHA Compliant Crew"],
   },
   {
-    id: "ld-1",
+    id: "cw-4",
     sectorId: 3,
-    categorySlug: "laundry",
-    categoryName: "Laundry",
-    sectorName: "Wash & Fold",
-    title: "Express Wash, Fold & Press",
-    subtitle: "Doorstep pickup & next-day sanitized delivery",
-    description: "Delicate fabric treatment, color separation, allergen-free detergent washing, steam pressing, and hanger packaging.",
-    price: "350 ETB",
-    priceNum: 350,
-    duration: "24 hrs",
-    rating: 4.89,
-    reviewCount: 420,
-    badge: "Next Day Delivery",
+    categorySlug: "car-washing",
+    categoryName: "Car Wash",
+    sectorName: "Valet Pickup & Drop-Off",
+    title: "Valet Pickup, Detailing & Return",
+    subtitle: "We pick up your vehicle, detail it at our facility & return it spotless",
+    description: "Ideal for busy professionals. Insured valet drivers collect your car, perform an executive exterior + interior detail, and deliver it back to your doorstep.",
+    price: "775 ETB",
+    priceNum: 775,
+    duration: "60 - 90 min",
+    rating: 4.91,
+    reviewCount: 148,
+    badge: "Valet Dispatch",
     popular: true,
-    features: ["Free Pickup & Delivery in Addis", "Delicate Garment Sorting", "Steam Press & Hanger Finish", "Eco-friendly Detergents"],
+    features: ["Fully Insured Valet Drivers", "Complete Exterior Hand Wash", "Interior Vacuum & Dust-Off", "Guaranteed On-Time Return"],
   },
   {
-    id: "ld-2",
-    sectorId: 3,
-    categorySlug: "laundry",
-    categoryName: "Laundry",
-    sectorName: "Curtain & Rug Care",
-    title: "Deep Carpet & Upholstery Care",
-    subtitle: "High-power hot water soil extraction & fast dry",
-    description: "Restores fiber texture, removes deep-set coffee and pet stains, and neutralizes odors from heavy rugs and living room couches.",
-    price: "950 ETB",
-    priceNum: 950,
-    duration: "2 hrs",
-    rating: 4.93,
-    reviewCount: 157,
-    features: ["Heavy Stains Pre-treatment", "Deep Pile Extraction", "Odor Neutralizer", "Quick-Dry Blowers"],
+    id: "bc-3",
+    sectorId: 2,
+    categorySlug: "building-cleaning",
+    categoryName: "Building Cleaning",
+    sectorName: "Commercial & Residential",
+    title: "Corporate Office Deep Sanitization",
+    subtitle: "Desks, high-touch points, conference rooms & floor scrubbing",
+    description: "Scheduled evening or weekend commercial cleaning for tech hubs, NGOs, and corporate suites across Addis Ababa.",
+    price: "2,400 ETB",
+    priceNum: 2400,
+    duration: "2 - 3 hrs",
+    rating: 4.88,
+    reviewCount: 112,
+    features: ["High-Touch Surface Sterilization", "Industrial HEPA Vacuuming", "Trash Removal & Restroom Scrub", "Eco-friendly Odor Neutralizer"],
   },
   {
     id: "sp-1",
@@ -198,17 +197,16 @@ const CATEGORY_FILTERS = [
   { id: "all", label: "All Services", icon: Sparkles },
   { id: "car-washing", label: "Car Wash", icon: Car },
   { id: "building-cleaning", label: "Building", icon: Building2 },
-  { id: "laundry", label: "Laundry", icon: Shirt },
   { id: "specialized", label: "Specialized", icon: ShieldCheck },
 ];
 
 const QUICK_TAGS = [
   "Mobile Wash",
   "Engine Steam",
-  "Sofa & Rug",
+  "Valet Pickup",
   "Apartment Clean",
   "Ceramic Polish",
-  "Express Laundry",
+  "Facade Glass",
 ];
 
 export default function ExploreScreen() {
@@ -532,7 +530,7 @@ export default function ExploreScreen() {
                   ) : service.categorySlug === "building-cleaning" ? (
                     <Building2 size={13} color={colors.secondary} />
                   ) : (
-                    <Shirt size={13} color="#8B5CF6" />
+                    <ShieldCheck size={13} color="#8B5CF6" />
                   )}
                   <Text style={[styles.categoryTagText, { color: colors.text }]}>
                     {service.sectorName}
