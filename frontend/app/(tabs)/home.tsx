@@ -165,7 +165,7 @@ export default function HomeScreen() {
   const [activeCategoryId, setActiveCategoryId] = useState<number | "all">("all");
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [user, setUser] = useState<{ name: string; email?: string; role?: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; email?: string } | null>(null);
   const [liveServices, setLiveServices] = useState<any[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -293,48 +293,26 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {user && (user.role === "admin" || user.role === "super_admin" || user.role === "tenant_admin") && (
-              <Pressable
-                onPress={() => {
-                  if (Platform.OS !== "web") {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  }
-                  router.push("/(admin)/(tabs)/dashboard" as any);
-                }}
-                style={({ pressed }) => [
-                  styles.adminSwitchBtn,
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <ShieldCheck size={15} color="#FFFFFF" />
-                <Text style={styles.adminSwitchBtnText}>
-                  {user.role === "super_admin" ? "Super Admin" : "Admin Hub"}
-                </Text>
-              </Pressable>
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }
+              router.push("/profile/notifications");
+            }}
+            style={({ pressed }) => [
+              styles.notificationBtn,
+              { backgroundColor: colors.card, borderColor: colors.cardBorder },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Bell size={20} color={colors.text} />
+            {unreadNotifications > 0 && (
+              <View style={[styles.badgeCircle, { backgroundColor: colors.danger }]}>
+                <Text style={styles.badgeCountText}>{unreadNotifications}</Text>
+              </View>
             )}
-
-            <Pressable
-              onPress={() => {
-                if (Platform.OS !== "web") {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                }
-                router.push("/profile/notifications");
-              }}
-              style={({ pressed }) => [
-                styles.notificationBtn,
-                { backgroundColor: colors.card, borderColor: colors.cardBorder },
-                pressed && { opacity: 0.8 },
-              ]}
-            >
-              <Bell size={20} color={colors.text} />
-              {unreadNotifications > 0 && (
-                <View style={[styles.badgeCircle, { backgroundColor: colors.danger }]}>
-                  <Text style={styles.badgeCountText}>{unreadNotifications}</Text>
-                </View>
-              )}
-            </Pressable>
-          </View>
+          </Pressable>
         </Animated.View>
 
         {/* ── 2. SEARCH INPUT TAB ── */}
@@ -349,55 +327,6 @@ export default function HomeScreen() {
           />
         </Animated.View>
 
-        {/* ── QUICK ASSETS & SERVICES STRIP ── */}
-        <Animated.View entering={FadeInDown.delay(180)} style={styles.quickFeaturesScrollWrapper}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickFeaturesRow}
-          >
-            <Pressable
-              onPress={() => router.push("/vehicles")}
-              style={[styles.quickFeatureChip, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
-            >
-              <Car size={15} color="#38BDF8" />
-              <Text style={[styles.quickFeatureText, { color: colors.text }]}>My Vehicles</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => router.push("/building-profiles")}
-              style={[styles.quickFeatureChip, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
-            >
-              <Building2 size={15} color="#F472B6" />
-              <Text style={[styles.quickFeatureText, { color: colors.text }]}>Buildings</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => router.push("/profile/fleet")}
-              style={[styles.quickFeatureChip, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
-            >
-              <Layers size={15} color="#818CF8" />
-              <Text style={[styles.quickFeatureText, { color: colors.text }]}>Fleet</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => router.push("/profile/subscription")}
-              style={[styles.quickFeatureChip, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
-            >
-              <Sparkles size={15} color="#FBBF24" />
-              <Text style={[styles.quickFeatureText, { color: colors.text }]}>Subscriptions</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => router.push("/invoices")}
-              style={[styles.quickFeatureChip, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
-            >
-              <Award size={15} color="#10B981" />
-              <Text style={[styles.quickFeatureText, { color: colors.text }]}>Invoices</Text>
-            </Pressable>
-          </ScrollView>
-        </Animated.View>
-
         {/* ── 3. RECTANGULAR HERO SLIDER BANNER ── */}
         <Animated.View entering={FadeInDown.delay(200)} style={styles.sliderContainer}>
           <Pressable
@@ -405,7 +334,7 @@ export default function HomeScreen() {
             style={({ pressed }) => [styles.bannerCard, pressed && { opacity: 0.95 }]}
           >
             <Image source={currentBanner.image} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
-            
+
             <LinearGradient
               colors={["rgba(11, 15, 25, 0.2)", "rgba(11, 15, 25, 0.85)"]}
               style={StyleSheet.absoluteFillObject}
@@ -582,16 +511,16 @@ export default function HomeScreen() {
               item.slug === "home-to-home"
                 ? "MOBILE DOORSTEP"
                 : item.slug === "pickup-drop-off"
-                ? "VALET PICKUP"
-                : item.slug === "corporate-fleet"
-                ? "CORPORATE FLEET"
-                : item.slug === "standard-bay-wash"
-                ? "BAY STATION"
-                : item.slug === "exterior-cleaning"
-                ? "FACADE GLASS"
-                : item.slug === "interior-cleaning"
-                ? "INTERIOR DEEP"
-                : "DIVISION SECTOR";
+                  ? "VALET PICKUP"
+                  : item.slug === "corporate-fleet"
+                    ? "CORPORATE FLEET"
+                    : item.slug === "standard-bay-wash"
+                      ? "BAY STATION"
+                      : item.slug === "exterior-cleaning"
+                        ? "FACADE GLASS"
+                        : item.slug === "interior-cleaning"
+                          ? "INTERIOR DEEP"
+                          : "DIVISION SECTOR";
 
             return (
               <Animated.View key={item.id} entering={FadeInUp.delay(index * 60)}>
@@ -888,25 +817,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "800",
   },
-  adminSwitchBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#7C3AED",
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#A78BFA",
-  },
-  adminSwitchBtnText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
   searchContainer: {
     marginHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 18,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -920,26 +833,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     borderWidth: 0,
-  },
-  quickFeaturesScrollWrapper: {
-    marginBottom: 16,
-  },
-  quickFeaturesRow: {
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  quickFeatureChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  quickFeatureText: {
-    fontSize: 12,
-    fontWeight: "600",
   },
   sliderContainer: {
     marginHorizontal: 20,

@@ -25,11 +25,6 @@ import {
   FileText,
   Building,
   TrendingUp,
-  Car,
-  Megaphone,
-  Smartphone,
-  Layers,
-  CreditCard,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -90,7 +85,7 @@ export default function ProfileScreen() {
 
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
     if (Platform.OS !== "web") {
-      Haptics.impactAsync(style).catch(() => {});
+      Haptics.impactAsync(style).catch(() => { });
     }
   };
 
@@ -127,27 +122,11 @@ export default function ProfileScreen() {
 
   const superAdminMenuGroups = [
     {
-      title: "ENTERPRISE GOVERNANCE & OPERATIONS",
+      title: "ENTERPRISE GOVERNANCE",
       items: [
         { icon: Building, label: "Divisions & Sectors Governance", color: "#60A5FA", route: "/(admin)/tenants" },
         { icon: TrendingUp, label: "Platform Financial Invoices", color: "#34D399", route: "/(admin)/invoices" },
         { icon: Settings, label: "System Operations & Audits", color: "#F59E0B", route: "/(admin)/system" },
-        { icon: Briefcase, label: "Global Staff & Technician Roster", color: "#A78BFA", route: "/(admin)/staff" },
-        { icon: Scissors, label: "Services Catalog & Schema Rates", color: "#FBBF24", route: "/(admin)/services" },
-        { icon: Users, label: "Global Customer & Client CRM", color: "#34D399", route: "/(admin)/customers" },
-        { icon: Calendar, label: "Global Live Dispatch Queue", color: "#60A5FA", route: "/(admin)/(tabs)/bookings" },
-        { icon: FileText, label: "Financial Reports & Statement CSV", color: "#10B981", route: "/(admin)/reports" },
-        { icon: Megaphone, label: "Platform Broadcast Center", color: "#EC4899", route: "/(admin)/broadcast" },
-      ],
-    },
-    {
-      title: "CLIENT PORTAL & ASSET MANAGEMENT",
-      items: [
-        { icon: Smartphone, label: "Switch to Client App Experience", color: "#8B5CF6", route: "/(tabs)/home" },
-        { icon: Car, label: "Vehicle Garage Directory", color: "#F472B6", route: "/vehicles" },
-        { icon: Building, label: "Building & Facility Profiles", color: "#38BDF8", route: "/building-profiles" },
-        { icon: Layers, label: "Corporate Fleet Accounts", color: "#818CF8", route: "/profile/fleet" },
-        { icon: CreditCard, label: "Payment Accounts & Banking", color: "#10B981", route: "/profile/payments" },
       ],
     },
     {
@@ -168,19 +147,7 @@ export default function ProfileScreen() {
         { icon: Scissors, label: "Post Division Services & Rates", color: "#FBBF24", route: "/(admin)/services" },
         { icon: Users, label: "Customer & Client Directory", color: "#34D399", route: "/(admin)/customers" },
         { icon: Calendar, label: "Incoming Dispatch Queue", color: "#60A5FA", route: "/(admin)/(tabs)/bookings" },
-        { icon: TrendingUp, label: "Invoices & Billing Lifecycle", color: "#34D399", route: "/(admin)/invoices" },
         { icon: FileText, label: "Reports & CSV Statements", color: "#10B981", route: "/(admin)/reports" },
-        { icon: Megaphone, label: "Division Broadcast Announcements", color: "#EC4899", route: "/(admin)/broadcast" },
-      ],
-    },
-    {
-      title: "CLIENT PORTAL & ASSETS",
-      items: [
-        { icon: Smartphone, label: "Switch to Client App Experience", color: "#8B5CF6", route: "/(tabs)/home" },
-        { icon: Car, label: "Registered Vehicles Garage", color: "#F472B6", route: "/vehicles" },
-        { icon: Building, label: "Building & Property Profiles", color: "#38BDF8", route: "/building-profiles" },
-        { icon: Layers, label: "Corporate Fleet Accounts", color: "#818CF8", route: "/profile/fleet" },
-        { icon: CreditCard, label: "Payment Accounts & Settlement", color: "#10B981", route: "/profile/payments" },
       ],
     },
     {

@@ -135,10 +135,6 @@ export default function AdminDashboard() {
           </Text>
         </View>
 
-        <TouchableOpacity onPress={() => router.push("/(tabs)/home")} style={[styles.iconBtn, { backgroundColor: "#8B5CF622", borderColor: "#8B5CF655" }]}>
-          <Ionicons name="phone-portrait-outline" size={18} color="#A78BFA" />
-        </TouchableOpacity>
-
         <TouchableOpacity onPress={() => router.push("/(admin)/reports")} style={styles.iconBtn}>
           <Ionicons name="bar-chart-outline" size={18} color="#34D399" />
         </TouchableOpacity>
@@ -307,31 +303,13 @@ export default function AdminDashboard() {
               <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/system")}>
                 <Ionicons name="hardware-chip" size={22} color="#F59E0B" />
                 <Text style={styles.actionTileTitle}>System Operations</Text>
-                <Text style={styles.actionTileSub}>Audits, Health & Settings</Text>
+                <Text style={styles.actionTileSub}>Audits, Broadcasts & Settings</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/invoices")}>
                 <Ionicons name="card" size={22} color="#34D399" />
                 <Text style={styles.actionTileTitle}>Financial Invoices</Text>
-                <Text style={styles.actionTileSub}>Global Status & Tax Records</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/staff")}>
-                <Ionicons name="construct" size={22} color="#A78BFA" />
-                <Text style={styles.actionTileTitle}>Global Staff Roster</Text>
-                <Text style={styles.actionTileSub}>Technicians & Certifications</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/services")}>
-                <Ionicons name="cut" size={22} color="#FBBF24" />
-                <Text style={styles.actionTileTitle}>Services Catalog</Text>
-                <Text style={styles.actionTileSub}>Base Rates & Sector Schemas</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/broadcast")}>
-                <Ionicons name="megaphone" size={22} color="#EC4899" />
-                <Text style={styles.actionTileTitle}>Broadcast Center</Text>
-                <Text style={styles.actionTileSub}>Push & Email Announcements</Text>
+                <Text style={styles.actionTileSub}>Global Financial Status</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -339,25 +317,13 @@ export default function AdminDashboard() {
               <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/staff")}>
                 <Ionicons name="construct" size={22} color="#A78BFA" />
                 <Text style={styles.actionTileTitle}>Manage Division Crew</Text>
-                <Text style={styles.actionTileSub}>Add Techs & Duty Status</Text>
+                <Text style={styles.actionTileSub}>Add Techs & Certifications</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/services")}>
                 <Ionicons name="cut" size={22} color="#FBBF24" />
                 <Text style={styles.actionTileTitle}>Post Division Services</Text>
                 <Text style={styles.actionTileSub}>Configure Offerings & Base Prices</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/invoices")}>
-                <Ionicons name="card" size={22} color="#34D399" />
-                <Text style={styles.actionTileTitle}>Invoices & Billing</Text>
-                <Text style={styles.actionTileSub}>Generate Invoices & VAT</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/broadcast")}>
-                <Ionicons name="megaphone" size={22} color="#EC4899" />
-                <Text style={styles.actionTileTitle}>Broadcast Alerts</Text>
-                <Text style={styles.actionTileSub}>Division Announcements</Text>
               </TouchableOpacity>
             </>
           )}
@@ -380,35 +346,13 @@ export default function AdminDashboard() {
             <Text style={styles.actionTileSub}>Download Ledgers & Statements</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/profile/fleet")}>
-            <Ionicons name="car-sport" size={22} color="#818CF8" />
-            <Text style={styles.actionTileTitle}>Fleet Accounts</Text>
-            <Text style={styles.actionTileSub}>Corporate Vehicle Fleets</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/building-profiles")}>
-            <Ionicons name="business-outline" size={22} color="#38BDF8" />
-            <Text style={styles.actionTileTitle}>Building Profiles</Text>
-            <Text style={styles.actionTileSub}>Facility & Property Profiles</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/vehicles")}>
-            <Ionicons name="car-outline" size={22} color="#F472B6" />
-            <Text style={styles.actionTileTitle}>Vehicle Garage</Text>
-            <Text style={styles.actionTileSub}>Registered Vehicles Directory</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/profile/subscription")}>
-            <Ionicons name="ribbon-outline" size={22} color="#FBBF24" />
-            <Text style={styles.actionTileTitle}>Subscriptions</Text>
-            <Text style={styles.actionTileSub}>Membership Plans & Recurrence</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.actionTile, { backgroundColor: "rgba(139, 92, 246, 0.15)", borderColor: "rgba(139, 92, 246, 0.4)" }]} onPress={() => router.push("/(tabs)/home")}>
-            <Ionicons name="phone-portrait-outline" size={22} color="#A78BFA" />
-            <Text style={[styles.actionTileTitle, { color: "#A78BFA" }]}>Client Experience</Text>
-            <Text style={styles.actionTileSub}>Preview & Order as Client</Text>
-          </TouchableOpacity>
+          {isSuperAdmin && (
+            <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/broadcast")}>
+              <Ionicons name="megaphone" size={22} color="#F59E0B" />
+              <Text style={styles.actionTileTitle}>Broadcast Center</Text>
+              <Text style={styles.actionTileSub}>Push & Email Announcements</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* ── LIVE BOOKINGS DISPATCH QUEUE ── */}
