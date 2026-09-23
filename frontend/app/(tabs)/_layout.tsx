@@ -2,14 +2,12 @@ import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import { Home, Calendar, User } from "lucide-react-native";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function ClassicTabLayout() {
   const colors = useColors();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const insets = useSafeAreaInsets();
 
@@ -21,9 +19,14 @@ function ClassicTabLayout() {
         headerShown: false,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
-          borderTopWidth: 0,
-          elevation: 0,
+          backgroundColor: isIOS ? "transparent" : colors.surface,
+          borderTopWidth: colors.isDark ? 0 : 1,
+          borderTopColor: colors.border,
+          elevation: colors.isDark ? 0 : 6,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: colors.isDark ? 0 : 0.05,
+          shadowRadius: 6,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
           paddingTop: 10,
@@ -32,11 +35,11 @@ function ClassicTabLayout() {
           isIOS ? (
             <BlurView
               intensity={80}
-              tint={isDark ? "dark" : "light"}
+              tint={colors.isDark ? "dark" : "light"}
               style={StyleSheet.absoluteFill}
             />
           ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />
           ),
       }}
     >

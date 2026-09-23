@@ -14,6 +14,7 @@ import { View, ActivityIndicator } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { StatusBar } from "expo-status-bar";
 import { useColors } from "../hooks/useColors";
 import { AuthProvider } from "../contexts/AuthContext";
 import { LanguageProvider } from "../contexts/LanguageContext";
@@ -27,6 +28,7 @@ function RootNavigator() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar style={colors.isDark ? "light" : "dark"} />
       <Stack
         screenOptions={{
           headerShown: false,

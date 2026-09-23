@@ -28,6 +28,7 @@ import Animated, { FadeInDown, FadeInRight, FadeIn, ZoomIn } from "react-native-
 import { useServices } from "../../hooks/useServices";
 import { useBookings } from "../../hooks/useBookings";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { useColors } from "../../hooks/useColors";
 
 const TIME_SLOTS = [
   "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
@@ -38,6 +39,7 @@ const TIME_SLOTS = [
 export default function BookingDetailsScreen() {
   const { serviceId } = useLocalSearchParams<{ serviceId: string }>();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { services, loading: servicesLoading } = useServices();
   const { addBooking } = useBookings();
   const { t } = useLanguage();
@@ -104,7 +106,7 @@ export default function BookingDetailsScreen() {
 
   if (servicesLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color="#8b5cf6" />
       </View>
     );
@@ -112,9 +114,9 @@ export default function BookingDetailsScreen() {
 
   if (!service) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
         <Info size={48} color="#ef4444" />
-        <Text style={styles.errorText}>Service not found</Text>
+        <Text style={[styles.errorText, { color: colors.text }]}>Service not found</Text>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </Pressable>
@@ -123,7 +125,7 @@ export default function BookingDetailsScreen() {
   }
 
   return (
-    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
+    <LinearGradient colors={colors.gradients.background} style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       
       <ScrollView 
@@ -137,24 +139,24 @@ export default function BookingDetailsScreen() {
         <View style={styles.header}>
           <Pressable 
             onPress={() => router.back()}
-            style={styles.iconButton}
+            style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
-            <ChevronLeft size={24} color="#ffffff" />
+            <ChevronLeft size={24} color={colors.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>Book Wash</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Book Wash</Text>
           <View style={{ width: 40 }} />
         </View>
 
         {/* SERVICE INFO */}
         <Animated.View entering={FadeInDown.duration(600)} style={styles.section}>
-          <BlurView intensity={20} tint="dark" style={styles.serviceCard}>
+          <BlurView intensity={20} tint={colors.isDark ? "dark" : "light"} style={[styles.serviceCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             <View style={styles.serviceHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.serviceName}>{service.name}</Text>
+                <Text style={[styles.serviceName, { color: colors.text }]}>{service.name}</Text>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
-                  <View style={styles.durationBadge}>
-                    <Clock size={12} color="#a3a3a3" />
-                    <Text style={styles.durationText}>{service.duration || "45"} min</Text>
+                  <View style={[styles.durationBadge, { backgroundColor: colors.surface }]}>
+                    <Clock size={12} color={colors.subtext} />
+                    <Text style={[styles.durationText, { color: colors.subtext }]}>{service.duration || "45"} min</Text>
                   </View>
 
                   <View style={{ backgroundColor: "#10B98122", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: "#10B98155" }}>
@@ -166,7 +168,7 @@ export default function BookingDetailsScreen() {
               </View>
               <Text style={styles.price}>ETB {Number(service.price).toLocaleString()}</Text>
             </View>
-            <Text style={styles.description}>{service.description || "Professional service delivered by certified equipment and trained technicians."}</Text>
+            <Text style={[styles.description, { color: colors.subtext }]}>{service.description || "Professional service delivered by certified equipment and trained technicians."}</Text>
           </BlurView>
         </Animated.View>
 
@@ -174,7 +176,7 @@ export default function BookingDetailsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <CalendarIcon size={18} color="#8b5cf6" />
-            <Text style={styles.sectionTitle}>Select Date</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Date</Text>
           </View>
           <ScrollView 
             horizontal 
@@ -190,13 +192,14 @@ export default function BookingDetailsScreen() {
                   }}
                   style={[
                     styles.dateItem,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
                     isSelected(date) && styles.dateItemActive
                   ]}
                 >
-                  <Text style={[styles.dayName, isSelected(date) && styles.textActive]}>
+                  <Text style={[styles.dayName, { color: colors.subtext }, isSelected(date) && styles.textActive]}>
                     {date.toLocaleDateString('en-US', { weekday: 'short' })}
                   </Text>
-                  <Text style={[styles.dayNumber, isSelected(date) && styles.textActive]}>
+                  <Text style={[styles.dayNumber, { color: colors.text }, isSelected(date) && styles.textActive]}>
                     {date.getDate()}
                   </Text>
                   {isSelected(date) && (
@@ -212,7 +215,7 @@ export default function BookingDetailsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Clock size={18} color="#8b5cf6" />
-            <Text style={styles.sectionTitle}>Select Time</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Time</Text>
           </View>
           <View style={styles.timeGrid}>
             {TIME_SLOTS.map((time) => (
@@ -224,10 +227,11 @@ export default function BookingDetailsScreen() {
                 }}
                 style={[
                   styles.timeItem,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
                   selectedTime === time && styles.timeItemActive
                 ]}
               >
-                <Text style={[styles.timeText, selectedTime === time && styles.textActive]}>
+                <Text style={[styles.timeText, { color: colors.text }, selectedTime === time && styles.textActive]}>
                   {time}
                 </Text>
               </Pressable>
@@ -238,7 +242,16 @@ export default function BookingDetailsScreen() {
         {/* SUMMARY & BUTTON */}
         <View style={styles.footer}>
           {selectedTime && (
-            <Animated.View entering={FadeInDown} style={styles.summaryBox}>
+            <Animated.View
+              entering={FadeInDown}
+              style={[
+                styles.summaryBox,
+                {
+                  backgroundColor: colors.isDark ? "rgba(16, 185, 129, 0.1)" : "#ECFDF5",
+                  borderColor: colors.isDark ? "rgba(16, 185, 129, 0.2)" : "#A7F3D0"
+                }
+              ]}
+            >
               <CheckCircle2 size={16} color="#10b981" />
               <Text style={styles.summaryText}>
                 Scheduled for {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {selectedTime}
@@ -266,13 +279,13 @@ export default function BookingDetailsScreen() {
       {/* SUCCESS MODAL */}
       <Modal transparent visible={showSuccess} animationType="fade" aria-hidden={false}>
         <View style={styles.modalOverlay}>
-          <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
-          <Animated.View entering={ZoomIn} style={styles.successModal}>
+          <BlurView intensity={50} tint={colors.isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+          <Animated.View entering={ZoomIn} style={[styles.successModal, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             <View style={styles.successIcon}>
               <Check size={40} color="#ffffff" />
             </View>
-            <Text style={styles.successTitle}>{t("booking_success")}</Text>
-            <Text style={styles.successMessage}>
+            <Text style={[styles.successTitle, { color: colors.text }]}>{t("booking_success")}</Text>
+            <Text style={[styles.successMessage, { color: colors.subtext }]}>
               {t("booking_success_msg")}
             </Text>
             <Pressable 

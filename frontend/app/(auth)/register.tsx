@@ -163,21 +163,44 @@ export default function RegisterScreen() {
         >
           {/* HEADER */}
           <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
-            <View style={styles.logoContainer}>
+            <View
+              style={[
+                styles.logoContainer,
+                {
+                  backgroundColor: colors.isDark ? "rgba(139,92,246,0.2)" : "#EDE9FE",
+                  borderColor: colors.isDark ? "rgba(139,92,246,0.3)" : "#DDD6FE",
+                },
+              ]}
+            >
               <Text style={styles.logoEmoji}>✨</Text>
             </View>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
+            <Text style={[styles.subtitle, { color: colors.subtext }]}>
               Clean.et — Professional Cleaning Services
             </Text>
           </Animated.View>
 
           {/* CARD */}
           <Animated.View entering={FadeInDown.delay(200)}>
-            <BlurView intensity={40} tint="dark" style={styles.card}>
+            <BlurView
+              intensity={colors.isDark ? 40 : 25}
+              tint={colors.isDark ? "dark" : "light"}
+              style={[
+                styles.card,
+                {
+                  backgroundColor: colors.isDark ? "rgba(30, 41, 59, 0.7)" : "#FFFFFF",
+                  borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#E2E8F0",
+                  shadowColor: colors.isDark ? "#000000" : "#64748B",
+                  shadowOffset: { width: 0, height: 12 },
+                  shadowOpacity: colors.isDark ? 0.4 : 0.08,
+                  shadowRadius: 24,
+                  elevation: 8,
+                },
+              ]}
+            >
               {/* NAME */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Full Name</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Full Name</Text>
                 <TextInput
                   value={name}
                   onChangeText={(val) => {
@@ -186,8 +209,16 @@ export default function RegisterScreen() {
                     setFieldErrors((prev) => ({ ...prev, name: "" }));
                   }}
                   placeholder="Abebe Bikila"
-                  placeholderTextColor="rgba(255,255,255,0.4)"
-                  style={[styles.input, !!fieldErrors.name && styles.inputError]}
+                  placeholderTextColor={colors.placeholder}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.isDark ? "rgba(15, 23, 42, 0.6)" : "#F8FAFC",
+                      borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#CBD5E1",
+                      color: colors.text,
+                    },
+                    !!fieldErrors.name && styles.inputError,
+                  ]}
                 />
                 {!!fieldErrors.name && (
                   <Text style={styles.fieldErrorText}>{fieldErrors.name}</Text>
@@ -196,10 +227,18 @@ export default function RegisterScreen() {
 
               {/* PHONE INPUT */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Phone Number</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Phone Number</Text>
                 <View style={styles.phoneInputRow}>
-                  <View style={styles.countryCode}>
-                    <Text style={styles.countryCodeText}>🇪🇹 +251</Text>
+                  <View
+                    style={[
+                      styles.countryCode,
+                      {
+                        backgroundColor: colors.isDark ? "rgba(15, 23, 42, 0.6)" : "#F1F5F9",
+                        borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#E2E8F0",
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.countryCodeText, { color: colors.text }]}>🇪🇹 +251</Text>
                   </View>
                   <TextInput
                     value={phone}
@@ -209,9 +248,18 @@ export default function RegisterScreen() {
                       setFieldErrors((prev) => ({ ...prev, phone: "" }));
                     }}
                     placeholder="9XX XXX XXXX"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    placeholderTextColor={colors.placeholder}
                     keyboardType="phone-pad"
-                    style={[styles.input, styles.phoneInput, !!fieldErrors.phone && styles.inputError]}
+                    style={[
+                      styles.input,
+                      styles.phoneInput,
+                      {
+                        backgroundColor: colors.isDark ? "rgba(15, 23, 42, 0.6)" : "#F8FAFC",
+                        borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#CBD5E1",
+                        color: colors.text,
+                      },
+                      !!fieldErrors.phone && styles.inputError,
+                    ]}
                   />
                 </View>
                 {!!fieldErrors.phone && (
@@ -221,7 +269,7 @@ export default function RegisterScreen() {
 
               {/* EMAIL */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email (Optional)</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Email (Optional)</Text>
                 <TextInput
                   value={email}
                   onChangeText={(val) => {
@@ -230,10 +278,18 @@ export default function RegisterScreen() {
                     setFieldErrors((prev) => ({ ...prev, email: "" }));
                   }}
                   placeholder="name@example.com"
-                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  placeholderTextColor={colors.placeholder}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  style={[styles.input, !!fieldErrors.email && styles.inputError]}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.isDark ? "rgba(15, 23, 42, 0.6)" : "#F8FAFC",
+                      borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#CBD5E1",
+                      color: colors.text,
+                    },
+                    !!fieldErrors.email && styles.inputError,
+                  ]}
                 />
                 {!!fieldErrors.email && (
                   <Text style={styles.fieldErrorText}>{fieldErrors.email}</Text>
@@ -242,7 +298,7 @@ export default function RegisterScreen() {
 
               {/* PASSWORD */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Password</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Password</Text>
                 <View style={styles.passwordContainer}>
                   <TextInput
                     value={password}
@@ -253,8 +309,17 @@ export default function RegisterScreen() {
                     }}
                     secureTextEntry={!showPassword}
                     placeholder="••••••••"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    style={[styles.input, styles.passwordInput, !!fieldErrors.password && styles.inputError]}
+                    placeholderTextColor={colors.placeholder}
+                    style={[
+                      styles.input,
+                      styles.passwordInput,
+                      {
+                        backgroundColor: colors.isDark ? "rgba(15, 23, 42, 0.6)" : "#F8FAFC",
+                        borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#CBD5E1",
+                        color: colors.text,
+                      },
+                      !!fieldErrors.password && styles.inputError,
+                    ]}
                   />
                   <Pressable
                     onPress={() => {
@@ -266,7 +331,7 @@ export default function RegisterScreen() {
                     <Ionicons
                       name={showPassword ? "eye-off" : "eye"}
                       size={20}
-                      color="rgba(255,255,255,0.6)"
+                      color={colors.subtext}
                     />
                   </Pressable>
                 </View>
@@ -277,7 +342,7 @@ export default function RegisterScreen() {
 
               {/* CONFIRM PASSWORD */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Confirm Password</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Confirm Password</Text>
                 <TextInput
                   value={confirmPassword}
                   onChangeText={(val) => {
@@ -287,8 +352,16 @@ export default function RegisterScreen() {
                   }}
                   secureTextEntry={!showPassword}
                   placeholder="••••••••"
-                  placeholderTextColor="rgba(255,255,255,0.4)"
-                  style={[styles.input, !!fieldErrors.confirmPassword && styles.inputError]}
+                  placeholderTextColor={colors.placeholder}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.isDark ? "rgba(15, 23, 42, 0.6)" : "#F8FAFC",
+                      borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#CBD5E1",
+                      color: colors.text,
+                    },
+                    !!fieldErrors.confirmPassword && styles.inputError,
+                  ]}
                 />
                 {!!fieldErrors.confirmPassword && (
                   <Text style={styles.fieldErrorText}>{fieldErrors.confirmPassword}</Text>
@@ -327,10 +400,10 @@ export default function RegisterScreen() {
 
               {/* FOOTER */}
               <View style={styles.footer}>
-                <Text style={styles.footerText}>Already have an account?</Text>
+                <Text style={[styles.footerText, { color: colors.subtext }]}>Already have an account?</Text>
                 <Link href="/(auth)/login" asChild>
                   <Pressable>
-                    <Text style={styles.link}> Login</Text>
+                    <Text style={[styles.link, { color: colors.isDark ? "#A78BFA" : "#6D28D9" }]}> Login</Text>
                   </Pressable>
                 </Link>
               </View>

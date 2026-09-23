@@ -374,7 +374,7 @@ export default function HomeScreen() {
         {/* ── ACTIVE BOOKING TRACKER HERO BANNER (IF ANY) ── */}
         {activeBooking && (
           <Animated.View entering={FadeInUp.delay(220)} style={{ marginHorizontal: 20, marginBottom: 20 }}>
-            <BlurView intensity={35} tint="dark" style={[styles.activeBookingCard, { borderColor: colors.secondary, backgroundColor: colors.card }]}>
+            <BlurView intensity={35} tint={colors.isDark ? "dark" : "light"} style={[styles.activeBookingCard, { borderColor: colors.secondary, backgroundColor: colors.card }]}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.secondary }} />
@@ -451,12 +451,14 @@ export default function HomeScreen() {
                 >
                   <BlurView
                     intensity={isActive ? 45 : 20}
-                    tint="dark"
+                    tint={colors.isDark ? "dark" : "light"}
                     style={[
                       styles.categoryCard,
                       {
                         borderColor: isActive ? colors.primary : colors.cardBorder,
-                        backgroundColor: isActive ? colors.primaryLight : "rgba(255, 255, 255, 0.03)",
+                        backgroundColor: isActive
+                          ? colors.primaryLight
+                          : (colors.isDark ? "rgba(255, 255, 255, 0.03)" : colors.surface),
                       },
                     ]}
                   >
@@ -522,7 +524,7 @@ export default function HomeScreen() {
 
             return (
               <Animated.View key={item.id} entering={FadeInUp.delay(index * 60)}>
-                <BlurView intensity={25} tint="dark" style={[styles.card, { borderColor: colors.cardBorder, backgroundColor: colors.card }]}>
+                <BlurView intensity={25} tint={colors.isDark ? "dark" : "light"} style={[styles.card, { borderColor: colors.cardBorder, backgroundColor: colors.card }]}>
                   {/* IMAGE */}
                   <Image source={meta.image} style={styles.cardImage} resizeMode="cover" />
 

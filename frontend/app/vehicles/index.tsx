@@ -24,6 +24,7 @@ import {
 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useVehicles, VehicleClass, CreateVehiclePayload } from "../../hooks/useVehicles";
+import { useColors } from "../../hooks/useColors";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,7 @@ const blankForm = (): Omit<CreateVehiclePayload, "fleet_account_id"> => ({
 
 export default function VehiclesScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { vehicles, isLoading, reload, addVehicle, removeVehicle } = useVehicles();
 
   const [showModal, setShowModal] = useState(false);
@@ -105,13 +107,13 @@ export default function VehiclesScreen() {
   };
 
   return (
-    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.root}>
+    <LinearGradient colors={colors.gradients.background} style={styles.root}>
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 56) }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={22} color="#a3a3a3" />
+        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <ChevronLeft size={22} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>My Vehicles</Text>
+        <Text style={[styles.title, { color: colors.text }]}>My Vehicles</Text>
         <Pressable onPress={openAdd} style={styles.addBtn}>
           <Plus size={20} color="#fff" />
         </Pressable>
@@ -130,9 +132,9 @@ export default function VehiclesScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
-              <Car size={40} color="#3d3d6b" />
-              <Text style={styles.emptyTitle}>No vehicles yet</Text>
-              <Text style={styles.emptyText}>
+              <Car size={40} color={colors.subtext} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>No vehicles yet</Text>
+              <Text style={[styles.emptyText, { color: colors.subtext }]}>
                 Tap the + button to add your first vehicle.
               </Text>
             </View>
@@ -141,15 +143,15 @@ export default function VehiclesScreen() {
         renderItem={({ item }) => {
           const cls = CLASS_OPTIONS.find((c) => c.value === item.vehicle_class);
           return (
-            <BlurView intensity={20} tint="dark" style={styles.card}>
+            <BlurView intensity={20} tint={colors.isDark ? "dark" : "light"} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
               <View style={styles.cardLeft}>
                 <Text style={styles.emoji}>{cls?.emoji ?? "🚘"}</Text>
                 <View>
-                  <Text style={styles.cardTitle}>
+                  <Text style={[styles.cardTitle, { color: colors.text }]}>
                     {[item.make, item.model].filter(Boolean).join(" ") ||
                       cls?.label}
                   </Text>
-                  <Text style={styles.cardSub}>
+                  <Text style={[styles.cardSub, { color: colors.subtext }]}>
                     {[
                       item.plate_number,
                       item.year,
@@ -158,7 +160,7 @@ export default function VehiclesScreen() {
                       .filter(Boolean)
                       .join(" · ") || "No details"}
                   </Text>
-                  <Text style={styles.bookingCount}>
+                  <Text style={[styles.bookingCount, { color: colors.primary }]}>
                     {item.booking_count} booking
                     {item.booking_count !== 1 ? "s" : ""}
                   </Text>
@@ -186,11 +188,11 @@ export default function VehiclesScreen() {
           style={styles.modalOverlay}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <BlurView intensity={60} tint="dark" style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Add Vehicle</Text>
+          <BlurView intensity={60} tint={colors.isDark ? "dark" : "light"} style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Vehicle</Text>
 
             {/* Class picker */}
-            <Text style={styles.label}>Type</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Type</Text>
             <View style={styles.classPicker}>
               {CLASS_OPTIONS.map((c) => (
                 <Pressable
@@ -198,41 +200,42 @@ export default function VehiclesScreen() {
                   onPress={() => setForm((f) => ({ ...f, vehicle_class: c.value }))}
                   style={[
                     styles.classChip,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
                     form.vehicle_class === c.value && styles.classChipActive,
                   ]}
                 >
-                  <Text style={styles.classChipText}>
+                  <Text style={[styles.classChipText, form.vehicle_class === c.value && { color: "#ffffff" }]}>
                     {c.emoji} {c.label}
                   </Text>
                 </Pressable>
               ))}
             </View>
 
-            <Text style={styles.label}>Make (optional)</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Make (optional)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
               placeholder="e.g. Toyota"
-              placeholderTextColor="#555"
+              placeholderTextColor={colors.placeholder}
               value={form.make ?? ""}
               onChangeText={(t) => setForm((f) => ({ ...f, make: t }))}
             />
 
-            <Text style={styles.label}>Model (optional)</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Model (optional)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
               placeholder="e.g. Corolla"
-              placeholderTextColor="#555"
+              placeholderTextColor={colors.placeholder}
               value={form.model ?? ""}
               onChangeText={(t) => setForm((f) => ({ ...f, model: t }))}
             />
 
             <View style={styles.row}>
               <View style={{ flex: 1, marginRight: 8 }}>
-                <Text style={styles.label}>Year</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Year</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                   placeholder="2022"
-                  placeholderTextColor="#555"
+                  placeholderTextColor={colors.placeholder}
                   keyboardType="numeric"
                   value={form.year ? String(form.year) : ""}
                   onChangeText={(t) =>
@@ -241,22 +244,22 @@ export default function VehiclesScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Color</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Color</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                   placeholder="White"
-                  placeholderTextColor="#555"
+                  placeholderTextColor={colors.placeholder}
                   value={form.color ?? ""}
                   onChangeText={(t) => setForm((f) => ({ ...f, color: t }))}
                 />
               </View>
             </View>
 
-            <Text style={styles.label}>Plate Number (optional)</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Plate Number (optional)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
               placeholder="AA 12345"
-              placeholderTextColor="#555"
+              placeholderTextColor={colors.placeholder}
               value={form.plate_number ?? ""}
               autoCapitalize="characters"
               onChangeText={(t) =>
@@ -267,9 +270,9 @@ export default function VehiclesScreen() {
             <View style={styles.modalActions}>
               <Pressable
                 onPress={() => setShowModal(false)}
-                style={styles.cancelBtn}
+                style={[styles.cancelBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
               <Pressable
                 onPress={handleSave}

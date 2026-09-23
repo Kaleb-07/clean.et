@@ -27,6 +27,7 @@ import {
   Invoice,
   PaymentProvider,
 } from "../../hooks/useInvoices";
+import { useColors } from "../../hooks/useColors";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ const PROVIDERS: { value: PaymentProvider; label: string; emoji: string }[] = [
 
 export default function InvoicesScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { invoices, isLoading, reload, payInvoice, verifyPayment } = useInvoices();
 
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -111,11 +113,11 @@ export default function InvoicesScreen() {
 
     return (
       <Pressable onPress={() => router.push(`/invoices/${item.id}`)}>
-        <BlurView intensity={20} tint="dark" style={styles.card}>
+        <BlurView intensity={20} tint={colors.isDark ? "dark" : "light"} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
           {/* Header row */}
           <View style={styles.cardHeader}>
             <Receipt size={18} color="#6366f1" />
-            <Text style={styles.cardId}>Invoice #{item.id}</Text>
+            <Text style={[styles.cardId, { color: colors.text }]}>Invoice #{item.id}</Text>
             <View
               style={[
                 styles.badge,
@@ -130,13 +132,13 @@ export default function InvoicesScreen() {
           </View>
 
           {/* Amount */}
-          <Text style={styles.amount}>
+          <Text style={[styles.amount, { color: colors.text }]}>
             ETB {item.amount.toLocaleString("en-ET", { minimumFractionDigits: 2 })}
           </Text>
 
           {/* Booking info */}
           {item.booking && (
-            <Text style={styles.bookingInfo}>
+            <Text style={[styles.bookingInfo, { color: colors.subtext }]}>
               {item.booking.sector_name ?? "Cleaning Service"} ·{" "}
               {item.booking.booking_date}
             </Text>
@@ -144,7 +146,7 @@ export default function InvoicesScreen() {
 
           {/* Due date */}
           {item.due_at && (
-            <Text style={[styles.dueDate, item.status === "overdue" && { color: "#ef4444" }]}>
+            <Text style={[styles.dueDate, { color: colors.subtext }, item.status === "overdue" && { color: "#ef4444" }]}>
               Due: {item.due_at}
             </Text>
           )}
@@ -191,13 +193,13 @@ export default function InvoicesScreen() {
   };
 
   return (
-    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.root}>
+    <LinearGradient colors={colors.gradients.background} style={styles.root}>
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 56) }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={22} color="#a3a3a3" />
+        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <ChevronLeft size={22} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>My Invoices</Text>
+        <Text style={[styles.title, { color: colors.text }]}>My Invoices</Text>
       </View>
 
       {/* ── List ── */}
@@ -213,9 +215,9 @@ export default function InvoicesScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
-              <Receipt size={40} color="#3d3d6b" />
-              <Text style={styles.emptyTitle}>No Invoices Yet</Text>
-              <Text style={styles.emptyText}>
+              <Receipt size={40} color={colors.subtext} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>No Invoices Yet</Text>
+              <Text style={[styles.emptyText, { color: colors.subtext }]}>
                 Invoices are generated when your bookings are completed.
               </Text>
             </View>
@@ -232,11 +234,11 @@ export default function InvoicesScreen() {
         onRequestClose={() => setSelectedInvoice(null)}
       >
         <View style={styles.modalOverlay}>
-          <BlurView intensity={60} tint="dark" style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Choose Payment Method</Text>
+          <BlurView intensity={60} tint={colors.isDark ? "dark" : "light"} style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Choose Payment Method</Text>
 
             {selectedInvoice && (
-              <Text style={styles.modalAmount}>
+              <Text style={[styles.modalAmount, { color: colors.text }]}>
                 ETB{" "}
                 {selectedInvoice.amount.toLocaleString("en-ET", {
                   minimumFractionDigits: 2,
@@ -251,6 +253,7 @@ export default function InvoicesScreen() {
                 disabled={paying}
                 style={({ pressed }) => [
                   styles.providerBtn,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
                   pressed && { opacity: 0.75 },
                 ]}
               >
@@ -259,7 +262,7 @@ export default function InvoicesScreen() {
                 ) : (
                   <>
                     <Text style={styles.providerEmoji}>{p.emoji}</Text>
-                    <Text style={styles.providerLabel}>{p.label}</Text>
+                    <Text style={[styles.providerLabel, { color: colors.text }]}>{p.label}</Text>
                   </>
                 )}
               </Pressable>
@@ -267,9 +270,9 @@ export default function InvoicesScreen() {
 
             <Pressable
               onPress={() => setSelectedInvoice(null)}
-              style={styles.cancelBtn}
+              style={[styles.cancelBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text>
             </Pressable>
           </BlurView>
         </View>

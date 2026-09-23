@@ -144,7 +144,7 @@ export default function BookingStatusScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color="#8b5cf6" />
       </View>
     );
@@ -152,8 +152,8 @@ export default function BookingStatusScreen() {
 
   if (!booking) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Booking not found</Text>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.text }]}>Booking not found</Text>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </Pressable>
@@ -191,14 +191,14 @@ export default function BookingStatusScreen() {
 
   return (
     <>
-    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
+    <LinearGradient colors={colors.gradients.background} style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={24} color="#ffffff" />
+        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <ChevronLeft size={24} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>{t("booking_details") || "Booking Status"}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t("booking_details") || "Booking Status"}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -216,11 +216,11 @@ export default function BookingStatusScreen() {
       >
         {/* STATUS TIMELINE CARD */}
         <Animated.View entering={FadeInDown.duration(600)} style={styles.statusSection}>
-          <BlurView intensity={20} tint="dark" style={styles.statusCard}>
+          <BlurView intensity={20} tint={colors.isDark ? "dark" : "light"} style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             <View style={styles.serviceInfo}>
               <Text style={styles.categoryLabel}>{categoryName}</Text>
-              <Text style={styles.serviceName}>{bookingName}</Text>
-              <Text style={styles.bookingId}>Booking ID: #{booking.id}</Text>
+              <Text style={[styles.serviceName, { color: colors.text }]}>{bookingName}</Text>
+              <Text style={[styles.bookingId, { color: colors.subtext }]}>Booking ID: #{booking.id}</Text>
             </View>
 
             {isCancelled ? (
@@ -246,20 +246,22 @@ export default function BookingStatusScreen() {
                         <View
                           style={[
                             styles.dot,
+                            { backgroundColor: colors.surface, borderColor: colors.border },
                             isDone && { backgroundColor: step.color },
-                            isCurrent && styles.activeDot,
+                            isCurrent && [styles.activeDot, { borderColor: colors.text }],
                           ]}
                         >
                           {isDone ? (
                             <Icon size={12} color="#ffffff" />
                           ) : (
-                            <View style={styles.inactiveDotInner} />
+                            <View style={[styles.inactiveDotInner, { backgroundColor: colors.subtext }]} />
                           )}
                         </View>
                         {index < steps.length - 1 && (
                           <View
                             style={[
                               styles.line,
+                              { backgroundColor: colors.border },
                               index < currentStepIndex && { backgroundColor: step.color },
                             ]}
                           />
@@ -269,13 +271,14 @@ export default function BookingStatusScreen() {
                         <Text
                           style={[
                             styles.stepLabel,
-                            isDone && { color: "#ffffff" },
+                            { color: colors.subtext },
+                            isDone && { color: colors.text },
                             isCurrent && { fontWeight: "bold", color: step.color },
                           ]}
                         >
                           {step.label}
                         </Text>
-                        <Text style={styles.stepDesc}>{step.desc}</Text>
+                        <Text style={[styles.stepDesc, { color: colors.subtext }]}>{step.desc}</Text>
                       </View>
                     </View>
                   );
@@ -288,8 +291,8 @@ export default function BookingStatusScreen() {
         {/* ASSIGNED STAFF CARD */}
         {booking.staff && (
           <Animated.View entering={FadeInDown.delay(100)} style={styles.staffSection}>
-            <Text style={styles.sectionTitle}>Assigned Team Member</Text>
-            <BlurView intensity={20} tint="dark" style={styles.staffCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Assigned Team Member</Text>
+            <BlurView intensity={20} tint={colors.isDark ? "dark" : "light"} style={[styles.staffCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
               <View style={styles.staffRow}>
                 <View style={styles.avatarWrapper}>
                   <LinearGradient colors={["#8b5cf6", "#6366f1"]} style={styles.avatarGradient}>
@@ -297,8 +300,8 @@ export default function BookingStatusScreen() {
                   </LinearGradient>
                 </View>
                 <View style={styles.staffDetails}>
-                  <Text style={styles.staffName}>{booking.staff.name}</Text>
-                  <Text style={styles.staffRole}>{booking.staff.role_title || "Cleaning Professional"}</Text>
+                  <Text style={[styles.staffName, { color: colors.text }]}>{booking.staff.name}</Text>
+                  <Text style={[styles.staffRole, { color: colors.subtext }]}>{booking.staff.role_title || "Cleaning Professional"}</Text>
                 </View>
                 {booking.staff.phone && (
                   <Pressable
@@ -315,22 +318,22 @@ export default function BookingStatusScreen() {
 
         {/* DETAILS CARD */}
         <Animated.View entering={FadeInUp.delay(200)} style={styles.detailsSection}>
-          <Text style={styles.sectionTitle}>{t("appointment_info") || "Appointment Info"}</Text>
-          <BlurView intensity={20} tint="dark" style={styles.detailsCard}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t("appointment_info") || "Appointment Info"}</Text>
+          <BlurView intensity={20} tint={colors.isDark ? "dark" : "light"} style={[styles.detailsCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             {/* Price */}
             <View style={styles.detailRow}>
               <View style={[styles.iconBox, { backgroundColor: "rgba(16,185,129,0.12)" }]}>
                 <CheckCircle2 size={18} color="#10b981" />
               </View>
               <View>
-                <Text style={styles.detailLabel}>Price</Text>
+                <Text style={[styles.detailLabel, { color: colors.subtext }]}>Price</Text>
                 <Text style={[styles.detailValue, { color: "#10b981" }]}>
                   ETB {Number(booking.service?.price ?? booking.estimated_price ?? 0).toLocaleString("en-ET", { minimumFractionDigits: 2 })}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Date */}
             <View style={styles.detailRow}>
@@ -338,14 +341,14 @@ export default function BookingStatusScreen() {
                 <Calendar size={18} color="#8b5cf6" />
               </View>
               <View>
-                <Text style={styles.detailLabel}>{t("date") || "Date"}</Text>
-                <Text style={styles.detailValue}>
+                <Text style={[styles.detailLabel, { color: colors.subtext }]}>{t("date") || "Date"}</Text>
+                <Text style={[styles.detailValue, { color: colors.text }]}>
                   {new Date(booking.booking_date + "T00:00:00").toLocaleDateString()}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Time */}
             <View style={styles.detailRow}>
@@ -353,22 +356,22 @@ export default function BookingStatusScreen() {
                 <Clock size={18} color="#3b82f6" />
               </View>
               <View>
-                <Text style={styles.detailLabel}>{t("time") || "Time"}</Text>
-                <Text style={styles.detailValue}>{to12h(booking.booking_time)}</Text>
+                <Text style={[styles.detailLabel, { color: colors.subtext }]}>{t("time") || "Time"}</Text>
+                <Text style={[styles.detailValue, { color: colors.text }]}>{to12h(booking.booking_time)}</Text>
               </View>
             </View>
 
             {/* Render Vehicle Profile Info if present */}
             {booking.vehicle && (
               <>
-                <View style={styles.divider} />
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
                 <View style={styles.detailRow}>
                   <View style={[styles.iconBox, { backgroundColor: "rgba(245,158,11,0.12)" }]}>
                     <Shield size={18} color="#f59e0b" />
                   </View>
                   <View>
-                    <Text style={styles.detailLabel}>Vehicle Details</Text>
-                    <Text style={styles.detailValue}>
+                    <Text style={[styles.detailLabel, { color: colors.subtext }]}>Vehicle Details</Text>
+                    <Text style={[styles.detailValue, { color: colors.text }]}>
                       {booking.vehicle.make} {booking.vehicle.model}{" "}
                       {booking.vehicle.plate_number ? `(${booking.vehicle.plate_number})` : ""}
                     </Text>
@@ -380,14 +383,14 @@ export default function BookingStatusScreen() {
             {/* Render Building Profile Info if present */}
             {booking.building_profile && (
               <>
-                <View style={styles.divider} />
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
                 <View style={styles.detailRow}>
                   <View style={[styles.iconBox, { backgroundColor: "rgba(236,72,153,0.12)" }]}>
                     <MapPin size={18} color="#ec4899" />
                   </View>
                   <View>
-                    <Text style={styles.detailLabel}>Building Details</Text>
-                    <Text style={styles.detailValue}>
+                    <Text style={[styles.detailLabel, { color: colors.subtext }]}>Building Details</Text>
+                    <Text style={[styles.detailValue, { color: colors.text }]}>
                       {booking.building_profile.name} · {booking.building_profile.floor_count} floors ·{" "}
                       {booking.building_profile.area_sqm} sqm
                     </Text>
@@ -422,7 +425,7 @@ export default function BookingStatusScreen() {
         {(proofs.length > 0 || (booking.completion_proofs && booking.completion_proofs.length > 0) || isStaff) && (
           <Animated.View entering={FadeInUp.delay(300)} style={styles.proofsSection}>
             <View style={styles.proofsSectionHeader}>
-              <Text style={styles.sectionTitle}>Completion Proofs</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Completion Proofs</Text>
               {isStaff && (
                 <Pressable onPress={() => setProofModal(true)} style={styles.addProofBtn}>
                   <Upload size={14} color="#a78bfa" />
@@ -432,26 +435,26 @@ export default function BookingStatusScreen() {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {[...(booking.completion_proofs ?? []), ...proofs].map((proof, i) => (
-                <View key={proof.id ?? i} style={styles.proofCard}>
+                <View key={proof.id ?? i} style={[styles.proofCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                   {proof.photo_url && proof.photo_url.startsWith("data:") || proof.photo_url?.startsWith("http") ? (
                     <Image source={{ uri: proof.photo_url }} style={styles.proofImage} />
                   ) : (
-                    <View style={[styles.proofImage, styles.proofImagePlaceholder]}>
-                      <ImageIcon size={28} color="#475569" />
+                    <View style={[styles.proofImage, styles.proofImagePlaceholder, { backgroundColor: colors.surface }]}>
+                      <ImageIcon size={28} color={colors.subtext} />
                     </View>
                   )}
                   {proof.checklist_item ? (
-                    <Text style={styles.proofNote} numberOfLines={2}>{proof.checklist_item}</Text>
+                    <Text style={[styles.proofNote, { color: colors.text }]} numberOfLines={2}>{proof.checklist_item}</Text>
                   ) : null}
-                  <Text style={styles.proofDate}>
+                  <Text style={[styles.proofDate, { color: colors.subtext }]}>
                     {proof.created_at ? new Date(proof.created_at).toLocaleDateString() : ""}
                   </Text>
                 </View>
               ))}
               {[...(booking.completion_proofs ?? []), ...proofs].length === 0 && (
-                <View style={styles.proofsEmpty}>
-                  <Camera size={24} color="#334155" />
-                  <Text style={styles.proofsEmptyText}>No proofs yet</Text>
+                <View style={[styles.proofsEmpty, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Camera size={24} color={colors.subtext} />
+                  <Text style={[styles.proofsEmptyText, { color: colors.subtext }]}>No proofs yet</Text>
                 </View>
               )}
             </ScrollView>
@@ -468,9 +471,9 @@ export default function BookingStatusScreen() {
       onRequestClose={() => setProofModal(false)}
     >
       <View style={styles.modalOverlay}>
-        <BlurView intensity={60} tint="dark" style={styles.modalSheet}>
-          <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Upload Completion Proof</Text>
+        <BlurView intensity={60} tint={colors.isDark ? "dark" : "light"} style={[styles.modalSheet, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+          <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+          <Text style={[styles.modalTitle, { color: colors.text }]}>Upload Completion Proof</Text>
 
           {proofImage ? (
             <Image source={{ uri: proofImage }} style={styles.previewImage} />
@@ -484,9 +487,9 @@ export default function BookingStatusScreen() {
           </Pressable>
 
           <TextInput
-            style={styles.noteInput}
+            style={[styles.noteInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
             placeholder="Add a checklist note (optional)…"
-            placeholderTextColor="#475569"
+            placeholderTextColor={colors.placeholder}
             value={proofNote}
             onChangeText={setProofNote}
             multiline
@@ -506,7 +509,7 @@ export default function BookingStatusScreen() {
           </Pressable>
 
           <Pressable onPress={() => setProofModal(false)} style={styles.cancelLink}>
-            <Text style={styles.cancelLinkText}>Cancel</Text>
+            <Text style={[styles.cancelLinkText, { color: colors.subtext }]}>Cancel</Text>
           </Pressable>
         </BlurView>
       </View>
@@ -522,12 +525,12 @@ export default function BookingStatusScreen() {
       }}
     >
       <View style={styles.cancelModalOverlay}>
-        <BlurView intensity={Platform.OS === "ios" ? 40 : 100} tint="dark" style={styles.cancelModalBox}>
+        <BlurView intensity={Platform.OS === "ios" ? 40 : 100} tint={colors.isDark ? "dark" : "light"} style={[styles.cancelModalBox, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
           <View style={styles.cancelIconWrap}>
             <XCircle size={36} color="#ef4444" />
           </View>
-          <Text style={styles.cancelModalTitle}>Cancel Booking?</Text>
-          <Text style={styles.cancelModalMsg}>
+          <Text style={[styles.cancelModalTitle, { color: colors.text }]}>Cancel Booking?</Text>
+          <Text style={[styles.cancelModalMsg, { color: colors.subtext }]}>
             Are you sure you want to cancel your booking for {bookingName}? This action cannot be undone.
           </Text>
 
@@ -535,9 +538,9 @@ export default function BookingStatusScreen() {
             <Pressable
               disabled={cancelling}
               onPress={() => setCancelConfirmModal(false)}
-              style={styles.cancelModalKeepBtn}
+              style={[styles.cancelModalKeepBtn, { borderColor: colors.border }]}
             >
-              <Text style={styles.cancelModalKeepText}>Keep Booking</Text>
+              <Text style={[styles.cancelModalKeepText, { color: colors.text }]}>Keep Booking</Text>
             </Pressable>
             <Pressable
               disabled={cancelling}

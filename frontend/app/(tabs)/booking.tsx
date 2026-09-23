@@ -299,7 +299,7 @@ export default function BookingsScreen() {
         </View>
 
         {/* ── Middle Row: Date/Time + Location Strip ── */}
-        <View style={[styles.infoStrip, { backgroundColor: colors.surface }]}>
+        <View style={[styles.infoStrip, { backgroundColor: colors.isDark ? colors.surface : "#F1F5F9" }]}>
           {/* Date & Time */}
           <View style={styles.stripItem}>
             <Clock size={15} color={colors.primary} strokeWidth={2} />
@@ -449,7 +449,21 @@ export default function BookingsScreen() {
       </View>
 
       {/* ── Segmented Tab Selector ── */}
-      <View style={[styles.tabsContainer, { backgroundColor: colors.surface }]}>
+      <View
+        style={[
+          styles.tabsContainer,
+          {
+            backgroundColor: colors.surface,
+            borderWidth: colors.isDark ? 0 : 1,
+            borderColor: colors.border,
+            elevation: colors.isDark ? 0 : 2,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: colors.isDark ? 0 : 0.05,
+            shadowRadius: 3,
+          },
+        ]}
+      >
         {(["upcoming", "completed", "cancelled"] as TabType[]).map((tab) => {
           const isActive = activeTab === tab;
           const label = tab.charAt(0).toUpperCase() + tab.slice(1);

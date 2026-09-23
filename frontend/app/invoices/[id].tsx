@@ -28,6 +28,7 @@ import {
 } from "lucide-react-native";
 import API from "../../src/api/client";
 import { PaymentProvider, Payment, Invoice } from "../../hooks/useInvoices";
+import { useColors } from "../../hooks/useColors";
 
 // ─── Status Config ───────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<
@@ -51,6 +52,7 @@ export default function InvoiceDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,7 +112,7 @@ export default function InvoiceDetailScreen() {
 
   if (loading) {
     return (
-      <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.centerRoot}>
+      <LinearGradient colors={colors.gradients.background} style={styles.centerRoot}>
         <ActivityIndicator size="large" color="#6366f1" />
       </LinearGradient>
     );
@@ -118,10 +120,10 @@ export default function InvoiceDetailScreen() {
 
   if (!invoice) {
     return (
-      <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.centerRoot}>
+      <LinearGradient colors={colors.gradients.background} style={styles.centerRoot}>
         <AlertCircle size={48} color="#ef4444" />
-        <Text style={styles.errorText}>Invoice not found</Text>
-        <Pressable onPress={() => router.back()} style={styles.backLink}>
+        <Text style={[styles.errorText, { color: colors.text }]}>Invoice not found</Text>
+        <Pressable onPress={() => router.back()} style={[styles.backLink, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={styles.backLinkText}>Go Back</Text>
         </Pressable>
       </LinearGradient>
@@ -136,20 +138,20 @@ export default function InvoiceDetailScreen() {
   );
 
   return (
-    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.root}>
+    <LinearGradient colors={colors.gradients.background} style={styles.root}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={22} color="#a3a3a3" />
+        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <ChevronLeft size={22} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>Invoice #{invoice.id}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Invoice #{invoice.id}</Text>
       </View>
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 32 }]}>
         {/* Main Details Card */}
-        <BlurView intensity={30} tint="dark" style={styles.mainCard}>
+        <BlurView intensity={30} tint={colors.isDark ? "dark" : "light"} style={[styles.mainCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
           <View style={styles.invoiceHeaderRow}>
             <View style={styles.invoiceLogoWrap}>
               <Receipt size={24} color="#6366f1" />
@@ -167,14 +169,14 @@ export default function InvoiceDetailScreen() {
             </View>
           </View>
 
-          <Text style={styles.amount}>
+          <Text style={[styles.amount, { color: colors.text }]}>
             {invoice.currency} {invoice.amount.toLocaleString("en-ET", { minimumFractionDigits: 2 })}
           </Text>
 
           {invoice.due_at && (
             <View style={styles.metaRow}>
               <Calendar size={14} color="#6b7280" />
-              <Text style={[styles.metaText, invoice.status === "overdue" && { color: "#ef4444", fontWeight: "600" }]}>
+              <Text style={[styles.metaText, { color: colors.subtext }, invoice.status === "overdue" && { color: "#ef4444", fontWeight: "600" }]}>
                 Due on {new Date(invoice.due_at).toLocaleDateString("en-ET", { day: "2-digit", month: "short", year: "numeric" })}
               </Text>
             </View>
@@ -184,13 +186,13 @@ export default function InvoiceDetailScreen() {
         {/* Booking Reference Block */}
         {invoice.booking && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Service Details</Text>
-            <BlurView intensity={20} tint="dark" style={styles.detailsCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Service Details</Text>
+            <BlurView intensity={20} tint={colors.isDark ? "dark" : "light"} style={[styles.detailsCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
               <View style={styles.detailItem}>
                 <Tag size={16} color="#6366f1" />
                 <View style={styles.detailTextCol}>
-                  <Text style={styles.detailLabel}>Sector / Category</Text>
-                  <Text style={styles.detailValue}>
+                  <Text style={[styles.detailLabel, { color: colors.subtext }]}>Sector / Category</Text>
+                  <Text style={[styles.detailValue, { color: colors.text }]}>
                     {invoice.booking.sector_name ?? "Cleaning Service"}
                   </Text>
                 </View>
@@ -199,8 +201,8 @@ export default function InvoiceDetailScreen() {
               <View style={styles.detailItem}>
                 <Calendar size={16} color="#6366f1" />
                 <View style={styles.detailTextCol}>
-                  <Text style={styles.detailLabel}>Service Date</Text>
-                  <Text style={styles.detailValue}>
+                  <Text style={[styles.detailLabel, { color: colors.subtext }]}>Service Date</Text>
+                  <Text style={[styles.detailValue, { color: colors.text }]}>
                     {new Date(invoice.booking.booking_date).toLocaleDateString("en-ET", {
                       weekday: "short",
                       day: "2-digit",
@@ -224,22 +226,22 @@ export default function InvoiceDetailScreen() {
 
         {/* Payments History Block */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Log</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Payment Log</Text>
           {invoice.payments.length === 0 ? (
-            <BlurView intensity={15} tint="dark" style={styles.emptyPayments}>
-              <ShieldCheck size={20} color="#3d3d6b" />
-              <Text style={styles.emptyPaymentsText}>No payments logged yet.</Text>
+            <BlurView intensity={15} tint={colors.isDark ? "dark" : "light"} style={[styles.emptyPayments, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <ShieldCheck size={20} color={colors.subtext} />
+              <Text style={[styles.emptyPaymentsText, { color: colors.subtext }]}>No payments logged yet.</Text>
             </BlurView>
           ) : (
             invoice.payments.map((p) => {
               const isPaidPayment = p.status === "paid";
               return (
-                <BlurView key={p.id} intensity={15} tint="dark" style={styles.paymentRow}>
+                <BlurView key={p.id} intensity={15} tint={colors.isDark ? "dark" : "light"} style={[styles.paymentRow, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.paymentProvider}>
+                    <Text style={[styles.paymentProvider, { color: colors.text }]}>
                       {p.provider.toUpperCase()} (Ref: {p.provider_reference || "N/A"})
                     </Text>
-                    <Text style={styles.paymentDate}>
+                    <Text style={[styles.paymentDate, { color: colors.subtext }]}>
                       {new Date(p.created_at).toLocaleString("en-ET", {
                         day: "2-digit",
                         month: "short",
@@ -249,7 +251,7 @@ export default function InvoiceDetailScreen() {
                     </Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text style={[styles.paymentAmount, isPaidPayment && { color: "#10b981" }]}>
+                    <Text style={[styles.paymentAmount, { color: colors.text }, isPaidPayment && { color: "#10b981" }]}>
                       ETB {p.amount.toLocaleString()}
                     </Text>
                     <View style={styles.paymentStatusPill}>
@@ -282,7 +284,7 @@ export default function InvoiceDetailScreen() {
         )}
 
         {hasActivePayment && !isPaid && (
-          <BlurView intensity={20} tint="dark" style={styles.pendingCard}>
+          <BlurView intensity={20} tint={colors.isDark ? "dark" : "light"} style={[styles.pendingCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             <Clock size={18} color="#f59e0b" />
             <Text style={styles.pendingText}>
               A payment is currently in progress. If you just sent funds, please wait a moment for admin verification.
@@ -299,9 +301,9 @@ export default function InvoiceDetailScreen() {
         onRequestClose={() => setProviderModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <BlurView intensity={60} tint="dark" style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Choose Payment Method</Text>
-            <Text style={styles.modalAmount}>
+          <BlurView intensity={60} tint={colors.isDark ? "dark" : "light"} style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Choose Payment Method</Text>
+            <Text style={[styles.modalAmount, { color: colors.text }]}>
               ETB {invoice.amount.toLocaleString("en-ET", { minimumFractionDigits: 2 })}
             </Text>
 
@@ -312,6 +314,7 @@ export default function InvoiceDetailScreen() {
                 disabled={paying}
                 style={({ pressed }) => [
                   styles.providerBtn,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
                   pressed && { opacity: 0.75 },
                 ]}
               >
@@ -320,7 +323,7 @@ export default function InvoiceDetailScreen() {
                 ) : (
                   <>
                     <Text style={styles.providerEmoji}>{p.emoji}</Text>
-                    <Text style={styles.providerLabel}>{p.label}</Text>
+                    <Text style={[styles.providerLabel, { color: colors.text }]}>{p.label}</Text>
                   </>
                 )}
               </Pressable>
@@ -328,9 +331,9 @@ export default function InvoiceDetailScreen() {
 
             <Pressable
               onPress={() => setProviderModalVisible(false)}
-              style={styles.cancelBtn}
+              style={[styles.cancelBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text>
             </Pressable>
           </BlurView>
         </View>

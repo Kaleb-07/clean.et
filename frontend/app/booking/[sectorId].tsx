@@ -208,7 +208,7 @@ export default function DynamicBookingScreen() {
 
   if (categoriesLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color="#8b5cf6" />
       </View>
     );
@@ -216,9 +216,9 @@ export default function DynamicBookingScreen() {
 
   if (!sector) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
         <Info size={48} color="#ef4444" />
-        <Text style={styles.errorText}>Sector not found</Text>
+        <Text style={[styles.errorText, { color: colors.text }]}>Sector not found</Text>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </Pressable>
@@ -227,7 +227,7 @@ export default function DynamicBookingScreen() {
   }
 
   return (
-    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.container}>
+    <LinearGradient colors={colors.gradients.background} style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       
       <ScrollView 
@@ -239,20 +239,20 @@ export default function DynamicBookingScreen() {
       >
         {/* HEADER */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.iconButton}>
-            <ChevronLeft size={24} color="#ffffff" />
+          <Pressable onPress={() => router.back()} style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <ChevronLeft size={24} color={colors.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>{sector.name}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{sector.name}</Text>
           <View style={{ width: 40 }} />
         </View>
 
         {/* SERVICE INFO & PRICING */}
         <Animated.View entering={FadeInDown.duration(600)} style={styles.section}>
-          <BlurView intensity={20} tint="dark" style={styles.serviceCard}>
+          <BlurView intensity={20} tint={colors.isDark ? "dark" : "light"} style={[styles.serviceCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             <View style={styles.serviceHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.serviceName}>{sector.name}</Text>
-                <Text style={styles.description}>
+                <Text style={[styles.serviceName, { color: colors.text }]}>{sector.name}</Text>
+                <Text style={[styles.description, { color: colors.subtext }]}>
                   Configure your cleaning details below to receive a live price estimate.
                 </Text>
               </View>
@@ -264,7 +264,7 @@ export default function DynamicBookingScreen() {
                     {estimatedPrice !== null ? `${estimatedPrice} ETB` : "---"}
                   </Text>
                 )}
-                <Text style={styles.priceLabel}>Estimated Price</Text>
+                <Text style={[styles.priceLabel, { color: colors.subtext }]}>Estimated Price</Text>
               </View>
             </View>
           </BlurView>
@@ -274,7 +274,7 @@ export default function DynamicBookingScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Building2 size={18} color="#10B981" />
-            <Text style={styles.sectionTitle}>Select Sub-Center Station Branch</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Sub-Center Station Branch</Text>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectGrid}>
             {[
@@ -293,10 +293,14 @@ export default function DynamicBookingScreen() {
                     handleFieldChange("sub_center", sc.id);
                     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
-                  style={[styles.selectChip, isSel && { backgroundColor: "#059669", borderColor: "#34D399" }]}
+                  style={[
+                    styles.selectChip,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    isSel && { backgroundColor: "#059669", borderColor: "#34D399" },
+                  ]}
                 >
-                  <Text style={[styles.selectChipText, isSel && styles.textActive]}>{sc.label}</Text>
-                  <Text style={{ fontSize: 10, color: isSel ? "#E2E8F0" : "#64748B", marginTop: 2 }}>{sc.sub}</Text>
+                  <Text style={[styles.selectChipText, { color: colors.subtext }, isSel && styles.textActive]}>{sc.label}</Text>
+                  <Text style={{ fontSize: 10, color: isSel ? "#E2E8F0" : colors.subtext, marginTop: 2 }}>{sc.sub}</Text>
                 </Pressable>
               );
             })}
@@ -308,7 +312,7 @@ export default function DynamicBookingScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Car size={18} color="#8b5cf6" />
-              <Text style={styles.sectionTitle}>Select Vehicle</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Vehicle</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectGrid}>
               {vehicles.map((v) => {
@@ -324,9 +328,13 @@ export default function DynamicBookingScreen() {
                       }
                       if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }}
-                    style={[styles.selectChip, isSelectedV && styles.selectChipActive]}
+                    style={[
+                      styles.selectChip,
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                      isSelectedV && styles.selectChipActive
+                    ]}
                   >
-                    <Text style={[styles.selectChipText, isSelectedV && styles.textActive]}>
+                    <Text style={[styles.selectChipText, { color: colors.subtext }, isSelectedV && styles.textActive]}>
                       🚗 {vName} {v.plate_number ? `(${v.plate_number})` : ""}
                     </Text>
                   </Pressable>
@@ -348,7 +356,7 @@ export default function DynamicBookingScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Building2 size={18} color="#8b5cf6" />
-              <Text style={styles.sectionTitle}>Select Building Profile</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Building Profile</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectGrid}>
               {buildingProfiles.map((bp) => {
@@ -362,9 +370,13 @@ export default function DynamicBookingScreen() {
                       if (bp.floor_count) handleFieldChange("floor_count", bp.floor_count);
                       if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }}
-                    style={[styles.selectChip, isSelectedBp && styles.selectChipActive]}
+                    style={[
+                      styles.selectChip,
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                      isSelectedBp && styles.selectChipActive
+                    ]}
                   >
-                    <Text style={[styles.selectChipText, isSelectedBp && styles.textActive]}>
+                    <Text style={[styles.selectChipText, { color: colors.subtext }, isSelectedBp && styles.textActive]}>
                       🏢 {bp.name} ({bp.floor_count}F, {bp.area_sqm} sqm)
                     </Text>
                   </Pressable>
@@ -385,16 +397,16 @@ export default function DynamicBookingScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <TrendingUp size={18} color="#8b5cf6" />
-            <Text style={styles.sectionTitle}>Cleaning Details</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Cleaning Details</Text>
           </View>
           
-          <BlurView intensity={15} tint="dark" style={styles.formCard}>
+          <BlurView intensity={15} tint={colors.isDark ? "dark" : "light"} style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             {sector.requirement_schema?.fields?.map((field: SectorField) => {
               const val = requirementData[field.key];
               
               return (
                 <View key={field.key} style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>
+                  <Text style={[styles.fieldLabel, { color: colors.text }]}>
                     {field.label} {field.required && <Text style={{ color: "#8b5cf6" }}>*</Text>}
                   </Text>
                   
@@ -414,10 +426,11 @@ export default function DynamicBookingScreen() {
                             }}
                             style={[
                               styles.selectChip,
+                              { backgroundColor: colors.surface, borderColor: colors.border },
                               isSelectedOpt && styles.selectChipActive
                             ]}
                           >
-                            <Text style={[styles.selectChipText, isSelectedOpt && styles.textActive]}>
+                            <Text style={[styles.selectChipText, { color: colors.subtext }, isSelectedOpt && styles.textActive]}>
                               {label}
                             </Text>
                           </Pressable>
@@ -427,24 +440,24 @@ export default function DynamicBookingScreen() {
                   )}
 
                   {field.type === "boolean" && (
-                    <View style={styles.switchRow}>
-                      <Text style={styles.switchLabel}>Yes / No</Text>
+                    <View style={[styles.switchRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                      <Text style={[styles.switchLabel, { color: colors.text }]}>Yes / No</Text>
                       <Switch
                         value={!!val}
                         onValueChange={(checked) => handleFieldChange(field.key, checked)}
-                        trackColor={{ false: "#1f2041", true: "#8b5cf6" }}
+                        trackColor={{ false: colors.isDark ? "#1f2041" : "#E2E8F0", true: "#8b5cf6" }}
                         thumbColor={val ? "#ffffff" : "#a3a3a3"}
                       />
                     </View>
                   )}
 
                   {field.type === "number" && (
-                    <View style={styles.inputWrapper}>
+                    <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                       <TextInput
                         keyboardType="numeric"
                         placeholder="Enter value"
-                        placeholderTextColor="#5a5b7c"
-                        style={styles.textInput}
+                        placeholderTextColor={colors.placeholder}
+                        style={[styles.textInput, { color: colors.text }]}
                         value={val !== undefined ? String(val) : ""}
                         onChangeText={(text) => handleFieldChange(field.key, text === "" ? "" : Number(text))}
                       />
@@ -452,12 +465,12 @@ export default function DynamicBookingScreen() {
                   )}
 
                   {(field.type === "text" || field.type === "address") && (
-                    <View style={styles.inputWrapper}>
-                      {field.type === "address" && <MapPin size={16} color="#5a5b7c" style={{ marginRight: 8 }} />}
+                    <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                      {field.type === "address" && <MapPin size={16} color={colors.subtext} style={{ marginRight: 8 }} />}
                       <TextInput
                         placeholder={field.type === "address" ? "Enter address details" : "Enter details"}
-                        placeholderTextColor="#5a5b7c"
-                        style={styles.textInput}
+                        placeholderTextColor={colors.placeholder}
+                        style={[styles.textInput, { color: colors.text }]}
                         value={val || ""}
                         onChangeText={(text) => handleFieldChange(field.key, text)}
                       />
@@ -473,7 +486,7 @@ export default function DynamicBookingScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <CalendarIcon size={18} color="#8b5cf6" />
-            <Text style={styles.sectionTitle}>Select Date</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Date</Text>
           </View>
           <ScrollView 
             horizontal 
@@ -489,13 +502,14 @@ export default function DynamicBookingScreen() {
                   }}
                   style={[
                     styles.dateItem,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
                     isSelected(date) && styles.dateItemActive
                   ]}
                 >
-                  <Text style={[styles.dayName, isSelected(date) && styles.textActive]}>
+                  <Text style={[styles.dayName, { color: colors.subtext }, isSelected(date) && styles.textActive]}>
                     {date.toLocaleDateString('en-US', { weekday: 'short' })}
                   </Text>
-                  <Text style={[styles.dayNumber, isSelected(date) && styles.textActive]}>
+                  <Text style={[styles.dayNumber, { color: colors.text }, isSelected(date) && styles.textActive]}>
                     {date.getDate()}
                   </Text>
                   {isSelected(date) && <View style={styles.activeDot} />}
@@ -509,7 +523,7 @@ export default function DynamicBookingScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Clock size={18} color="#8b5cf6" />
-            <Text style={styles.sectionTitle}>Select Time</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Time</Text>
           </View>
           <View style={styles.timeGrid}>
             {TIME_SLOTS.map((time) => (
@@ -521,10 +535,11 @@ export default function DynamicBookingScreen() {
                 }}
                 style={[
                   styles.timeItem,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
                   selectedTime === time && styles.timeItemActive
                 ]}
               >
-                <Text style={[styles.timeText, selectedTime === time && styles.textActive]}>
+                <Text style={[styles.timeText, { color: colors.text }, selectedTime === time && styles.textActive]}>
                   {time}
                 </Text>
               </Pressable>
@@ -536,13 +551,13 @@ export default function DynamicBookingScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <RefreshCw size={18} color="#8b5cf6" />
-            <Text style={styles.sectionTitle}>Recurring Booking</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recurring Booking</Text>
           </View>
-          <BlurView intensity={15} tint="dark" style={styles.formCard}>
-            <View style={styles.switchRow}>
+          <BlurView intensity={15} tint={colors.isDark ? "dark" : "light"} style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <View style={[styles.switchRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={styles.switchLabel}>Repeat booking automatically</Text>
-                <Text style={styles.recurHelpText}>Schedule future bookings on the same cycle</Text>
+                <Text style={[styles.switchLabel, { color: colors.text }]}>Repeat booking automatically</Text>
+                <Text style={[styles.recurHelpText, { color: colors.subtext }]}>Schedule future bookings on the same cycle</Text>
               </View>
               <Switch
                 value={recurring}
@@ -550,14 +565,14 @@ export default function DynamicBookingScreen() {
                   setRecurring(checked);
                   if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 }}
-                trackColor={{ false: "#1f2041", true: "#8b5cf6" }}
+                trackColor={{ false: colors.isDark ? "#1f2041" : "#E2E8F0", true: "#8b5cf6" }}
                 thumbColor={recurring ? "#ffffff" : "#a3a3a3"}
               />
             </View>
 
             {recurring && (
               <Animated.View entering={FadeInDown.duration(300)} style={{ marginTop: 16 }}>
-                <Text style={styles.fieldLabel}>Select Recurrence Cycle</Text>
+                <Text style={[styles.fieldLabel, { color: colors.text }]}>Select Recurrence Cycle</Text>
                 <View style={styles.selectGrid}>
                   {[
                     { key: "weekly", label: "Every Week" },
@@ -574,10 +589,11 @@ export default function DynamicBookingScreen() {
                         }}
                         style={[
                           styles.selectChip,
+                          { backgroundColor: colors.surface, borderColor: colors.border },
                           isSelectedRule && styles.selectChipActive
                         ]}
                       >
-                        <Text style={[styles.selectChipText, isSelectedRule && styles.textActive]}>
+                        <Text style={[styles.selectChipText, { color: colors.subtext }, isSelectedRule && styles.textActive]}>
                           {rule.label}
                         </Text>
                       </Pressable>
@@ -593,7 +609,16 @@ export default function DynamicBookingScreen() {
         {/* SUMMARY & SUBMIT */}
         <View style={styles.footer}>
           {selectedTime && (
-            <Animated.View entering={FadeInDown} style={styles.summaryBox}>
+            <Animated.View
+              entering={FadeInDown}
+              style={[
+                styles.summaryBox,
+                {
+                  backgroundColor: colors.isDark ? "rgba(16, 185, 129, 0.1)" : "#ECFDF5",
+                  borderColor: colors.isDark ? "rgba(16, 185, 129, 0.2)" : "#A7F3D0"
+                }
+              ]}
+            >
               <CheckCircle2 size={16} color="#10b981" />
               <Text style={styles.summaryText}>
                 Scheduled for {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {selectedTime}
@@ -621,13 +646,13 @@ export default function DynamicBookingScreen() {
       {/* SUCCESS MODAL */}
       <Modal transparent visible={showSuccess} animationType="fade" aria-hidden={false}>
         <View style={styles.modalOverlay}>
-          <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
-          <Animated.View entering={ZoomIn} style={styles.successModal}>
+          <BlurView intensity={50} tint={colors.isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+          <Animated.View entering={ZoomIn} style={[styles.successModal, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             <View style={styles.successIcon}>
               <Check size={40} color="#ffffff" />
             </View>
-            <Text style={styles.successTitle}>Booking Successful!</Text>
-            <Text style={styles.successMessage}>
+            <Text style={[styles.successTitle, { color: colors.text }]}>Booking Successful!</Text>
+            <Text style={[styles.successMessage, { color: colors.subtext }]}>
               Your cleaning appointment has been scheduled and sent to our staff.
             </Text>
             <Pressable 

@@ -28,6 +28,7 @@ import {
   useBuildingProfiles,
   CreateBuildingProfilePayload,
 } from "../../hooks/useBuildingProfiles";
+import { useColors } from "../../hooks/useColors";
 
 // ─── Tier badge ────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ const blank = (): CreateBuildingProfilePayload => ({
 
 export default function BuildingProfilesScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { profiles, isLoading, reload, addProfile, removeProfile } =
     useBuildingProfiles();
 
@@ -116,13 +118,13 @@ export default function BuildingProfilesScreen() {
   };
 
   return (
-    <LinearGradient colors={["#0b0b1f", "#1a1b3a"]} style={styles.root}>
+    <LinearGradient colors={colors.gradients.background} style={styles.root}>
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 56) }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={22} color="#a3a3a3" />
+        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <ChevronLeft size={22} color={colors.text} />
         </Pressable>
-        <Text style={styles.title}>Building Profiles</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Building Profiles</Text>
         <Pressable onPress={openAdd} style={styles.addBtn}>
           <Plus size={20} color="#fff" />
         </Pressable>
@@ -141,9 +143,9 @@ export default function BuildingProfilesScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
-              <Building2 size={40} color="#3d3d6b" />
-              <Text style={styles.emptyTitle}>No buildings yet</Text>
-              <Text style={styles.emptyText}>
+              <Building2 size={40} color={colors.subtext} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>No buildings yet</Text>
+              <Text style={[styles.emptyText, { color: colors.subtext }]}>
                 Save a building profile to pre-fill your cleaning bookings.
               </Text>
             </View>
@@ -152,11 +154,11 @@ export default function BuildingProfilesScreen() {
         renderItem={({ item }) => {
           const tier = TIER_CONFIG[item.exterior_access_tier];
           return (
-            <BlurView intensity={20} tint="dark" style={styles.card}>
+            <BlurView intensity={20} tint={colors.isDark ? "dark" : "light"} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
               <View style={styles.cardBody}>
                 <View style={styles.cardRow}>
                   <Building2 size={20} color="#6366f1" />
-                  <Text style={styles.cardTitle} numberOfLines={1}>
+                  <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
                     {item.name}
                   </Text>
                   <View
@@ -172,19 +174,19 @@ export default function BuildingProfilesScreen() {
                 </View>
 
                 <View style={styles.metaRow}>
-                  <Text style={styles.meta}>
+                  <Text style={[styles.meta, { color: colors.subtext }]}>
                     {item.area_sqm.toLocaleString()} sqm
                   </Text>
-                  <Text style={styles.metaDot}>·</Text>
-                  <Text style={styles.meta}>{item.floor_count} floor{item.floor_count !== 1 ? "s" : ""}</Text>
-                  <Text style={styles.metaDot}>·</Text>
-                  <Text style={styles.meta}>
+                  <Text style={[styles.metaDot, { color: colors.subtext }]}>·</Text>
+                  <Text style={[styles.meta, { color: colors.subtext }]}>{item.floor_count} floor{item.floor_count !== 1 ? "s" : ""}</Text>
+                  <Text style={[styles.metaDot, { color: colors.subtext }]}>·</Text>
+                  <Text style={[styles.meta, { color: colors.subtext }]}>
                     {item.booking_count} booking{item.booking_count !== 1 ? "s" : ""}
                   </Text>
                 </View>
 
                 {item.access_notes ? (
-                  <Text style={styles.notes} numberOfLines={2}>
+                  <Text style={[styles.notes, { color: colors.subtext }]} numberOfLines={2}>
                     {item.access_notes}
                   </Text>
                 ) : null}
@@ -213,25 +215,25 @@ export default function BuildingProfilesScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <ScrollView>
-            <BlurView intensity={60} tint="dark" style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Add Building</Text>
+            <BlurView intensity={60} tint={colors.isDark ? "dark" : "light"} style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Add Building</Text>
 
-              <Text style={styles.label}>Building Name *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Building Name *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                 placeholder="e.g. Atlas Tower, Home"
-                placeholderTextColor="#555"
+                placeholderTextColor={colors.placeholder}
                 value={form.name}
                 onChangeText={(t) => setForm((f) => ({ ...f, name: t }))}
               />
 
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.label}>Area (sqm) *</Text>
+                  <Text style={[styles.label, { color: colors.text }]}>Area (sqm) *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                     placeholder="500"
-                    placeholderTextColor="#555"
+                    placeholderTextColor={colors.placeholder}
                     keyboardType="numeric"
                     value={form.area_sqm ? String(form.area_sqm) : ""}
                     onChangeText={(t) =>
@@ -243,11 +245,11 @@ export default function BuildingProfilesScreen() {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Floors *</Text>
+                  <Text style={[styles.label, { color: colors.text }]}>Floors *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                     placeholder="5"
-                    placeholderTextColor="#555"
+                    placeholderTextColor={colors.placeholder}
                     keyboardType="numeric"
                     value={form.floor_count ? String(form.floor_count) : ""}
                     onChangeText={(t) =>
@@ -283,11 +285,11 @@ export default function BuildingProfilesScreen() {
                 );
               })()}
 
-              <Text style={styles.label}>Access Notes (optional)</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Access Notes (optional)</Text>
               <TextInput
-                style={[styles.input, { height: 80, textAlignVertical: "top" }]}
+                style={[styles.input, { height: 80, textAlignVertical: "top", backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                 placeholder="Gate code, parking info, etc."
-                placeholderTextColor="#555"
+                placeholderTextColor={colors.placeholder}
                 multiline
                 value={form.access_notes ?? ""}
                 onChangeText={(t) =>
@@ -298,9 +300,9 @@ export default function BuildingProfilesScreen() {
               <View style={styles.modalActions}>
                 <Pressable
                   onPress={() => setShowModal(false)}
-                  style={styles.cancelBtn}
+                  style={[styles.cancelBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                  <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleSave}

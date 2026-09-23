@@ -150,21 +150,53 @@ export default function LoginScreen() {
         >
           {/* HEADER */}
           <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
-            <View style={styles.logoContainer}>
+            <View
+              style={[
+                styles.logoContainer,
+                {
+                  backgroundColor: colors.isDark ? "rgba(139,92,246,0.2)" : "#EDE9FE",
+                  borderColor: colors.isDark ? "rgba(139,92,246,0.3)" : "#DDD6FE",
+                },
+              ]}
+            >
               <Text style={styles.logoEmoji}>✨</Text>
             </View>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
+            <Text style={[styles.subtitle, { color: colors.subtext }]}>
               Clean.et — Professional Cleaning Services
             </Text>
           </Animated.View>
 
           {/* CARD */}
           <Animated.View entering={FadeInDown.delay(200)}>
-            <BlurView intensity={40} tint="dark" style={styles.card}>
+            <BlurView
+              intensity={colors.isDark ? 40 : 25}
+              tint={colors.isDark ? "dark" : "light"}
+              style={[
+                styles.card,
+                {
+                  backgroundColor: colors.isDark ? "rgba(30, 41, 59, 0.7)" : "#FFFFFF",
+                  borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#E2E8F0",
+                  shadowColor: colors.isDark ? "#000000" : "#64748B",
+                  shadowOffset: { width: 0, height: 12 },
+                  shadowOpacity: colors.isDark ? 0.4 : 0.08,
+                  shadowRadius: 24,
+                  elevation: 8,
+                },
+              ]}
+            >
 
               {/* LOGIN MODE TOGGLE */}
-              <View style={styles.toggleRow}>
+              <View
+                style={[
+                  styles.toggleRow,
+                  {
+                    backgroundColor: colors.isDark ? "rgba(0,0,0,0.35)" : "#F1F5F9",
+                    borderColor: colors.isDark ? "rgba(255,255,255,0.06)" : "#E2E8F0",
+                    borderWidth: 1,
+                  },
+                ]}
+              >
                 <Pressable
                   onPress={() => {
                     setLoginMode("phone");
@@ -174,18 +206,22 @@ export default function LoginScreen() {
                   }}
                   style={[
                     styles.toggleBtn,
-                    loginMode === "phone" && styles.toggleBtnActive,
+                    loginMode === "phone" && [
+                      styles.toggleBtnActive,
+                      { backgroundColor: colors.isDark ? "#7C3AED" : "#6D28D9" },
+                    ],
                   ]}
                 >
                   <Ionicons
                     name="call-outline"
                     size={16}
-                    color={loginMode === "phone" ? "#fff" : "rgba(255,255,255,0.5)"}
+                    color={loginMode === "phone" ? "#fff" : colors.subtext}
                   />
                   <Text
                     style={[
                       styles.toggleText,
-                      loginMode === "phone" && styles.toggleTextActive,
+                      { color: colors.subtext },
+                      loginMode === "phone" && [styles.toggleTextActive, { color: "#fff" }],
                     ]}
                   >
                     Phone
@@ -201,18 +237,22 @@ export default function LoginScreen() {
                   }}
                   style={[
                     styles.toggleBtn,
-                    loginMode === "email" && styles.toggleBtnActive,
+                    loginMode === "email" && [
+                      styles.toggleBtnActive,
+                      { backgroundColor: colors.isDark ? "#7C3AED" : "#6D28D9" },
+                    ],
                   ]}
                 >
                   <Ionicons
                     name="mail-outline"
                     size={16}
-                    color={loginMode === "email" ? "#fff" : "rgba(255,255,255,0.5)"}
+                    color={loginMode === "email" ? "#fff" : colors.subtext}
                   />
                   <Text
                     style={[
                       styles.toggleText,
-                      loginMode === "email" && styles.toggleTextActive,
+                      { color: colors.subtext },
+                      loginMode === "email" && [styles.toggleTextActive, { color: "#fff" }],
                     ]}
                   >
                     Email
@@ -223,10 +263,18 @@ export default function LoginScreen() {
               {/* PHONE INPUT */}
               {loginMode === "phone" && (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Phone Number</Text>
+                  <Text style={[styles.label, { color: colors.text }]}>Phone Number</Text>
                   <View style={styles.phoneInputRow}>
-                    <View style={styles.countryCode}>
-                      <Text style={styles.countryCodeText}>🇪🇹 +251</Text>
+                    <View
+                      style={[
+                        styles.countryCode,
+                        {
+                          backgroundColor: colors.isDark ? "rgba(15, 23, 42, 0.6)" : "#F1F5F9",
+                          borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#E2E8F0",
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.countryCodeText, { color: colors.text }]}>🇪🇹 +251</Text>
                     </View>
                     <TextInput
                       value={phone}
@@ -236,11 +284,16 @@ export default function LoginScreen() {
                         setFieldErrors((prev) => ({ ...prev, identifier: "" }));
                       }}
                       placeholder="9XX XXX XXXX"
-                      placeholderTextColor="rgba(255,255,255,0.4)"
+                      placeholderTextColor={colors.placeholder}
                       keyboardType="phone-pad"
                       style={[
                         styles.input,
                         styles.phoneInput,
+                        {
+                          backgroundColor: colors.isDark ? "rgba(15, 23, 42, 0.6)" : "#F8FAFC",
+                          borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#CBD5E1",
+                          color: colors.text,
+                        },
                         !!fieldErrors.identifier && styles.inputError,
                       ]}
                     />
@@ -254,7 +307,7 @@ export default function LoginScreen() {
               {/* EMAIL INPUT */}
               {loginMode === "email" && (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Email Address</Text>
+                  <Text style={[styles.label, { color: colors.text }]}>Email Address</Text>
                   <TextInput
                     value={email}
                     onChangeText={(val) => {
@@ -263,11 +316,16 @@ export default function LoginScreen() {
                       setFieldErrors((prev) => ({ ...prev, identifier: "" }));
                     }}
                     placeholder="name@example.com"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    placeholderTextColor={colors.placeholder}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     style={[
                       styles.input,
+                      {
+                        backgroundColor: colors.isDark ? "rgba(15, 23, 42, 0.6)" : "#F8FAFC",
+                        borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#CBD5E1",
+                        color: colors.text,
+                      },
                       !!fieldErrors.identifier && styles.inputError,
                     ]}
                   />
@@ -279,7 +337,7 @@ export default function LoginScreen() {
 
               {/* PASSWORD */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Password</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Password</Text>
                 <View style={styles.passwordContainer}>
                   <TextInput
                     value={password}
@@ -290,10 +348,15 @@ export default function LoginScreen() {
                     }}
                     secureTextEntry={!showPassword}
                     placeholder="••••••••"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    placeholderTextColor={colors.placeholder}
                     style={[
                       styles.input,
                       styles.passwordInput,
+                      {
+                        backgroundColor: colors.isDark ? "rgba(15, 23, 42, 0.6)" : "#F8FAFC",
+                        borderColor: colors.isDark ? "rgba(255, 255, 255, 0.1)" : "#CBD5E1",
+                        color: colors.text,
+                      },
                       !!fieldErrors.password && styles.inputError,
                     ]}
                   />
@@ -307,7 +370,7 @@ export default function LoginScreen() {
                     <Ionicons
                       name={showPassword ? "eye-off" : "eye"}
                       size={20}
-                      color="rgba(255,255,255,0.6)"
+                      color={colors.subtext}
                     />
                   </Pressable>
                 </View>
@@ -347,20 +410,27 @@ export default function LoginScreen() {
               </Pressable>
 
               {/* DEMO ACCOUNTS QUICK SELECTOR */}
-              <View style={{ marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)" }}>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#9CA3AF", textTransform: "uppercase", marginBottom: 8, textAlign: "center" }}>
+              <View style={{ marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.isDark ? "rgba(255,255,255,0.1)" : "#E2E8F0" }}>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.subtext, textTransform: "uppercase", marginBottom: 10, textAlign: "center", letterSpacing: 0.5 }}>
                   ⚡ Quick Demo Fill Accounts
                 </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
                   <Pressable
                     onPress={() => {
                       setLoginMode("email");
                       setEmail("superadmin@clean.et");
                       setPassword("superpassword123");
                     }}
-                    style={{ backgroundColor: "rgba(96, 165, 250, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(96, 165, 250, 0.3)" }}
+                    style={{
+                      backgroundColor: colors.isDark ? "rgba(96, 165, 250, 0.15)" : "#EFF6FF",
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: colors.isDark ? "rgba(96, 165, 250, 0.3)" : "#BFDBFE",
+                    }}
                   >
-                    <Text style={{ color: "#60A5FA", fontSize: 10, fontWeight: "700" }}>👑 Super Admin</Text>
+                    <Text style={{ color: colors.isDark ? "#60A5FA" : "#1D4ED8", fontSize: 11, fontWeight: "700" }}>👑 Super Admin</Text>
                   </Pressable>
 
                   <Pressable
@@ -369,9 +439,16 @@ export default function LoginScreen() {
                       setEmail("carwash.admin@clean.et");
                       setPassword("admin123");
                     }}
-                    style={{ backgroundColor: "rgba(16, 185, 129, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(16, 185, 129, 0.3)" }}
+                    style={{
+                      backgroundColor: colors.isDark ? "rgba(16, 185, 129, 0.15)" : "#ECFDF5",
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: colors.isDark ? "rgba(16, 185, 129, 0.3)" : "#A7F3D0",
+                    }}
                   >
-                    <Text style={{ color: "#34D399", fontSize: 10, fontWeight: "700" }}>🚗 Car Wash Admin (Solomon)</Text>
+                    <Text style={{ color: colors.isDark ? "#34D399" : "#047857", fontSize: 11, fontWeight: "700" }}>🚗 Car Wash Admin (Solomon)</Text>
                   </Pressable>
 
                   <Pressable
@@ -380,9 +457,16 @@ export default function LoginScreen() {
                       setEmail("building.admin@clean.et");
                       setPassword("admin123");
                     }}
-                    style={{ backgroundColor: "rgba(245, 158, 11, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(245, 158, 11, 0.3)" }}
+                    style={{
+                      backgroundColor: colors.isDark ? "rgba(245, 158, 11, 0.15)" : "#FFFBEB",
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: colors.isDark ? "rgba(245, 158, 11, 0.3)" : "#FDE68A",
+                    }}
                   >
-                    <Text style={{ color: "#FBBF24", fontSize: 10, fontWeight: "700" }}>🏢 Building Admin (Bethlehem)</Text>
+                    <Text style={{ color: colors.isDark ? "#FBBF24" : "#B45309", fontSize: 11, fontWeight: "700" }}>🏢 Building Admin (Bethlehem)</Text>
                   </Pressable>
 
                   <Pressable
@@ -391,9 +475,16 @@ export default function LoginScreen() {
                       setEmail("tech2@clean.et");
                       setPassword("staff123");
                     }}
-                    style={{ backgroundColor: "rgba(167, 139, 250, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(167, 139, 250, 0.3)" }}
+                    style={{
+                      backgroundColor: colors.isDark ? "rgba(167, 139, 250, 0.15)" : "#F5F3FF",
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: colors.isDark ? "rgba(167, 139, 250, 0.3)" : "#DDD6FE",
+                    }}
                   >
-                    <Text style={{ color: "#C084FC", fontSize: 10, fontWeight: "700" }}>👷 Staff (Dawit)</Text>
+                    <Text style={{ color: colors.isDark ? "#C084FC" : "#6D28D9", fontSize: 11, fontWeight: "700" }}>👷 Staff (Dawit)</Text>
                   </Pressable>
 
                   <Pressable
@@ -402,19 +493,26 @@ export default function LoginScreen() {
                       setEmail("test@example.com");
                       setPassword("password123");
                     }}
-                    style={{ backgroundColor: "rgba(236, 72, 153, 0.15)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "rgba(236, 72, 153, 0.3)" }}
+                    style={{
+                      backgroundColor: colors.isDark ? "rgba(236, 72, 153, 0.15)" : "#FDF2F8",
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: colors.isDark ? "rgba(236, 72, 153, 0.3)" : "#FBCFE8",
+                    }}
                   >
-                    <Text style={{ color: "#F472B6", fontSize: 10, fontWeight: "700" }}>👤 Client (Test User)</Text>
+                    <Text style={{ color: colors.isDark ? "#F472B6" : "#BE185D", fontSize: 11, fontWeight: "700" }}>👤 Client (Test User)</Text>
                   </Pressable>
                 </View>
               </View>
 
               {/* FOOTER LINK */}
               <View style={styles.footer}>
-                <Text style={styles.footerText}>Don't have an account?</Text>
+                <Text style={[styles.footerText, { color: colors.subtext }]}>Don't have an account?</Text>
                 <Link href="/(auth)/register" asChild>
                   <Pressable>
-                    <Text style={styles.link}> Create Account</Text>
+                    <Text style={[styles.link, { color: colors.isDark ? "#A78BFA" : "#6D28D9" }]}> Create Account</Text>
                   </Pressable>
                 </Link>
               </View>
