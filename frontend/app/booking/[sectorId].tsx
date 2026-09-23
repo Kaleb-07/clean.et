@@ -29,7 +29,6 @@ import {
   RefreshCw,
   Car,
   Building2,
-  Plus,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeInRight, FadeIn, ZoomIn } from "react-native-reanimated";
@@ -272,7 +271,7 @@ export default function DynamicBookingScreen() {
 
 
         {/* VEHICLE SELECTION (Car Washing) */}
-        {categorySlug === "car-washing" && (
+        {categorySlug === "car-washing" && vehicles.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Car size={18} color="#8b5cf6" />
@@ -304,19 +303,12 @@ export default function DynamicBookingScreen() {
                   </Pressable>
                 );
               })}
-              <Pressable
-                onPress={() => router.push("/vehicles")}
-                style={[styles.selectChip, { backgroundColor: "rgba(139, 92, 246, 0.15)", borderColor: "#8b5cf6", flexDirection: "row", alignItems: "center", gap: 4 }]}
-              >
-                <Plus size={14} color="#a78bfa" />
-                <Text style={{ color: "#a78bfa", fontSize: 13, fontWeight: "600" }}>Manage Vehicles</Text>
-              </Pressable>
             </ScrollView>
           </View>
         )}
 
         {/* BUILDING PROFILE SELECTION (Building Cleaning) */}
-        {categorySlug === "building-cleaning" && (
+        {categorySlug === "building-cleaning" && buildingProfiles.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Building2 size={18} color="#8b5cf6" />
@@ -346,13 +338,6 @@ export default function DynamicBookingScreen() {
                   </Pressable>
                 );
               })}
-              <Pressable
-                onPress={() => router.push("/building-profiles")}
-                style={[styles.selectChip, { backgroundColor: "rgba(139, 92, 246, 0.15)", borderColor: "#8b5cf6", flexDirection: "row", alignItems: "center", gap: 4 }]}
-              >
-                <Plus size={14} color="#a78bfa" />
-                <Text style={{ color: "#a78bfa", fontSize: 13, fontWeight: "600" }}>Manage Profiles</Text>
-              </Pressable>
             </ScrollView>
           </View>
         )}
