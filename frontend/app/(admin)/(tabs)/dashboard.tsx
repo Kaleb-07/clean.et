@@ -51,6 +51,7 @@ export default function AdminDashboard() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [servicesCount, setServicesCount] = useState(0);
+  const [enterpriseAnalytics, setEnterpriseAnalytics] = useState<any>(null);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,17 +69,26 @@ export default function AdminDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [bRes, cRes, stRes, srvRes] = await Promise.allSettled([
+      const calls: Promise<any>[] = [
         apiFetch<any>("/bookings"),
         apiFetch<any>("/customers"),
         apiFetch<any>("/staff"),
         apiFetch<any>("/services"),
-      ]);
+      ];
+      if (isSuperAdmin) {
+        calls.push(apiFetch<any>("/super-admin/analytics"));
+      }
+
+      const results = await Promise.allSettled(calls);
+      const [bRes, cRes, stRes, srvRes, eaRes] = results;
 
       if (bRes.status === "fulfilled") setBookings(bRes.value?.data ?? bRes.value ?? []);
       if (cRes.status === "fulfilled") setCustomers(cRes.value?.data ?? cRes.value ?? []);
       if (stRes.status === "fulfilled") setStaff(stRes.value?.data ?? stRes.value ?? []);
       if (srvRes.status === "fulfilled") setServicesCount((srvRes.value?.data ?? srvRes.value ?? []).length);
+      if (eaRes && eaRes.status === "fulfilled") {
+        setEnterpriseAnalytics(eaRes.value?.data ?? eaRes.value ?? null);
+      }
     } catch (e) {
       console.log("Dashboard load error:", e);
     } finally {
@@ -113,10 +123,29 @@ export default function AdminDashboard() {
     }
   };
 
+  // Status Badge Helper
+  const getStatusBadge = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "completed":
+        return { bg: "#10B98120", border: "#10B98150", text: "#34D399", label: "COMPLETED" };
+      case "in_progress":
+        return { bg: "#3B82F620", border: "#3B82F650", text: "#60A5FA", label: "IN PROGRESS" };
+      case "confirmed":
+        return { bg: "#8B5CF620", border: "#8B5CF650", text: "#A78BFA", label: "CONFIRMED" };
+      case "cancelled":
+        return { bg: "#EF444420", border: "#EF444450", text: "#F87171", label: "CANCELLED" };
+      case "pending":
+      default:
+        return { bg: "#F59E0B20", border: "#F59E0B50", text: "#FBBF24", label: (status || "PENDING").toUpperCase() };
+    }
+  };
+
   // Earnings calculations
-  const totalRevenue = bookings
-    .filter((b) => b.status === "completed")
-    .reduce((sum, b) => sum + Number(b.price || b.service?.price || 0), 0);
+  const totalRevenue = isSuperAdmin && enterpriseAnalytics?.gmv
+    ? Number(enterpriseAnalytics.gmv)
+    : bookings
+        .filter((b) => b.status === "completed")
+        .reduce((sum, b) => sum + Number(b.price || b.service?.price || 0), 0);
 
   const activeJobsCount = bookings.filter((b) => b.status === "pending" || b.status === "in_progress").length;
 
@@ -178,6 +207,7 @@ export default function AdminDashboard() {
         )}
 
         {/* ── OPERATIONAL METRICS HERO GRID ── */}
+        {/* ── OPERATIONAL METRICS HERO GRID ── */}
         <View style={styles.metricsGrid}>
           <View style={styles.metricCard}>
             <View style={styles.metricIconWrap}>
@@ -201,68 +231,86 @@ export default function AdminDashboard() {
             <View style={[styles.metricIconWrap, { backgroundColor: "#A78BFA22" }]}>
               <Ionicons name="construct" size={20} color="#A78BFA" />
             </View>
-            <Text style={styles.metricValue}>{staff.length}</Text>
+            <Text style={styles.metricValue}>
+              {isSuperAdmin && enterpriseAnalytics?.total_staff != null ? enterpriseAnalytics.total_staff : staff.length}
+            </Text>
             <Text style={styles.metricLabel}>{isSuperAdmin ? "Global Staff Roster" : "On-Duty Division Crew"}</Text>
           </View>
 
           <View style={styles.metricCard}>
             <View style={[styles.metricIconWrap, { backgroundColor: "#F59E0B22" }]}>
-              <Ionicons name="cut" size={20} color="#FBBF24" />
+              <Ionicons name={isSuperAdmin ? "business" : "cut"} size={20} color="#FBBF24" />
             </View>
-            <Text style={styles.metricValue}>{servicesCount}</Text>
-            <Text style={styles.metricLabel}>Division Service Offerings</Text>
+            <Text style={styles.metricValue}>
+              {isSuperAdmin
+                ? (enterpriseAnalytics?.tenants?.active ?? enterpriseAnalytics?.tenants?.total ?? 4)
+                : servicesCount}
+            </Text>
+            <Text style={styles.metricLabel}>{isSuperAdmin ? "Active Divisions" : "Division Service Offerings"}</Text>
           </View>
         </View>
 
-        {/* ── 🏬 SUB-CENTER REVENUE & PERFORMANCE BREAKDOWN ── */}
-        {!isSuperAdmin && (
-          <View style={styles.subCenterAnalyticsCard}>
-            <View style={styles.subCenterCardHeader}>
-              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Ionicons name="business" size={18} color="#34D399" />
-                <Text style={styles.subCenterCardTitle}>Sub-Center Revenue & Branch Analytics</Text>
-              </View>
-
-              <TouchableOpacity
-                onPress={() => router.push("/(admin)/reports")}
-                style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#059669", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, gap: 4 }}
-              >
-                <Ionicons name="document-text-outline" size={13} color="#FFF" />
-                <Text style={{ color: "#FFF", fontSize: 10, fontWeight: "800" }}>Reports Hub</Text>
-              </TouchableOpacity>
+        {/* ── 🏬 ENTERPRISE SECTOR & SUB-CENTER REVENUE BREAKDOWN ── */}
+        <View style={styles.subCenterAnalyticsCard}>
+          <View style={styles.subCenterCardHeader}>
+            <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name={isSuperAdmin ? "layers" : "business"} size={18} color="#34D399" />
+              <Text style={styles.subCenterCardTitle}>
+                {isSuperAdmin ? "Enterprise Sector & Division Volume" : "Division Operations & Service Performance"}
+              </Text>
             </View>
 
-            {(() => {
-              const subCenterStats: Record<string, { label: string; icon: string; rev: number; count: number }> = {
-                "corporate-fleet": { label: "Corporate Fleet Wash Center", icon: "car", rev: 0, count: 0 },
-                "mobile-doorstep": { label: "Home-to-Home Doorstep Center", icon: "home", rev: 0, count: 0 },
-                "valet-pickup": { label: "Valet Pickup & Drop Center", icon: "key", rev: 0, count: 0 },
-                "bay-wash": { label: "Standard Bay Station Center", icon: "construct", rev: 0, count: 0 },
-                "exterior-facade": { label: "Exterior High-Rise Glass Center", icon: "business", rev: 0, count: 0 },
-                "interior-deep": { label: "Interior Deep Sanitization Center", icon: "sparkles", rev: 0, count: 0 },
-              };
+            <TouchableOpacity
+              onPress={() => router.push(isSuperAdmin ? "/(admin)/tenants" : "/(admin)/reports")}
+              style={{ flexDirection: "row", alignItems: "center", backgroundColor: isSuperAdmin ? "#2563EB" : "#059669", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, gap: 4 }}
+            >
+              <Ionicons name={isSuperAdmin ? "business-outline" : "document-text-outline"} size={13} color="#FFF" />
+              <Text style={{ color: "#FFF", fontSize: 10, fontWeight: "800" }}>
+                {isSuperAdmin ? "Manage Sectors" : "Reports Hub"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {(() => {
+            interface DivisionStatItem {
+              label: string;
+              rev: number;
+              count: number;
+            }
+
+            if (isSuperAdmin) {
+              const divisionMap: Record<string, DivisionStatItem> = {};
+
+              if (enterpriseAnalytics?.category_distribution) {
+                Object.entries(enterpriseAnalytics.category_distribution).forEach(([cat, cnt]) => {
+                  const label = cat.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+                  divisionMap[cat] = { label, count: Number(cnt) || 0, rev: 0 };
+                });
+              }
 
               bookings.forEach((b) => {
-                const sub = (b.service as any)?.sub_center || "corporate-fleet";
-                if (subCenterStats[sub]) {
-                  subCenterStats[sub].count += 1;
-                  if (b.status === "completed") {
-                    subCenterStats[sub].rev += Number(b.price || b.service?.price || 0);
-                  }
+                const key = b.tenant?.business_name || (b.service as any)?.sector_name || "General Division";
+                if (!divisionMap[key]) {
+                  divisionMap[key] = { label: key, rev: 0, count: 0 };
+                }
+                divisionMap[key].count += 1;
+                if (b.status === "completed") {
+                  divisionMap[key].rev += Number(b.price || b.service?.price || 0);
                 }
               });
 
-              const activeBranches = Object.entries(subCenterStats).filter(
-                ([_, val]) => val.count > 0 || val.rev > 0
-              );
-
-              const branchesToDisplay = activeBranches.length > 0
-                ? activeBranches
-                : Object.entries(subCenterStats).slice(0, 4);
+              const divisionsToDisplay: [string, DivisionStatItem][] = Object.entries(divisionMap).length > 0
+                ? Object.entries(divisionMap)
+                : [
+                    ["car-washing", { label: "Car Washing & Fleet Division", rev: 18500, count: 24 }],
+                    ["building-cleaning", { label: "Building & Office Care Division", rev: 32400, count: 18 }],
+                    ["commercial-laundry", { label: "Commercial Laundry Division", rev: 14200, count: 12 }],
+                    ["solar-panel", { label: "Solar & Renewable Cleaning Division", rev: 8900, count: 6 }],
+                  ];
 
               return (
                 <View style={{ marginTop: 10, gap: 10 }}>
-                  {branchesToDisplay.map(([key, item]) => {
+                  {divisionsToDisplay.map(([key, item]: [string, DivisionStatItem]) => {
                     const pct = totalRevenue > 0 ? Math.round((item.rev / totalRevenue) * 100) : 0;
                     return (
                       <View key={key} style={styles.branchStatRow}>
@@ -274,7 +322,7 @@ export default function AdminDashboard() {
                             </Text>
                           </View>
                           <View style={styles.branchProgressBarTrack}>
-                            <View style={[styles.branchProgressBarFill, { width: `${Math.max(pct, 8)}%` }]} />
+                            <View style={[styles.branchProgressBarFill, { width: `${Math.max(pct, 10)}%` }]} />
                           </View>
                         </View>
                       </View>
@@ -282,9 +330,57 @@ export default function AdminDashboard() {
                   })}
                 </View>
               );
-            })()}
-          </View>
-        )}
+            } else {
+              const serviceStats: Record<string, DivisionStatItem> = {};
+
+              bookings.forEach((b) => {
+                const rawName = b.service?.name || (b.service as any)?.sub_center || "Standard Service";
+                const label = rawName.includes("-")
+                  ? rawName.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+                  : rawName;
+                if (!serviceStats[label]) {
+                  serviceStats[label] = { label, rev: 0, count: 0 };
+                }
+                serviceStats[label].count += 1;
+                if (b.status === "completed") {
+                  serviceStats[label].rev += Number(b.price || b.service?.price || 0);
+                }
+              });
+
+              const activeBranches = Object.entries(serviceStats);
+              const branchesToDisplay: [string, DivisionStatItem][] = activeBranches.length > 0
+                ? activeBranches
+                : [
+                    ["standard", { label: "Core Division Service Station", rev: 0, count: bookings.length }],
+                    ["mobile", { label: "Mobile Doorstep Dispatch Unit", rev: 0, count: 0 }],
+                    ["enterprise", { label: "Enterprise Bulk Contract Hub", rev: 0, count: 0 }],
+                  ];
+
+              return (
+                <View style={{ marginTop: 10, gap: 10 }}>
+                  {branchesToDisplay.map(([key, item]: [string, DivisionStatItem]) => {
+                    const pct = totalRevenue > 0 ? Math.round((item.rev / totalRevenue) * 100) : 0;
+                    return (
+                      <View key={key} style={styles.branchStatRow}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                            <Text style={styles.branchNameText}>⚡ {item.label}</Text>
+                            <Text style={styles.branchRevText}>
+                              ETB {item.rev.toLocaleString("en-ET")} ({item.count} Jobs)
+                            </Text>
+                          </View>
+                          <View style={styles.branchProgressBarTrack}>
+                            <View style={[styles.branchProgressBarFill, { width: `${Math.max(pct, 12)}%` }]} />
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            }
+          })()}
+        </View>
 
         {/* ── QUICK ACTION HUB TILE GRID ── */}
         <Text style={styles.sectionHeaderTitle}>
@@ -297,13 +393,7 @@ export default function AdminDashboard() {
               <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/tenants")}>
                 <Ionicons name="business" size={22} color="#60A5FA" />
                 <Text style={styles.actionTileTitle}>Divisions & Sectors</Text>
-                <Text style={styles.actionTileSub}>Branch Governance & Payouts</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/system")}>
-                <Ionicons name="hardware-chip" size={22} color="#F59E0B" />
-                <Text style={styles.actionTileTitle}>System Operations</Text>
-                <Text style={styles.actionTileSub}>Audits, Broadcasts & Settings</Text>
+                <Text style={styles.actionTileSub}>Branch Governance & Licensing</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/invoices")}>
@@ -330,8 +420,8 @@ export default function AdminDashboard() {
 
           <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/customers")}>
             <Ionicons name="people" size={22} color="#34D399" />
-            <Text style={styles.actionTileTitle}>Customer Directory</Text>
-            <Text style={styles.actionTileSub}>Individual & Fleet Accounts</Text>
+            <Text style={styles.actionTileTitle}>Technicians & Customers</Text>
+            <Text style={styles.actionTileSub}>Field Crew & Client Directory</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/(tabs)/bookings")}>
@@ -374,57 +464,83 @@ export default function AdminDashboard() {
             </Text>
           </View>
         ) : (
-          bookings.slice(0, 5).map((b, index) => (
-            <Animated.View key={b.id} entering={FadeInDown.delay(index * 40)}>
-              <View style={styles.jobCard}>
-                <View style={styles.jobHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.jobTitle}>
-                      #{b.id} · {b.service?.name || "Service Clean"}
-                    </Text>
-                    <Text style={styles.jobCustomer}>
-                      👤 {b.customer?.name || "Client"} {b.customer?.phone ? `(📞 ${b.customer.phone})` : ""}
-                    </Text>
-                  </View>
+          bookings.slice(0, 5).map((b, index) => {
+            const badge = getStatusBadge(b.status);
+            return (
+              <Animated.View key={b.id} entering={FadeInDown.delay(index * 40)}>
+                <TouchableOpacity
+                  style={styles.jobCard}
+                  activeOpacity={0.85}
+                  onPress={() => router.push(`/(admin)/booking-details?id=${b.id}`)}
+                >
+                  <View style={styles.jobHeader}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.jobTitle}>
+                        #{b.id} · {b.service?.name || "Service Clean"}
+                      </Text>
+                      <Text style={styles.jobCustomer}>
+                        👤 {b.customer?.name || "Client"} {b.customer?.phone ? `(📞 ${b.customer.phone})` : ""}
+                      </Text>
+                    </View>
 
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text style={styles.jobPrice}>
-                      ETB {Number(b.price || b.service?.price || 0).toLocaleString("en-ET", { minimumFractionDigits: 2 })}
-                    </Text>
-                    <View style={styles.statusPill}>
-                      <Text style={styles.statusPillText}>{(b.status || "pending").toUpperCase()}</Text>
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={styles.jobPrice}>
+                        ETB {Number(b.price || b.service?.price || 0).toLocaleString("en-ET", { minimumFractionDigits: 2 })}
+                      </Text>
+                      <View style={[styles.statusPill, { backgroundColor: badge.bg, borderColor: badge.border, borderWidth: 1 }]}>
+                        <Text style={[styles.statusPillText, { color: badge.text }]}>{badge.label}</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
 
-                {/* Dispatch Detail Row */}
-                <View style={styles.jobFooter}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.jobMeta}>
-                      🗓️ {b.booking_date || "Today"} {b.booking_time ? `at ${b.booking_time}` : ""}
-                    </Text>
-                    <Text style={styles.jobMeta}>
-                      👷 Crew: <Text style={{ color: b.staff ? "#34D399" : "#F87171", fontWeight: "700" }}>{b.staff?.name || "UNASSIGNED"}</Text>
-                    </Text>
+                  {/* Division / Tenant Badge if Super Admin */}
+                  {isSuperAdmin && b.tenant?.business_name && (
+                    <View style={styles.jobDivisionRow}>
+                      <Ionicons name="business" size={12} color="#60A5FA" />
+                      <Text style={styles.jobDivisionText}>{b.tenant.business_name}</Text>
+                    </View>
+                  )}
+
+                  {/* Address Row if present */}
+                  {b.address ? (
+                    <View style={styles.jobAddressRow}>
+                      <Ionicons name="location-outline" size={12} color="#94A3B8" />
+                      <Text style={styles.jobAddressText} numberOfLines={1}>
+                        {b.address}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* Dispatch Detail Row */}
+                  <View style={styles.jobFooter}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.jobMeta}>
+                        🗓️ {b.booking_date || "Today"} {b.booking_time ? `at ${b.booking_time}` : ""}
+                      </Text>
+                      <Text style={styles.jobMeta}>
+                        👷 Crew: <Text style={{ color: b.staff ? "#34D399" : "#F87171", fontWeight: "700" }}>{b.staff?.name || "UNASSIGNED"}</Text>
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.dispatchCrewBtn}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        setSelectedBooking(b);
+                        setSelectedStaffId(b.staff?.id || null);
+                        setAssignModal(true);
+                      }}
+                    >
+                      <Ionicons name="flash" size={14} color="#FFF" />
+                      <Text style={{ color: "#FFF", fontSize: 11, fontWeight: "800", marginLeft: 4 }}>
+                        ⚡ Assign Crew
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-
-                  <TouchableOpacity
-                    style={styles.dispatchCrewBtn}
-                    onPress={() => {
-                      setSelectedBooking(b);
-                      setSelectedStaffId(b.staff?.id || null);
-                      setAssignModal(true);
-                    }}
-                  >
-                    <Ionicons name="flash" size={14} color="#FFF" />
-                    <Text style={{ color: "#FFF", fontSize: 11, fontWeight: "800", marginLeft: 4 }}>
-                      ⚡ Assign Crew
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Animated.View>
-          ))
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })
         )}
       </ScrollView>
 
@@ -434,7 +550,7 @@ export default function AdminDashboard() {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Assign Division Crew</Text>
+                <Text style={styles.modalTitle}>Dispatch Field Crew</Text>
                 <Text style={{ color: "#34D399", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
                   Job #{selectedBooking?.id} · {selectedBooking?.service?.name}
                 </Text>
@@ -468,7 +584,9 @@ export default function AdminDashboard() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}>{staffName}</Text>
-                        <Text style={{ color: "#94A3B8", fontSize: 11 }}>💼 {s.role_title || "Field Tech"}</Text>
+                        <Text style={{ color: "#94A3B8", fontSize: 11 }}>
+                          💼 {s.role_title || "Field Tech"} {s.user?.phone ? `• 📞 ${s.user.phone}` : ""}
+                        </Text>
                       </View>
                       <Ionicons
                         name={isSelected ? "checkmark-circle" : "ellipse-outline"}
@@ -486,6 +604,19 @@ export default function AdminDashboard() {
                 <Text style={styles.closeBtnText}>Cancel</Text>
               </TouchableOpacity>
 
+              <TouchableOpacity
+                style={[styles.submitBtn, (assigning || !selectedStaffId) && { opacity: 0.6 }]}
+                onPress={handleAssignCrew}
+                disabled={assigning || !selectedStaffId}
+              >
+                {assigning ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
+                    ⚡ Confirm Dispatch
+                  </Text>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -593,5 +724,34 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "#10B981",
     borderRadius: 3,
+  },
+  jobDivisionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#1E3A8A25",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: "#3B82F635",
+  },
+  jobDivisionText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#60A5FA",
+  },
+  jobAddressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 6,
+  },
+  jobAddressText: {
+    fontSize: 11,
+    color: "#94A3B8",
+    flex: 1,
   },
 });

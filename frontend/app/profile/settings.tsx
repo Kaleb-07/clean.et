@@ -121,30 +121,6 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* SUPER ADMIN GOVERNANCE BANNER */}
-        {isSuperAdmin && (
-          <View style={styles.govBanner}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <Sliders size={24} color="#8B5CF6" />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 16 }}>
-                  Platform Infrastructure Governance
-                </Text>
-                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 1 }}>
-                  Commission Rate (10.0%) &bull; Default Currency (ETB) &bull; Security Log Audit
-                </Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.govBtn}
-              onPress={() => router.push("/(admin)/system")}
-            >
-              <Shield size={16} color="#FFF" />
-              <Text style={styles.govBtnText}>Open Platform Infrastructure Controls</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         <Text style={styles.sectionTitle}>App Preferences</Text>
 

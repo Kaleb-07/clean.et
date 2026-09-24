@@ -106,7 +106,7 @@ export default function AdminNotifications() {
             unread: false,
             icon: "options",
             iconColor: "#EC4899",
-            actionRoute: "/(admin)/system",
+            actionRoute: "/(admin)/tenants",
           },
         ];
 
@@ -127,7 +127,7 @@ export default function AdminNotifications() {
           unread: false,
           icon: "shield-checkmark",
           iconColor: "#60A5FA",
-          actionRoute: "/(admin)/system",
+          actionRoute: "/(admin)/tenants",
         }));
 
         setNotificationsList([...baseNotifications, ...auditNotifs]);

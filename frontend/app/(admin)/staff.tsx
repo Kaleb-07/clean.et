@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import API from "../../src/api/client";
 import { useAuth } from "../../contexts/AuthContext";
@@ -23,6 +24,7 @@ import { useAuth } from "../../contexts/AuthContext";
 /* ================= TYPES ================= */
 interface StaffMember {
   id: number;
+  tenant_id?: number;
   role_title: string;
   user?: {
     id: number;
@@ -33,6 +35,71 @@ interface StaffMember {
   qualifications?: string[];
   availability_status?: string;
 }
+
+interface SectorOption {
+  id: string;
+  title: string;
+  subtitle?: string;
+  icon?: string;
+  color?: string;
+}
+
+const DEFAULT_SECTOR_OPTIONS: SectorOption[] = [
+  {
+    id: "car-washing",
+    title: "Car Washing & Auto Detailing",
+    subtitle: "Fleet, Mobile Doorstep, Valet Pickup & Bay Wash Stations",
+    icon: "car-sport",
+    color: "#3B82F6",
+  },
+  {
+    id: "building-cleaning",
+    title: "Building & Property Cleaning",
+    subtitle: "Exterior Facade Glass & Deep Interior Building Sanitization",
+    icon: "business",
+    color: "#10B981",
+  },
+  {
+    id: "commercial-laundry",
+    title: "Commercial Laundry & Dry Cleaning",
+    subtitle: "Enterprise Linen, Uniforms & Heavy Textile Sanitization",
+    icon: "shirt",
+    color: "#8B5CF6",
+  },
+  {
+    id: "solar-panel-cleaning",
+    title: "Solar Panel & Renewable Maintenance",
+    subtitle: "Photovoltaic Panel Washing & Efficiency Restoration",
+    icon: "sunny",
+    color: "#F59E0B",
+  },
+];
+
+const SECTOR_SPECIALIZATIONS_MAP: Record<string, { id: string; label: string }[]> = {
+  "car-washing": [
+    { id: "car-washing", label: "Car Washing & Auto Detailing" },
+    { id: "corporate-fleet", label: "🚛 Corporate Fleet Wash Specialist" },
+    { id: "mobile-doorstep", label: "🏠 Mobile Doorstep Rig Operator" },
+    { id: "valet-pickup", label: "🚗 Valet Pickup & Return Specialist" },
+    { id: "bay-wash", label: "🧼 Standard Station Bay Technician" },
+  ],
+  "building-cleaning": [
+    { id: "building-cleaning", label: "High-Rise Window & Glass Sanitation" },
+    { id: "exterior-facade", label: "🏙️ IRATA Certified Rope Access Specialist" },
+    { id: "interior-deep", label: "🧹 Interior Building Deep Sanitizer" },
+    { id: "maintenance", label: "Facility Maintenance & HVAC Sanitizing" },
+  ],
+  "commercial-laundry": [
+    { id: "commercial-laundry", label: "Commercial Fabric & Linen Care" },
+    { id: "dry-cleaning", label: "👔 Garment Dry Cleaning & Pressing Specialist" },
+    { id: "industrial-textile", label: "🧺 Industrial Textile Sanitization" },
+  ],
+  "solar-panel-cleaning": [
+    { id: "solar-panel-cleaning", label: "Solar Panel & Renewable Maintenance" },
+    { id: "photovoltaic-wash", label: "☀️ Photovoltaic Surface Cleaning Specialist" },
+    { id: "inverter-safety", label: "⚡ Solar Inverter & Electrical Safety Certified" },
+  ],
+};
 
 const SECTOR_QUALIFICATIONS = [
   { id: "car-washing", label: "Car Washing & Auto Detailing" },
@@ -61,6 +128,12 @@ export default function AdminStaff() {
   const [searchQuery, setSearchQuery] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("ALL");
 
+  // Dynamic Sectors State (Created from Super Admin & System Defaults)
+  const [sectorOptions, setSectorOptions] = useState<SectorOption[]>(DEFAULT_SECTOR_OPTIONS);
+  const [selectedSectorId, setSelectedSectorId] = useState<string>("car-washing");
+  const [sectorDropdownOpen, setSectorDropdownOpen] = useState(false);
+  const [tenants, setTenants] = useState<any[]>([]);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
 
@@ -86,9 +159,11 @@ export default function AdminStaff() {
   const loadStaff = async () => {
     setLoading(true);
     try {
-      const [stRes, bRes] = await Promise.allSettled([
+      const [stRes, bRes, tRes, secStored] = await Promise.allSettled([
         API.get("/staff"),
         API.get("/bookings"),
+        API.get("/tenants"),
+        AsyncStorage.getItem("@clean_et_custom_sectors"),
       ]);
 
       const stData = stRes.status === "fulfilled"
@@ -97,6 +172,52 @@ export default function AdminStaff() {
       const bData = bRes.status === "fulfilled"
         ? (Array.isArray(bRes.value.data) ? bRes.value.data : (bRes.value.data?.data ?? []))
         : [];
+      const tData: any[] = tRes.status === "fulfilled"
+        ? (Array.isArray(tRes.value.data) ? tRes.value.data : (tRes.value.data?.data ?? []))
+        : [];
+
+      let parsedSec: SectorOption[] = [];
+      if (secStored.status === "fulfilled" && secStored.value) {
+        try {
+          parsedSec = JSON.parse(secStored.value);
+        } catch {}
+      }
+
+      const combinedMap = new Map<string, SectorOption>();
+      DEFAULT_SECTOR_OPTIONS.forEach((s) => combinedMap.set(s.id, s));
+      if (Array.isArray(parsedSec)) {
+        parsedSec.forEach((s) => {
+          if (s && s.id) combinedMap.set(s.id, s);
+        });
+      }
+      if (Array.isArray(tData)) {
+        tData.forEach((tenant: any) => {
+          (tenant.categories_enabled || []).forEach((catSlug: string) => {
+            if (!combinedMap.has(catSlug)) {
+              combinedMap.set(catSlug, {
+                id: catSlug,
+                title: catSlug
+                  .split("-")
+                  .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+                  .join(" "),
+                subtitle: tenant.business_name || "Enterprise Division Sector",
+                icon: "sparkles",
+                color: "#6366F1",
+              });
+            }
+          });
+        });
+      }
+
+      const mergedSectors = Array.from(combinedMap.values());
+      setSectorOptions(mergedSectors);
+      setTenants(tData);
+
+      if (user?.tenant?.categories_enabled && user.tenant.categories_enabled.length > 0) {
+        setSelectedSectorId(user.tenant.categories_enabled[0]);
+      } else if (mergedSectors.length > 0) {
+        setSelectedSectorId((prev) => (prev ? prev : mergedSectors[0].id));
+      }
 
       const map: Record<number, { completedCount: number; totalRevenue: number }> = {};
       bData.forEach((b: any) => {
@@ -175,7 +296,7 @@ export default function AdminStaff() {
           qualifications: form.qualifications,
         });
         triggerNotification(`✨ Technician "${form.name.trim()}" profile & qualifications updated!`, "success");
-      } else {
+        const matchedTenant = tenants.find((t: any) => t.categories_enabled?.includes(selectedSectorId)) || tenants[0];
         await API.post("/staff", {
           name: form.name.trim(),
           email: form.email ? form.email.trim().toLowerCase() : undefined,
@@ -183,6 +304,7 @@ export default function AdminStaff() {
           password: form.password ? form.password.trim() : "password123",
           role_title: form.role_title.trim(),
           qualifications: form.qualifications,
+          tenant_id: matchedTenant?.id || user?.tenant?.id,
         });
         triggerNotification(`🎉 Technician "${form.name.trim()}" registered to company roster!`, "success");
       }
@@ -195,7 +317,7 @@ export default function AdminStaff() {
         phone: "",
         password: "",
         role_title: "Lead Technician",
-        qualifications: ["car-washing"],
+        qualifications: [availableQualifications[0]?.id || "car-washing"],
       });
       loadStaff();
     } catch (e: any) {
@@ -245,7 +367,9 @@ export default function AdminStaff() {
 
   const toggleQualification = (id: string) => {
     if (form.qualifications.includes(id)) {
-      setForm({ ...form, qualifications: form.qualifications.filter((q) => q !== id) });
+      if (form.qualifications.length > 1) {
+        setForm({ ...form, qualifications: form.qualifications.filter((q) => q !== id) });
+      }
     } else {
       setForm({ ...form, qualifications: [...form.qualifications, id] });
     }
@@ -264,23 +388,48 @@ export default function AdminStaff() {
     return matchesSearch && matchesAvail;
   });
 
-  const CAR_WASH_QUALS = ["car-washing", "corporate-fleet", "mobile-doorstep", "valet-pickup", "bay-wash"];
-  const BUILDING_CLEAN_QUALS = ["building-cleaning", "exterior-facade", "interior-deep"];
+  /* ================= ACTIVE SECTOR & QUALIFICATIONS ================= */
+  const availableQualifications = useMemo(() => {
+    const specs = SECTOR_SPECIALIZATIONS_MAP[selectedSectorId];
+    if (specs && specs.length > 0) {
+      return specs;
+    }
+    const custom = sectorOptions.find((cs) => cs.id === selectedSectorId);
+    const label = custom ? custom.title : selectedSectorId.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    return [{ id: selectedSectorId, label }];
+  }, [selectedSectorId, sectorOptions]);
 
-  const tenantCategories = user?.tenant?.categories_enabled || ["car-washing"];
-  const allowedQualIds = new Set<string>();
+  const handleSelectSector = (sectorId: string) => {
+    setSelectedSectorId(sectorId);
+    const specs = SECTOR_SPECIALIZATIONS_MAP[sectorId] || [];
+    const firstQual = specs[0]?.id || sectorId;
+    setForm((prev) => ({
+      ...prev,
+      qualifications: [firstQual],
+    }));
+  };
 
-  if (isSuperAdmin) {
-    SECTOR_QUALIFICATIONS.forEach((sq) => allowedQualIds.add(sq.id));
-  } else {
-    tenantCategories.forEach((cat) => {
-      if (cat === "car-washing") CAR_WASH_QUALS.forEach((q) => allowedQualIds.add(q));
-      if (cat === "building-cleaning") BUILDING_CLEAN_QUALS.forEach((q) => allowedQualIds.add(q));
-      allowedQualIds.add(cat);
+  const openAddModal = () => {
+    const defaultSectorId =
+      (user?.tenant?.categories_enabled && user.tenant.categories_enabled[0]) ||
+      sectorOptions[0]?.id ||
+      "car-washing";
+    setSelectedSectorId(defaultSectorId);
+    setSectorDropdownOpen(false);
+    const specs = SECTOR_SPECIALIZATIONS_MAP[defaultSectorId] || [];
+    const firstQual = specs[0]?.id || defaultSectorId;
+
+    setEditingStaff(null);
+    setForm({
+      name: "",
+      email: "",
+      phone: "",
+      password: "",
+      role_title: "Lead Technician",
+      qualifications: [firstQual],
     });
-  }
-
-  const availableQualifications = SECTOR_QUALIFICATIONS.filter((sq) => allowedQualIds.has(sq.id));
+    setModalVisible(true);
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -390,26 +539,13 @@ export default function AdminStaff() {
             ) : null}
           </View>
 
-          {!isSuperAdmin && (
-            <TouchableOpacity
-              style={[styles.addBtn, { backgroundColor: "#059669" }]}
-              onPress={() => {
-                setEditingStaff(null);
-                setForm({
-                  name: "",
-                  email: "",
-                  phone: "",
-                  password: "",
-                  role_title: "Lead Technician",
-                  qualifications: ["car-washing"],
-                });
-                setModalVisible(true);
-              }}
-            >
-              <Ionicons name="person-add" size={18} color="#FFF" />
-              <Text style={styles.addBtnText}>+ Add Technician</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: isSuperAdmin ? "#2563EB" : "#059669" }]}
+            onPress={openAddModal}
+          >
+            <Ionicons name="person-add" size={18} color="#FFF" />
+            <Text style={styles.addBtnText}>+ Add Technician</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ── STAFF ROSTER LIST ── */}
@@ -620,9 +756,81 @@ export default function AdminStaff() {
                 </View>
               )}
 
-              {/* Qualification Tags Selection */}
+              {/* Sector Selection Dropdown */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Sector Classification *</Text>
+                <TouchableOpacity
+                  style={styles.dropdownTrigger}
+                  onPress={() => setSectorDropdownOpen(!sectorDropdownOpen)}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
+                    <View style={styles.dropdownIconBox}>
+                      <Ionicons
+                        name={
+                          ((sectorOptions.find((s) => s.id === selectedSectorId)?.icon as any) || "sparkles")
+                        }
+                        size={18}
+                        color="#38BDF8"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.dropdownSelectedTitle}>
+                        {sectorOptions.find((s) => s.id === selectedSectorId)?.title || "Select Sector"}
+                      </Text>
+                      <Text style={styles.dropdownSelectedSub} numberOfLines={1}>
+                        {sectorOptions.find((s) => s.id === selectedSectorId)?.subtitle || "Operational Sector Category"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons
+                    name={sectorDropdownOpen ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color="#94A3B8"
+                  />
+                </TouchableOpacity>
+
+                {sectorDropdownOpen && (
+                  <View style={styles.dropdownMenu}>
+                    {sectorOptions.map((sec) => {
+                      const isSelected = selectedSectorId === sec.id;
+                      return (
+                        <TouchableOpacity
+                          key={sec.id}
+                          style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
+                          onPress={() => {
+                            handleSelectSector(sec.id);
+                            setSectorDropdownOpen(false);
+                          }}
+                        >
+                          <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
+                            <Ionicons
+                              name={(sec.icon as any) || "briefcase-outline"}
+                              size={16}
+                              color={isSelected ? "#10B981" : "#60A5FA"}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>
+                                {sec.title}
+                              </Text>
+                              {sec.subtitle && (
+                                <Text style={styles.dropdownItemSubText} numberOfLines={1}>
+                                  {sec.subtitle}
+                                </Text>
+                              )}
+                            </View>
+                          </View>
+                          {isSelected && <Ionicons name="checkmark-circle" size={18} color="#10B981" />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              {/* Qualification Tags Selection - Filtered to Selected Sector */}
               <Text style={[styles.inputLabel, { marginTop: 6, marginBottom: 8 }]}>
-                Sector Certifications & Specializations
+                Sector Certifications & Specializations ({sectorOptions.find((s) => s.id === selectedSectorId)?.title || "Selected Sector"})
               </Text>
 
               <View style={{ gap: 6, marginBottom: 12 }}>
@@ -838,6 +1046,69 @@ const styles = StyleSheet.create({
   closeBtnText: { color: "#FFF", fontWeight: "700" },
   submitBtn: { flex: 1, backgroundColor: "#2563EB", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
   deleteModalBtn: { flex: 1, backgroundColor: "#EF4444", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
+  dropdownTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#0F172A",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#334155",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  dropdownIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "rgba(56, 189, 248, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dropdownSelectedTitle: {
+    color: "#F8FAFC",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  dropdownSelectedSub: {
+    color: "#94A3B8",
+    fontSize: 11,
+    marginTop: 1,
+  },
+  dropdownMenu: {
+    backgroundColor: "#0F172A",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#334155",
+    marginTop: 6,
+    overflow: "hidden",
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1E293B",
+  },
+  dropdownItemActive: {
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+  },
+  dropdownItemText: {
+    color: "#CBD5E1",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  dropdownItemTextActive: {
+    color: "#10B981",
+    fontWeight: "700",
+  },
+  dropdownItemSubText: {
+    color: "#64748B",
+    fontSize: 10,
+    marginTop: 1,
+  },
   toastBanner: {
     flexDirection: "row",
     alignItems: "center",

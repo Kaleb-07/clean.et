@@ -126,7 +126,6 @@ export default function ProfileScreen() {
       items: [
         { icon: Building, label: "Divisions & Sectors Governance", color: "#60A5FA", route: "/(admin)/tenants" },
         { icon: TrendingUp, label: "Platform Financial Invoices", color: "#34D399", route: "/(admin)/invoices" },
-        { icon: Settings, label: "System Operations & Audits", color: "#F59E0B", route: "/(admin)/system" },
       ],
     },
     {

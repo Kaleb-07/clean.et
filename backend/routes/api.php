@@ -138,6 +138,12 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::post('/super-admin/broadcast',          [SuperAdminController::class, 'broadcast']);
 });
 
+// ─── ADMIN REPORTING (accessible to both Super Admin and Division Admins) ──
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::get('/reports/generate', [SuperAdminController::class, 'generateReport']);
+    Route::get('/reports/export',   [SuperAdminController::class, 'exportReport']);
+});
+
 // ─── VEHICLES (customer-owned) ────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/vehicles',              [VehicleController::class, 'index']);

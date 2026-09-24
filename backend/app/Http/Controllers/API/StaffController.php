@@ -41,6 +41,7 @@ class StaffController extends Controller
             'role_title'            => 'required|string|min:2|max:100',
             'qualifications'        => 'nullable|array',
             'sector_qualifications' => 'nullable|array',
+            'tenant_id'             => 'nullable|exists:tenants,id',
         ], [
             'name.required'       => 'Technician Full Name is required.',
             'name.min'            => 'Technician Full Name must be at least 2 characters.',
@@ -64,7 +65,7 @@ class StaffController extends Controller
         $quals = $request->qualifications ?? $request->sector_qualifications ?? [];
 
         $staffProfile = DB::transaction(function () use ($request, $phone, $email, $password, $quals) {
-            $tenantId = $request->user()?->tenant_id;
+            $tenantId = $request->tenant_id ?? $request->user()?->tenant_id ?? \App\Models\Tenant::where('status', 'active')->first()?->id;
 
             $user = User::create([
                 'name'      => trim($request->name),

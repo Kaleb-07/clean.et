@@ -23,9 +23,8 @@ import {
   Tenant,
   CreateTenantPayload,
 } from "../../hooks/useSuperAdmin";
-import { downloadCsvFile, openPrintableReceipt } from "../../src/utils/exportHelpers";
 
-type ActiveTab = "overview" | "divisions" | "sectors" | "payouts";
+type ActiveTab = "overview" | "divisions" | "sectors";
 
 interface SectorCategoryOption {
   id: string;
@@ -94,7 +93,6 @@ export default function SuperAdminTenants() {
   const {
     analytics,
     tenants,
-    payouts,
     refreshing,
     onRefresh,
     createTenant,
@@ -103,21 +101,11 @@ export default function SuperAdminTenants() {
     impersonateTenant,
     stopImpersonation,
     impersonatingId,
-    generatePayouts,
-    exportPayoutsCsv,
-    getPayoutReceipt,
   } = useSuperAdmin();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "suspended">("ALL");
-
-  // Receipt Modal State
-  const [receiptModal, setReceiptModal] = useState<{
-    html: string;
-    receipt: any;
-  } | null>(null);
-  const [isExportingPayouts, setIsExportingPayouts] = useState(false);
 
   // Create / Edit Division Modal State
   const [modalVisible, setModalVisible] = useState(false);
@@ -471,16 +459,12 @@ export default function SuperAdminTenants() {
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>👑 Super Admin Governance</Text>
           <Text style={styles.headerSubtitle}>
-            Clean.et Enterprise Cleaning Divisions & Financial Settlement
+            Clean.et Enterprise Cleaning Divisions & Sectors Governance
           </Text>
         </View>
 
         <TouchableOpacity style={styles.refreshBtn} onPress={() => router.push("/(admin)/notifications")}>
           <Ionicons name="notifications-outline" size={18} color="#F472B6" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.refreshBtn} onPress={() => router.push("/(admin)/system")}>
-          <Ionicons name="hardware-chip-outline" size={18} color="#F59E0B" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.refreshBtn} onPress={onRefresh}>
@@ -535,14 +519,6 @@ export default function SuperAdminTenants() {
               Sectors ({sectorOptions.length})
             </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabItem, activeTab === "payouts" && styles.tabItemActive]}
-            onPress={() => setActiveTab("payouts")}
-          >
-            <Ionicons name="cash" size={16} color={activeTab === "payouts" ? "#60A5FA" : "#94A3B8"} />
-            <Text style={[styles.tabText, activeTab === "payouts" && styles.tabTextActive]}>Payouts</Text>
-          </TouchableOpacity>
         </ScrollView>
       </View>
 
@@ -590,10 +566,10 @@ export default function SuperAdminTenants() {
 
               <TouchableOpacity
                 style={[styles.quickActionCard, { backgroundColor: "#2563EB" }]}
-                onPress={() => setActiveTab("payouts")}
+                onPress={() => setActiveTab("sectors")}
               >
-                <Ionicons name="calculator-outline" size={24} color="#FFF" />
-                <Text style={styles.quickActionText}>View Payout Reports</Text>
+                <Ionicons name="layers-outline" size={24} color="#FFF" />
+                <Text style={styles.quickActionText}>Explore & Add Sectors</Text>
               </TouchableOpacity>
             </View>
 
@@ -856,177 +832,7 @@ export default function SuperAdminTenants() {
             })}
           </Animated.View>
         )}
-
-        {/* ── TAB 4: PAYOUTS ── */}
-        {activeTab === "payouts" && (
-          <Animated.View entering={FadeInDown.duration(400)}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sectionHeaderTitle}>💰 Division Financial Settlements</Text>
-                <Text style={{ color: "#94A3B8", fontSize: 11 }}>
-                  Monthly Gross Merchandise Value & Commission Settlements
-                </Text>
-              </View>
-
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  style={{ backgroundColor: "#064E3B", paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: "#10B98155" }}
-                  onPress={async () => {
-                    setIsExportingPayouts(true);
-                    try {
-                      const csv = await exportPayoutsCsv();
-                      downloadCsvFile(csv, `cleanet_payouts_statement_${Date.now()}.csv`);
-                      showToast("success", "📥 Payouts statement exported to CSV.");
-                    } catch (e: any) {
-                      showToast("error", e.message || "Failed to export CSV.");
-                    } finally {
-                      setIsExportingPayouts(false);
-                    }
-                  }}
-                  disabled={isExportingPayouts}
-                >
-                  {isExportingPayouts ? (
-                    <ActivityIndicator size="small" color="#34D399" />
-                  ) : (
-                    <Ionicons name="download-outline" size={14} color="#34D399" />
-                  )}
-                  <Text style={{ color: "#34D399", fontSize: 11, fontWeight: "800" }}>Export CSV</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={{ backgroundColor: "#2563EB", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}
-                  onPress={async () => {
-                    try {
-                      await generatePayouts({
-                        period_start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-                        period_end: new Date().toISOString().split("T")[0],
-                      });
-                      Alert.alert("Generated", "Monthly payout reports generated.");
-                    } catch (e: any) {
-                      Alert.alert("Error", e.message || "Failed to generate payouts.");
-                    }
-                  }}
-                >
-                  <Text style={{ color: "#FFF", fontSize: 11, fontWeight: "800" }}>+ Generate Reports</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {payouts.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="cash-outline" size={48} color="#475569" />
-                <Text style={styles.emptyTitle}>No Payout Reports Generated</Text>
-                <Text style={styles.emptySub}>
-                  Tap "+ Generate Reports" to process division monthly settlements.
-                </Text>
-              </View>
-            ) : (
-              payouts.map((p) => (
-                <View key={p.id} style={styles.payoutCard}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
-                      {p.tenant?.business_name || `Division #${p.tenant_id}`}
-                    </Text>
-                    <Text style={{ color: "#34D399", fontWeight: "800", fontSize: 14 }}>
-                      ETB {Number(p.net_payout).toLocaleString("en-ET", { minimumFractionDigits: 2 })}
-                    </Text>
-                  </View>
-
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                    <View style={{ flexDirection: "row", gap: 10 }}>
-                      <Text style={{ color: "#94A3B8", fontSize: 11 }}>
-                        Gross: ETB {Number(p.gross_amount).toLocaleString()}
-                      </Text>
-                      <Text style={{ color: "#94A3B8", fontSize: 11 }}>
-                        Rate: {p.commission_rate}%
-                      </Text>
-                      <Text style={{ color: "#FBBF24", fontSize: 11, fontWeight: "700" }}>
-                        {p.status.toUpperCase()}
-                      </Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={{ backgroundColor: "#334155", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, flexDirection: "row", alignItems: "center", gap: 4 }}
-                      onPress={async () => {
-                        try {
-                          const res = await getPayoutReceipt(p.id);
-                          setReceiptModal({ html: res.data.html, receipt: res.data.receipt });
-                          openPrintableReceipt(res.data.html);
-                        } catch (e: any) {
-                          Alert.alert("Receipt Error", "Failed to generate receipt.");
-                        }
-                      }}
-                    >
-                      <Ionicons name="document-text-outline" size={14} color="#60A5FA" />
-                      <Text style={{ color: "#60A5FA", fontSize: 11, fontWeight: "700" }}>Receipt</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))
-            )}
-          </Animated.View>
-        )}
       </ScrollView>
-
-      {/* ── 📄 FINANCIAL RECEIPT MODAL ── */}
-      <Modal visible={!!receiptModal} transparent animationType="slide" onRequestClose={() => setReceiptModal(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: "85%" }]}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Financial Statement Receipt</Text>
-                <Text style={{ color: "#10B981", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
-                  Ref: {receiptModal?.receipt?.reference_number || `PO-${receiptModal?.receipt?.id}`}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setReceiptModal(null)}>
-                <Ionicons name="close" size={24} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={{ paddingVertical: 10 }}>
-              <View style={{ backgroundColor: "#0F172A", padding: 16, borderRadius: 12, borderWidth: 1, borderColor: "#334155" }}>
-                <Text style={{ color: "#94A3B8", fontSize: 11, fontWeight: "700" }}>DIVISION / DEPARTMENT</Text>
-                <Text style={{ color: "#FFF", fontSize: 16, fontWeight: "800", marginTop: 2 }}>
-                  {receiptModal?.receipt?.tenant?.business_name || `Division #${receiptModal?.receipt?.tenant_id}`}
-                </Text>
-
-                <View style={{ height: 1, backgroundColor: "#334155", marginVertical: 12 }} />
-
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>Gross Merchandise Value (GMV)</Text>
-                  <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 12 }}>
-                    ETB {Number(receiptModal?.receipt?.gross_amount || 0).toLocaleString()}
-                  </Text>
-                </View>
-
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>Platform Fee ({receiptModal?.receipt?.commission_rate}%)</Text>
-                  <Text style={{ color: "#F87171", fontWeight: "700", fontSize: 12 }}>
-                    - ETB {Number(receiptModal?.receipt?.commission_amount || 0).toLocaleString()}
-                  </Text>
-                </View>
-
-                <View style={{ backgroundColor: "#064E3B", padding: 12, borderRadius: 8, marginTop: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={{ color: "#A7F3D0", fontWeight: "800", fontSize: 12 }}>Net Settled Disbursed</Text>
-                  <Text style={{ color: "#34D399", fontWeight: "800", fontSize: 16 }}>
-                    ETB {Number(receiptModal?.receipt?.net_payout || 0).toLocaleString()}
-                  </Text>
-                </View>
-              </View>
-            </ScrollView>
-
-            <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: "#059669", marginTop: 12 }]}
-              onPress={() => {
-                if (receiptModal?.html) openPrintableReceipt(receiptModal.html);
-              }}
-            >
-              <Text style={{ color: "#FFF", fontWeight: "800" }}>🖨️ Print / Save PDF Receipt</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* ── 👁️ INSPECT DIVISION MODAL ── */}
       <Modal visible={!!inspectTenant} transparent animationType="fade" onRequestClose={() => setInspectTenant(null)}>
@@ -1630,7 +1436,6 @@ const styles = StyleSheet.create({
   managerDetailsRow: { backgroundColor: "#0F172A", padding: 10, borderRadius: 8, marginTop: 10, borderWidth: 1, borderColor: "#334155" },
   cardActions: { flexDirection: "row", marginTop: 10, gap: 8 },
   actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
-  payoutCard: { backgroundColor: "#1E293B", padding: 14, borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: "#334155" },
   emptyState: { alignItems: "center", paddingVertical: 40 },
   emptyTitle: { color: "#FFF", fontSize: 16, fontWeight: "800", marginTop: 10 },
   emptySub: { color: "#94A3B8", fontSize: 12, marginTop: 4 },

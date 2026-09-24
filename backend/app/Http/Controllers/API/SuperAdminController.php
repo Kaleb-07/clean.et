@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Service;
 use App\Models\StaffProfile;
 use App\Models\SystemSetting;
 use App\Models\Tenant;
@@ -617,19 +618,36 @@ class SuperAdminController extends Controller
         $tenantId = $request->get('tenant_id', 'all');
 
         $query = Booking::withoutGlobalScopes()
-            ->with(['tenant', 'service', 'sector', 'customer', 'staff'])
+            ->with(['tenant', 'service', 'sector.category', 'customer.user', 'user', 'staff.user'])
             ->whereIn('status', [Booking::STATUS_COMPLETED, Booking::STATUS_INVOICED]);
 
-        if ($tenantId !== 'all' && !empty($tenantId)) {
+        $user = $request->user();
+        if ($user && !$user->isSuperAdmin() && $user->tenant_id) {
+            $query->where('tenant_id', $user->tenant_id);
+        } elseif ($tenantId !== 'all' && !empty($tenantId)) {
             $query->where('tenant_id', $tenantId);
         }
 
         if ($timeframe === 'annual') {
-            $query->whereYear('created_at', $year);
+            $query->where(function ($q) use ($year) {
+                $q->whereYear('created_at', $year)
+                  ->orWhereYear('booking_date', $year);
+            });
         } elseif ($timeframe === 'custom' && $request->has('start_date') && $request->has('end_date')) {
-            $query->whereBetween('created_at', [$request->get('start_date') . ' 00:00:00', $request->get('end_date') . ' 23:59:59']);
+            $startDate = $request->get('start_date');
+            $endDate = $request->get('end_date');
+            $query->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+                  ->orWhereBetween('booking_date', [$startDate, $endDate]);
+            });
         } else {
-            $query->whereYear('created_at', $year)->whereMonth('created_at', $month);
+            $query->where(function ($q) use ($year, $month) {
+                $q->where(function ($sub) use ($year, $month) {
+                    $sub->whereYear('created_at', $year)->whereMonth('created_at', $month);
+                })->orWhere(function ($sub) use ($year, $month) {
+                    $sub->whereYear('booking_date', $year)->whereMonth('booking_date', $month);
+                });
+            });
         }
 
         return $query;
@@ -640,6 +658,7 @@ class SuperAdminController extends Controller
      */
     public function generateReport(Request $request): JsonResponse
     {
+        $user = $request->user();
         $timeframe = $request->get('timeframe', 'monthly');
         $year = (int) $request->get('year', date('Y'));
         $month = (int) $request->get('month', date('n'));
@@ -650,11 +669,15 @@ class SuperAdminController extends Controller
         $bookings = $query->latest()->get();
 
         if ($category !== 'all' && !empty($category)) {
-            $bookings = $bookings->filter(function ($b) use ($category) {
-                if ($b->sector && strtolower($b->sector->category_name) === strtolower($category)) {
+            $categoryClean = strtolower(trim($category));
+            $bookings = $bookings->filter(function ($b) use ($categoryClean) {
+                $catSlug = strtolower($b->sector?->category?->slug ?? '');
+                $catName = strtolower($b->sector?->category?->name ?? '');
+                $sectorSlug = strtolower($b->sector?->slug ?? '');
+                if ($catSlug === $categoryClean || $catName === $categoryClean || str_contains($sectorSlug, $categoryClean)) {
                     return true;
                 }
-                if ($b->tenant && is_array($b->tenant->categories_enabled) && in_array($category, $b->tenant->categories_enabled)) {
+                if ($b->tenant && is_array($b->tenant->categories_enabled) && in_array($categoryClean, array_map('strtolower', $b->tenant->categories_enabled))) {
                     return true;
                 }
                 return false;
@@ -687,12 +710,28 @@ class SuperAdminController extends Controller
         $items = $bookings->map(function ($b) use ($commissionRate) {
             $gmv = (float) $b->price;
             $comm = round($gmv * ($commissionRate / 100), 2);
+            $customerName = $b->customer?->name 
+                ?? $b->customer?->user?->name 
+                ?? $b->user?->name 
+                ?? 'Client Account';
+            $customerPhone = $b->customer?->phone 
+                ?? $b->customer?->user?->phone 
+                ?? $b->user?->phone 
+                ?? '';
+            $dateStr = $b->booking_date 
+                ? (is_string($b->booking_date) ? $b->booking_date : $b->booking_date->format('Y-m-d'))
+                : ($b->created_at ? $b->created_at->format('Y-m-d') : 'Today');
+
             return [
                 'id'              => $b->id,
-                'date'            => $b->created_at ? $b->created_at->format('Y-m-d H:i') : 'N/A',
-                'department'      => $b->tenant->business_name ?? 'General',
-                'customer_name'   => $b->customer->name ?? 'Retail Client',
+                'date'            => $dateStr,
+                'booking_time'    => $b->booking_time ?? '',
+                'address'         => $b->requirement_data['service_location'] ?? $b->customer?->address ?? '',
+                'department'      => $b->tenant->business_name ?? 'General Division',
+                'customer_name'   => $customerName,
+                'phone'           => $customerPhone,
                 'service_name'    => $b->service->name ?? $b->sector->name ?? 'Standard Service',
+                'sub_center'      => $b->sector->slug ?? 'station',
                 'gross_amount'    => $gmv,
                 'commission_fee'  => $comm,
                 'net_payout'      => round($gmv - $comm, 2),
@@ -720,6 +759,10 @@ class SuperAdminController extends Controller
                     'platform_commission'   => $platformCommission,
                     'net_vendor_disbursed'  => $netVendorDisbursed,
                     'completed_jobs'        => $totalCompletedJobs,
+                    'total_jobs'            => $totalCompletedJobs,
+                    'total_orders'          => $totalCompletedJobs,
+                    'staff_count'           => StaffProfile::where('tenant_id', $user?->tenant_id ?? 0)->count() ?: StaffProfile::count(),
+                    'services_count'        => Service::count(),
                     'active_departments'    => count($departmentBreakdown),
                 ],
                 'department_breakdown' => $departmentBreakdown,
