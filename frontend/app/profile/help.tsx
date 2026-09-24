@@ -9,7 +9,7 @@ import {
   Platform,
   Linking,
 } from "react-native";
-import { router } from "expo-router";
+import { router, Redirect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
@@ -69,6 +69,11 @@ export default function HelpScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { isDark } = useTheme();
+
+  // Redirect admin users to the executive administration screen
+  if (user?.role === "super_admin" || user?.role === "tenant_admin") {
+    return <Redirect href="/(admin)/help" />;
+  }
 
   const [expandedFaqId, setExpandedFaqId] = useState<string | null>(null);
 

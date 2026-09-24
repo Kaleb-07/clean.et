@@ -132,8 +132,8 @@ export default function ProfileScreen() {
       title: "SETTINGS & PREFERENCES",
       items: [
         { icon: Bell, label: "Notification Alert Center", color: "#EC4899", route: "/(admin)/notifications" },
-        { icon: Shield, label: "Privacy & Security Settings", color: "#8B5CF6", route: "/profile/privacy" },
-        { icon: HelpCircle, label: "Enterprise Support & Documentation", color: "#06B6D4", route: "/profile/help" },
+        { icon: Shield, label: "Privacy & Security Settings", color: "#8B5CF6", route: "/(admin)/privacy" },
+        { icon: HelpCircle, label: "Enterprise Support & Documentation", color: "#06B6D4", route: "/(admin)/help" },
       ],
     },
   ];
@@ -153,8 +153,8 @@ export default function ProfileScreen() {
       title: "SECTOR SETTINGS & ALERTS",
       items: [
         { icon: Bell, label: "Division Notifications & Alerts", color: "#EC4899", route: "/(admin)/notifications" },
-        { icon: Shield, label: "Account Privacy & Security", color: "#6366F1", route: "/profile/privacy" },
-        { icon: HelpCircle, label: "Sector Help & Operational Docs", color: "#38BDF8", route: "/profile/help" },
+        { icon: Shield, label: "Account Privacy & Security", color: "#6366F1", route: "/(admin)/privacy" },
+        { icon: HelpCircle, label: "Sector Help & Operational Docs", color: "#38BDF8", route: "/(admin)/help" },
       ],
     },
   ];
