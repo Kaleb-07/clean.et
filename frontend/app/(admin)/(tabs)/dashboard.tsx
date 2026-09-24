@@ -401,6 +401,12 @@ export default function AdminDashboard() {
                 <Text style={styles.actionTileTitle}>Financial Invoices</Text>
                 <Text style={styles.actionTileSub}>Global Financial Status</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/customers")}>
+                <Ionicons name="people" size={22} color="#34D399" />
+                <Text style={styles.actionTileTitle}>Technicians & Customers</Text>
+                <Text style={styles.actionTileSub}>Platform Crew & Client Directory</Text>
+              </TouchableOpacity>
             </>
           ) : (
             <>
@@ -415,14 +421,14 @@ export default function AdminDashboard() {
                 <Text style={styles.actionTileTitle}>Post Division Services</Text>
                 <Text style={styles.actionTileSub}>Configure Offerings & Base Prices</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/customers")}>
+                <Ionicons name="people" size={22} color="#34D399" />
+                <Text style={styles.actionTileTitle}>Customer Directory</Text>
+                <Text style={styles.actionTileSub}>Client Profiles & Service History</Text>
+              </TouchableOpacity>
             </>
           )}
-
-          <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/customers")}>
-            <Ionicons name="people" size={22} color="#34D399" />
-            <Text style={styles.actionTileTitle}>Technicians & Customers</Text>
-            <Text style={styles.actionTileSub}>Field Crew & Client Directory</Text>
-          </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionTile} onPress={() => router.push("/(admin)/(tabs)/bookings")}>
             <Ionicons name="calendar" size={22} color="#60A5FA" />

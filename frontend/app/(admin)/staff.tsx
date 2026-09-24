@@ -756,81 +756,114 @@ export default function AdminStaff() {
                 </View>
               )}
 
-              {/* Sector Selection Dropdown */}
+              {/* Sector Selection (Dropdown for Super Admin, Locked to Current Sector for Sector Admin) */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Sector Classification *</Text>
-                <TouchableOpacity
-                  style={styles.dropdownTrigger}
-                  onPress={() => setSectorDropdownOpen(!sectorDropdownOpen)}
-                  activeOpacity={0.8}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
-                    <View style={styles.dropdownIconBox}>
+                <Text style={styles.inputLabel}>
+                  {isSuperAdmin ? "Sector Classification *" : "Assigned Division Sector"}
+                </Text>
+
+                {isSuperAdmin ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.dropdownTrigger}
+                      onPress={() => setSectorDropdownOpen(!sectorDropdownOpen)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
+                        <View style={styles.dropdownIconBox}>
+                          <Ionicons
+                            name={
+                              ((sectorOptions.find((s) => s.id === selectedSectorId)?.icon as any) || "sparkles")
+                            }
+                            size={18}
+                            color="#38BDF8"
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.dropdownSelectedTitle}>
+                            {sectorOptions.find((s) => s.id === selectedSectorId)?.title || "Select Sector"}
+                          </Text>
+                          <Text style={styles.dropdownSelectedSub} numberOfLines={1}>
+                            {sectorOptions.find((s) => s.id === selectedSectorId)?.subtitle || "Operational Sector Category"}
+                          </Text>
+                        </View>
+                      </View>
+                      <Ionicons
+                        name={sectorDropdownOpen ? "chevron-up" : "chevron-down"}
+                        size={20}
+                        color="#94A3B8"
+                      />
+                    </TouchableOpacity>
+
+                    {sectorDropdownOpen && (
+                      <View style={styles.dropdownMenu}>
+                        {sectorOptions.map((sec) => {
+                          const isSelected = selectedSectorId === sec.id;
+                          return (
+                            <TouchableOpacity
+                              key={sec.id}
+                              style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
+                              onPress={() => {
+                                handleSelectSector(sec.id);
+                                setSectorDropdownOpen(false);
+                              }}
+                            >
+                              <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
+                                <Ionicons
+                                  name={(sec.icon as any) || "briefcase-outline"}
+                                  size={16}
+                                  color={isSelected ? "#10B981" : "#60A5FA"}
+                                />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>
+                                    {sec.title}
+                                  </Text>
+                                  {sec.subtitle && (
+                                    <Text style={styles.dropdownItemSubText} numberOfLines={1}>
+                                      {sec.subtitle}
+                                    </Text>
+                                  )}
+                                </View>
+                              </View>
+                              {isSelected && <Ionicons name="checkmark-circle" size={18} color="#10B981" />}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <View style={styles.lockedSectorBox}>
+                    <View style={styles.lockedSectorIconBox}>
                       <Ionicons
                         name={
-                          ((sectorOptions.find((s) => s.id === selectedSectorId)?.icon as any) || "sparkles")
+                          ((sectorOptions.find((s) => s.id === selectedSectorId)?.icon as any) || "business")
                         }
                         size={18}
-                        color="#38BDF8"
+                        color="#34D399"
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.dropdownSelectedTitle}>
-                        {sectorOptions.find((s) => s.id === selectedSectorId)?.title || "Select Sector"}
+                      <Text style={styles.lockedSectorTitle}>
+                        {user?.tenant?.business_name || sectorOptions.find((s) => s.id === selectedSectorId)?.title || "Current Sector"}
                       </Text>
-                      <Text style={styles.dropdownSelectedSub} numberOfLines={1}>
-                        {sectorOptions.find((s) => s.id === selectedSectorId)?.subtitle || "Operational Sector Category"}
+                      <Text style={styles.lockedSectorSub}>
+                        {sectorOptions.find((s) => s.id === selectedSectorId)?.title || "Current Division Sector"}
                       </Text>
                     </View>
-                  </View>
-                  <Ionicons
-                    name={sectorDropdownOpen ? "chevron-up" : "chevron-down"}
-                    size={20}
-                    color="#94A3B8"
-                  />
-                </TouchableOpacity>
-
-                {sectorDropdownOpen && (
-                  <View style={styles.dropdownMenu}>
-                    {sectorOptions.map((sec) => {
-                      const isSelected = selectedSectorId === sec.id;
-                      return (
-                        <TouchableOpacity
-                          key={sec.id}
-                          style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
-                          onPress={() => {
-                            handleSelectSector(sec.id);
-                            setSectorDropdownOpen(false);
-                          }}
-                        >
-                          <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
-                            <Ionicons
-                              name={(sec.icon as any) || "briefcase-outline"}
-                              size={16}
-                              color={isSelected ? "#10B981" : "#60A5FA"}
-                            />
-                            <View style={{ flex: 1 }}>
-                              <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>
-                                {sec.title}
-                              </Text>
-                              {sec.subtitle && (
-                                <Text style={styles.dropdownItemSubText} numberOfLines={1}>
-                                  {sec.subtitle}
-                                </Text>
-                              )}
-                            </View>
-                          </View>
-                          {isSelected && <Ionicons name="checkmark-circle" size={18} color="#10B981" />}
-                        </TouchableOpacity>
-                      );
-                    })}
+                    <View style={styles.lockedBadge}>
+                      <Ionicons name="lock-closed" size={10} color="#34D399" />
+                      <Text style={styles.lockedBadgeText}>CURRENT SECTOR</Text>
+                    </View>
                   </View>
                 )}
               </View>
 
-              {/* Qualification Tags Selection - Filtered to Selected Sector */}
+              {/* Qualification Tags Selection - Filtered to Current Sector */}
               <Text style={[styles.inputLabel, { marginTop: 6, marginBottom: 8 }]}>
-                Sector Certifications & Specializations ({sectorOptions.find((s) => s.id === selectedSectorId)?.title || "Selected Sector"})
+                {isSuperAdmin
+                  ? `Sector Certifications & Specializations (${sectorOptions.find((s) => s.id === selectedSectorId)?.title || "Selected Sector"})`
+                  : "Division Certifications & Qualifications"}
               </Text>
 
               <View style={{ gap: 6, marginBottom: 12 }}>
@@ -1130,5 +1163,50 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontWeight: "700",
     fontSize: 12,
+  },
+  lockedSectorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0F172A",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#10B98155",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  lockedSectorIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lockedSectorTitle: {
+    color: "#F8FAFC",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  lockedSectorSub: {
+    color: "#94A3B8",
+    fontSize: 11,
+    marginTop: 1,
+  },
+  lockedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
+  },
+  lockedBadgeText: {
+    color: "#34D399",
+    fontSize: 9,
+    fontWeight: "800",
   },
 });

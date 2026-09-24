@@ -130,7 +130,15 @@ export default function AdminTechniciansAndCustomers() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
 
-  const [activeTab, setActiveTab] = useState<"technicians" | "customers">("technicians");
+  const [activeTab, setActiveTab] = useState<"technicians" | "customers">(
+    isSuperAdmin ? "technicians" : "customers"
+  );
+
+  useEffect(() => {
+    if (!isSuperAdmin) {
+      setActiveTab("customers");
+    }
+  }, [isSuperAdmin]);
 
   // Customers State
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -581,9 +589,13 @@ export default function AdminTechniciansAndCustomers() {
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Technicians & Customers</Text>
+          <Text style={styles.headerTitle}>
+            {isSuperAdmin ? "Technicians & Customers" : "Customer Directory"}
+          </Text>
           <Text style={styles.headerSubtitle}>
-            {staff.length} Field Technicians • {customers.length} Client Accounts
+            {isSuperAdmin
+              ? `${staff.length} Field Technicians • ${customers.length} Client Accounts`
+              : `${customers.length} Registered Client Accounts`}
           </Text>
         </View>
 
@@ -610,44 +622,46 @@ export default function AdminTechniciansAndCustomers() {
         </Animated.View>
       )}
 
-      {/* ── TOP TAB SWITCHER (TECHNICIANS VS CUSTOMERS) ── */}
-      <View style={styles.tabSwitcherOuter}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === "technicians" && styles.tabButtonActive]}
-          onPress={() => {
-            setActiveTab("technicians");
-            setSearchQuery("");
-          }}
-        >
-          <Ionicons
-            name="construct"
-            size={16}
-            color={activeTab === "technicians" ? "#FFF" : "#94A3B8"}
-            style={{ marginRight: 6 }}
-          />
-          <Text style={[styles.tabButtonText, activeTab === "technicians" && styles.tabButtonTextActive]}>
-            Technicians ({staff.length})
-          </Text>
-        </TouchableOpacity>
+      {/* ── TOP TAB SWITCHER (TECHNICIANS VS CUSTOMERS - SUPER ADMIN ONLY) ── */}
+      {isSuperAdmin && (
+        <View style={styles.tabSwitcherOuter}>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === "technicians" && styles.tabButtonActive]}
+            onPress={() => {
+              setActiveTab("technicians");
+              setSearchQuery("");
+            }}
+          >
+            <Ionicons
+              name="construct"
+              size={16}
+              color={activeTab === "technicians" ? "#FFF" : "#94A3B8"}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.tabButtonText, activeTab === "technicians" && styles.tabButtonTextActive]}>
+              Technicians ({staff.length})
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === "customers" && styles.tabButtonActive]}
-          onPress={() => {
-            setActiveTab("customers");
-            setSearchQuery("");
-          }}
-        >
-          <Ionicons
-            name="people"
-            size={16}
-            color={activeTab === "customers" ? "#FFF" : "#94A3B8"}
-            style={{ marginRight: 6 }}
-          />
-          <Text style={[styles.tabButtonText, activeTab === "customers" && styles.tabButtonTextActive]}>
-            Customers ({customers.length})
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === "customers" && styles.tabButtonActive]}
+            onPress={() => {
+              setActiveTab("customers");
+              setSearchQuery("");
+            }}
+          >
+            <Ionicons
+              name="people"
+              size={16}
+              color={activeTab === "customers" ? "#FFF" : "#94A3B8"}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.tabButtonText, activeTab === "customers" && styles.tabButtonTextActive]}>
+              Customers ({customers.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
