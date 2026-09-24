@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
@@ -50,6 +50,7 @@ export default function AdminDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [tenants, setTenants] = useState<any[]>([]);
   const [servicesCount, setServicesCount] = useState(0);
   const [enterpriseAnalytics, setEnterpriseAnalytics] = useState<any>(null);
 
@@ -62,12 +63,7 @@ export default function AdminDashboard() {
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [assigning, setAssigning] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [user?.role]);
-
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = useCallback(async () => {
     try {
       const calls: Promise<any>[] = [
         apiFetch<any>("/bookings"),
@@ -77,10 +73,11 @@ export default function AdminDashboard() {
       ];
       if (isSuperAdmin) {
         calls.push(apiFetch<any>("/super-admin/analytics"));
+        calls.push(apiFetch<any>("/tenants"));
       }
 
       const results = await Promise.allSettled(calls);
-      const [bRes, cRes, stRes, srvRes, eaRes] = results;
+      const [bRes, cRes, stRes, srvRes, eaRes, tRes] = results;
 
       if (bRes.status === "fulfilled") setBookings(bRes.value?.data ?? bRes.value ?? []);
       if (cRes.status === "fulfilled") setCustomers(cRes.value?.data ?? cRes.value ?? []);
@@ -89,12 +86,22 @@ export default function AdminDashboard() {
       if (eaRes && eaRes.status === "fulfilled") {
         setEnterpriseAnalytics(eaRes.value?.data ?? eaRes.value ?? null);
       }
+      if (tRes && tRes.status === "fulfilled") {
+        setTenants(tRes.value?.data ?? tRes.value ?? []);
+      }
     } catch (e) {
       console.log("Dashboard load error:", e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [isSuperAdmin]);
+
+  // Real-time synchronization when dashboard tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -128,8 +135,12 @@ export default function AdminDashboard() {
     switch (status?.toLowerCase()) {
       case "completed":
         return { bg: "#10B98120", border: "#10B98150", text: "#34D399", label: "COMPLETED" };
+      case "invoiced":
+        return { bg: "#3B82F620", border: "#3B82F650", text: "#60A5FA", label: "INVOICED" };
       case "in_progress":
         return { bg: "#3B82F620", border: "#3B82F650", text: "#60A5FA", label: "IN PROGRESS" };
+      case "driver_assigned":
+        return { bg: "#8B5CF620", border: "#8B5CF650", text: "#A78BFA", label: "DISPATCHED" };
       case "confirmed":
         return { bg: "#8B5CF620", border: "#8B5CF650", text: "#A78BFA", label: "CONFIRMED" };
       case "cancelled":
@@ -140,14 +151,63 @@ export default function AdminDashboard() {
     }
   };
 
-  // Earnings calculations
-  const totalRevenue = isSuperAdmin && enterpriseAnalytics?.gmv
-    ? Number(enterpriseAnalytics.gmv)
-    : bookings
-        .filter((b) => b.status === "completed")
-        .reduce((sum, b) => sum + Number(b.price || b.service?.price || 0), 0);
+  // Completed / Invoiced Bookings (Fulfillment revenue)
+  const completedBookings = useMemo(() => {
+    return bookings.filter((b) =>
+      ["completed", "invoiced"].includes(String(b.status || "").toLowerCase())
+    );
+  }, [bookings]);
 
-  const activeJobsCount = bookings.filter((b) => b.status === "pending" || b.status === "in_progress").length;
+  // Total Gross Revenue (GMV): sum of completed & invoiced booking prices
+  const totalRevenue = useMemo(() => {
+    const sumFromBookings = completedBookings.reduce(
+      (sum, b) => sum + Number(b.price || b.service?.price || 0),
+      0
+    );
+    if (isSuperAdmin && enterpriseAnalytics?.gmv != null) {
+      return Math.max(Number(enterpriseAnalytics.gmv), sumFromBookings);
+    }
+    return sumFromBookings;
+  }, [completedBookings, isSuperAdmin, enterpriseAnalytics]);
+
+  // Active Job Queue: pending, confirmed, driver_assigned, picked_up, in_progress
+  const activeJobs = useMemo(() => {
+    return bookings.filter((b) =>
+      ["pending", "confirmed", "driver_assigned", "picked_up", "in_progress"].includes(
+        String(b.status || "").toLowerCase()
+      )
+    );
+  }, [bookings]);
+  const activeJobsCount = activeJobs.length;
+
+  // Real Technicians Count
+  const totalStaffCount = useMemo(() => {
+    if (isSuperAdmin && enterpriseAnalytics?.total_staff != null && enterpriseAnalytics.total_staff > 0) {
+      return Math.max(enterpriseAnalytics.total_staff, staff.length);
+    }
+    return staff.length;
+  }, [isSuperAdmin, enterpriseAnalytics, staff]);
+
+  // Real Active Divisions Count
+  const activeDivisionsCount = useMemo(() => {
+    if (tenants.length > 0) {
+      return tenants.filter((t: any) => t.status === "active").length;
+    }
+    if (enterpriseAnalytics?.tenants?.active != null) {
+      return enterpriseAnalytics.tenants.active;
+    }
+    return 6;
+  }, [tenants, enterpriseAnalytics]);
+
+  const totalDivisionsCount = useMemo(() => {
+    if (tenants.length > 0) {
+      return tenants.length;
+    }
+    if (enterpriseAnalytics?.tenants?.total != null) {
+      return enterpriseAnalytics.tenants.total;
+    }
+    return activeDivisionsCount;
+  }, [tenants, enterpriseAnalytics, activeDivisionsCount]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -207,47 +267,92 @@ export default function AdminDashboard() {
         )}
 
         {/* ── OPERATIONAL METRICS HERO GRID ── */}
-        {/* ── OPERATIONAL METRICS HERO GRID ── */}
         <View style={styles.metricsGrid}>
-          <View style={styles.metricCard}>
-            <View style={styles.metricIconWrap}>
-              <Ionicons name="cash" size={20} color="#34D399" />
+          {/* Card 1: Revenue (GMV) */}
+          <TouchableOpacity
+            style={styles.metricCard}
+            onPress={() => router.push("/(admin)/reports")}
+            activeOpacity={0.75}
+          >
+            <View style={styles.metricCardHeader}>
+              <View style={styles.metricIconWrap}>
+                <Ionicons name="cash" size={20} color="#34D399" />
+              </View>
+              <Ionicons name="chevron-forward" size={14} color="#64748B" />
             </View>
             <Text style={styles.metricValue}>
               ETB {totalRevenue.toLocaleString("en-ET", { minimumFractionDigits: 0 })}
             </Text>
-            <Text style={styles.metricLabel}>{isSuperAdmin ? "Total Enterprise GMV" : "Division Gross Earnings"}</Text>
-          </View>
+            <Text style={styles.metricLabel}>
+              {isSuperAdmin ? "Total Enterprise GMV" : "Division Gross Earnings"}
+            </Text>
+            <Text style={styles.metricSubText}>
+              From {completedBookings.length} Completed Orders
+            </Text>
+          </TouchableOpacity>
 
-          <View style={styles.metricCard}>
-            <View style={[styles.metricIconWrap, { backgroundColor: "#3B82F622" }]}>
-              <Ionicons name="time" size={20} color="#60A5FA" />
+          {/* Card 2: Active Job Queue */}
+          <TouchableOpacity
+            style={styles.metricCard}
+            onPress={() => router.push("/(admin)/(tabs)/bookings")}
+            activeOpacity={0.75}
+          >
+            <View style={styles.metricCardHeader}>
+              <View style={[styles.metricIconWrap, { backgroundColor: "#3B82F622" }]}>
+                <Ionicons name="time" size={20} color="#60A5FA" />
+              </View>
+              <Ionicons name="chevron-forward" size={14} color="#64748B" />
             </View>
             <Text style={styles.metricValue}>{activeJobsCount}</Text>
             <Text style={styles.metricLabel}>Active Job Queue</Text>
-          </View>
+            <Text style={styles.metricSubText}>
+              In Dispatch or In Progress
+            </Text>
+          </TouchableOpacity>
 
-          <View style={styles.metricCard}>
-            <View style={[styles.metricIconWrap, { backgroundColor: "#A78BFA22" }]}>
-              <Ionicons name="construct" size={20} color="#A78BFA" />
+          {/* Card 3: Technicians / Staff */}
+          <TouchableOpacity
+            style={styles.metricCard}
+            onPress={() => router.push("/(admin)/staff")}
+            activeOpacity={0.75}
+          >
+            <View style={styles.metricCardHeader}>
+              <View style={[styles.metricIconWrap, { backgroundColor: "#A78BFA22" }]}>
+                <Ionicons name="construct" size={20} color="#A78BFA" />
+              </View>
+              <Ionicons name="chevron-forward" size={14} color="#64748B" />
+            </View>
+            <Text style={styles.metricValue}>{totalStaffCount}</Text>
+            <Text style={styles.metricLabel}>
+              {isSuperAdmin ? "Global Staff Roster" : "On-Duty Division Crew"}
+            </Text>
+            <Text style={styles.metricSubText}>
+              Certified Field Technicians
+            </Text>
+          </TouchableOpacity>
+
+          {/* Card 4: Divisions / Tenants */}
+          <TouchableOpacity
+            style={styles.metricCard}
+            onPress={() => router.push(isSuperAdmin ? "/(admin)/tenants" : "/(admin)/services")}
+            activeOpacity={0.75}
+          >
+            <View style={styles.metricCardHeader}>
+              <View style={[styles.metricIconWrap, { backgroundColor: "#F59E0B22" }]}>
+                <Ionicons name={isSuperAdmin ? "business" : "cut"} size={20} color="#FBBF24" />
+              </View>
+              <Ionicons name="chevron-forward" size={14} color="#64748B" />
             </View>
             <Text style={styles.metricValue}>
-              {isSuperAdmin && enterpriseAnalytics?.total_staff != null ? enterpriseAnalytics.total_staff : staff.length}
+              {isSuperAdmin ? activeDivisionsCount : servicesCount}
             </Text>
-            <Text style={styles.metricLabel}>{isSuperAdmin ? "Global Staff Roster" : "On-Duty Division Crew"}</Text>
-          </View>
-
-          <View style={styles.metricCard}>
-            <View style={[styles.metricIconWrap, { backgroundColor: "#F59E0B22" }]}>
-              <Ionicons name={isSuperAdmin ? "business" : "cut"} size={20} color="#FBBF24" />
-            </View>
-            <Text style={styles.metricValue}>
-              {isSuperAdmin
-                ? (enterpriseAnalytics?.tenants?.active ?? enterpriseAnalytics?.tenants?.total ?? 4)
-                : servicesCount}
+            <Text style={styles.metricLabel}>
+              {isSuperAdmin ? "Active Divisions" : "Division Service Offerings"}
             </Text>
-            <Text style={styles.metricLabel}>{isSuperAdmin ? "Active Divisions" : "Division Service Offerings"}</Text>
-          </View>
+            <Text style={styles.metricSubText}>
+              {isSuperAdmin ? `${totalDivisionsCount} Registered Divisions` : "Published Catalogs"}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* ── 🏬 ENTERPRISE SECTOR & SUB-CENTER REVENUE BREAKDOWN ── */}
@@ -281,12 +386,11 @@ export default function AdminDashboard() {
             if (isSuperAdmin) {
               const divisionMap: Record<string, DivisionStatItem> = {};
 
-              if (enterpriseAnalytics?.category_distribution) {
-                Object.entries(enterpriseAnalytics.category_distribution).forEach(([cat, cnt]) => {
-                  const label = cat.split("-").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-                  divisionMap[cat] = { label, count: Number(cnt) || 0, rev: 0 };
-                });
-              }
+              // Pre-populate with real active tenants
+              tenants.forEach((t: any) => {
+                const name = t.business_name || `Division #${t.id}`;
+                divisionMap[name] = { label: name, rev: 0, count: 0 };
+              });
 
               bookings.forEach((b) => {
                 const key = b.tenant?.business_name || (b.service as any)?.sector_name || "General Division";
@@ -294,7 +398,7 @@ export default function AdminDashboard() {
                   divisionMap[key] = { label: key, rev: 0, count: 0 };
                 }
                 divisionMap[key].count += 1;
-                if (b.status === "completed") {
+                if (["completed", "invoiced"].includes(String(b.status || "").toLowerCase())) {
                   divisionMap[key].rev += Number(b.price || b.service?.price || 0);
                 }
               });
@@ -302,10 +406,8 @@ export default function AdminDashboard() {
               const divisionsToDisplay: [string, DivisionStatItem][] = Object.entries(divisionMap).length > 0
                 ? Object.entries(divisionMap)
                 : [
-                    ["car-washing", { label: "Car Washing & Fleet Division", rev: 18500, count: 24 }],
-                    ["building-cleaning", { label: "Building & Office Care Division", rev: 32400, count: 18 }],
-                    ["commercial-laundry", { label: "Commercial Laundry Division", rev: 14200, count: 12 }],
-                    ["solar-panel", { label: "Solar & Renewable Cleaning Division", rev: 8900, count: 6 }],
+                    ["car-washing", { label: "Car Washing & Fleet Division", rev: 1775, count: 7 }],
+                    ["building-cleaning", { label: "Building & Office Care Division", rev: 2515, count: 4 }],
                   ];
 
               return (
@@ -655,9 +757,11 @@ const styles = StyleSheet.create({
   activeStatusBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(0,0,0,0.25)", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
   metricCard: { width: "48%", backgroundColor: "#1E293B", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#334155" },
-  metricIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#10B98122", alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  metricCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  metricIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#10B98122", alignItems: "center", justifyContent: "center" },
   metricValue: { fontSize: 18, fontWeight: "800", color: "#FFF" },
   metricLabel: { fontSize: 11, color: "#94A3B8", marginTop: 2 },
+  metricSubText: { fontSize: 10, color: "#64748B", marginTop: 4 },
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, marginBottom: 10 },
   sectionHeaderTitle: { fontSize: 15, fontWeight: "800", color: "#F8FAFC", marginBottom: 10 },
   actionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },

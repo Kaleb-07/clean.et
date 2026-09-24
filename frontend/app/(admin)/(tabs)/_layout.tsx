@@ -6,10 +6,9 @@ import {
   Platform,
   StyleSheet,
   View,
-  useColorScheme,
   ActivityIndicator,
 } from "react-native";
-import { useColors } from "@/hooks/useColors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function TabLayout() {
@@ -18,8 +17,8 @@ export default function TabLayout() {
   // ✅ Loading state
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center" }}>
-        <ActivityIndicator />
+      <View style={{ flex: 1, justifyContent: "center", backgroundColor: "#0F172A" }}>
+        <ActivityIndicator color="#10B981" />
       </View>
     );
   }
@@ -38,63 +37,85 @@ export default function TabLayout() {
   return <ClassicTabLayout />;
 }
 
+interface AdminTabIconProps {
+  Icon: React.ComponentType<any>;
+  color: string;
+  focused: boolean;
+}
+
+function AdminTabIcon({ Icon, color, focused }: AdminTabIconProps) {
+  return (
+    <View
+      style={{
+        width: 44,
+        height: 28,
+        borderRadius: 14,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: focused ? "rgba(16, 185, 129, 0.15)" : "transparent",
+        marginBottom: 2,
+      }}
+    >
+      <Icon size={20} color={color} strokeWidth={focused ? 2.5 : 1.8} />
+    </View>
+  );
+}
+
 function ClassicTabLayout() {
-  const colors = useColors();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const isIOS = Platform.OS === "ios";
+  const insets = useSafeAreaInsets();
+  const bottomInset = insets.bottom > 0 ? insets.bottom : 8;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarActiveTintColor: "#10B981",
+        tabBarInactiveTintColor: "#64748B",
         headerShown: false,
-        tabBarStyle: {
-          position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
-          borderTopWidth: 0,
-          elevation: 0,
-          height: isIOS ? 88 : 64,
-          paddingBottom: isIOS ? 28 : 12,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "700",
+          marginTop: -2,
         },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView
-              intensity={80}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: colors.background },
-              ]}
-            />
-          ),
+        tabBarStyle: {
+          backgroundColor: "#0F172A",
+          borderTopWidth: 1,
+          borderTopColor: "#334155",
+          elevation: 12,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+          height: 60 + bottomInset,
+          paddingTop: 6,
+          paddingBottom: bottomInset,
+        },
       }}
     >
       <Tabs.Screen
         name="dashboard"
         options={{
           title: "Dashboard",
-          tabBarIcon: ({ color }) => <Home size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <AdminTabIcon Icon={Home} color={color} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="bookings"
         options={{
           title: "Bookings",
-          tabBarIcon: ({ color }) => <Calendar size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <AdminTabIcon Icon={Calendar} color={color} focused={focused} />
+          ),
         }}
       />
-      {/* ✅ FIX: lowercase route name */}
       <Tabs.Screen
         name="Profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => <User size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <AdminTabIcon Icon={User} color={color} focused={focused} />
+          ),
         }}
       />
     </Tabs>

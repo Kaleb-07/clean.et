@@ -39,11 +39,13 @@ class SuperAdminController extends Controller
         $totalBookings = Booking::withoutGlobalScopes()->count();
 
         $bookingStatusBreakdown = [
-            'pending'     => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_PENDING)->count(),
-            'confirmed'   => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_CONFIRMED)->count(),
-            'in_progress' => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_IN_PROGRESS)->count(),
-            'completed'   => Booking::withoutGlobalScopes()->whereIn('status', [Booking::STATUS_COMPLETED, Booking::STATUS_INVOICED])->count(),
-            'cancelled'   => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_CANCELLED)->count(),
+            'pending'         => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_PENDING)->count(),
+            'confirmed'       => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_CONFIRMED)->count(),
+            'driver_assigned' => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_DRIVER_ASSIGNED)->count(),
+            'picked_up'       => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_PICKED_UP)->count(),
+            'in_progress'     => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_IN_PROGRESS)->count(),
+            'completed'       => Booking::withoutGlobalScopes()->whereIn('status', [Booking::STATUS_COMPLETED, Booking::STATUS_INVOICED])->count(),
+            'cancelled'       => Booking::withoutGlobalScopes()->where('status', Booking::STATUS_CANCELLED)->count(),
         ];
 
         // Categories / Services distribution across tenants
