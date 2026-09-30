@@ -4,6 +4,7 @@ import React from "react";
 import { StyleSheet, View, Text } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 interface TabIconProps {
   IconComponent: React.ComponentType<any>;
@@ -13,7 +14,13 @@ interface TabIconProps {
   primaryLight: string;
 }
 
-function TabIcon({ IconComponent, focused, isDark, primaryColor, primaryLight }: TabIconProps) {
+function TabIcon({
+  IconComponent,
+  focused,
+  isDark,
+  primaryColor,
+  primaryLight,
+}: TabIconProps) {
   return (
     <View
       style={[
@@ -58,6 +65,7 @@ function TabLabel({ title, focused, isDark, primaryColor }: TabLabelProps) {
 export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const isDark = colors.isDark;
   const primaryColor = colors.primary;
   const primaryLight = colors.primaryLight;
@@ -84,7 +92,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          title: "Home",
+          title: t("home"),
           tabBarIcon: ({ focused }) => (
             <TabIcon
               IconComponent={Home}
@@ -96,7 +104,7 @@ export default function TabLayout() {
           ),
           tabBarLabel: ({ focused }) => (
             <TabLabel
-              title="Home"
+              title={t("home")}
               focused={focused}
               isDark={isDark}
               primaryColor={primaryColor}
@@ -107,7 +115,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: "Explore",
+          title: t("explore"),
           tabBarIcon: ({ focused }) => (
             <TabIcon
               IconComponent={Search}
@@ -119,7 +127,7 @@ export default function TabLayout() {
           ),
           tabBarLabel: ({ focused }) => (
             <TabLabel
-              title="Explore"
+              title={t("explore")}
               focused={focused}
               isDark={isDark}
               primaryColor={primaryColor}
@@ -130,7 +138,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="booking"
         options={{
-          title: "Bookings",
+          title: t("booking"),
           tabBarIcon: ({ focused }) => (
             <TabIcon
               IconComponent={Calendar}
@@ -142,7 +150,7 @@ export default function TabLayout() {
           ),
           tabBarLabel: ({ focused }) => (
             <TabLabel
-              title="Bookings"
+              title={t("booking")}
               focused={focused}
               isDark={isDark}
               primaryColor={primaryColor}
@@ -153,7 +161,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: t("profile"),
           tabBarIcon: ({ focused }) => (
             <TabIcon
               IconComponent={User}
@@ -165,7 +173,7 @@ export default function TabLayout() {
           ),
           tabBarLabel: ({ focused }) => (
             <TabLabel
-              title="Profile"
+              title={t("profile")}
               focused={focused}
               isDark={isDark}
               primaryColor={primaryColor}

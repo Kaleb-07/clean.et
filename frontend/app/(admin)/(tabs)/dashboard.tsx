@@ -18,6 +18,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 import API, { apiFetch } from "../../../src/api/client";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useColors } from "../../../hooks/useColors";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 /* ─── TYPES ─────────────────────────────────────────────────────────────── */
 interface Booking {
@@ -44,6 +46,9 @@ interface StaffMember {
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
+  const colors = useColors();
+  const { t } = useLanguage();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const isSuperAdmin = user?.role === "super_admin";
 
@@ -215,12 +220,12 @@ export default function AdminDashboard() {
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>
-            {isSuperAdmin ? "👑 Enterprise Governance Portal" : `🏢 ${user?.tenant?.business_name || "Service Division"}`}
+            {isSuperAdmin ? `👑 ${t("enterprise_governance_portal")}` : `🏢 ${user?.tenant?.business_name || "Service Division"}`}
           </Text>
           <Text style={styles.headerSubtitle}>
             {isSuperAdmin
-              ? "Clean.et Executive Multi-Department Control"
-              : `Logged in as ${user?.name || "Division Admin"} (${user?.email})`}
+              ? t("admin_portal_subtitle")
+              : `${t("logged_in_as")} ${user?.name || "Division Admin"} (${user?.email})`}
           </Text>
         </View>
 
@@ -250,16 +255,16 @@ export default function AdminDashboard() {
           <LinearGradient colors={["#064E3B", "#047857"]} style={styles.heroCard}>
             <View style={styles.heroRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.heroLabel}>Operational Service Division</Text>
+                <Text style={styles.heroLabel}>{t("operational_service_division")}</Text>
                 <Text style={styles.heroValue}>
-                  {user?.tenant?.business_name ? user.tenant.business_name.toUpperCase() : "CLEANING DIVISION"}
+                  {user?.tenant?.business_name ? user.tenant.business_name.toUpperCase() : t("cleaning_division_fallback")}
                 </Text>
               </View>
 
               <View style={styles.activeStatusBadge}>
                 <Ionicons name="ellipse" size={10} color="#34D399" />
                 <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 11, marginLeft: 6 }}>
-                  Division Active
+                  {t("division_active")}
                 </Text>
               </View>
             </View>
@@ -284,10 +289,10 @@ export default function AdminDashboard() {
               ETB {totalRevenue.toLocaleString("en-ET", { minimumFractionDigits: 0 })}
             </Text>
             <Text style={styles.metricLabel}>
-              {isSuperAdmin ? "Total Enterprise GMV" : "Division Gross Earnings"}
+              {isSuperAdmin ? t("total_enterprise_gmv") : t("division_gross_earnings")}
             </Text>
             <Text style={styles.metricSubText}>
-              From {completedBookings.length} Completed Orders
+              {t("from_label")} {completedBookings.length} {t("completed_orders_label")}
             </Text>
           </TouchableOpacity>
 
@@ -304,9 +309,9 @@ export default function AdminDashboard() {
               <Ionicons name="chevron-forward" size={14} color="#64748B" />
             </View>
             <Text style={styles.metricValue}>{activeJobsCount}</Text>
-            <Text style={styles.metricLabel}>Active Job Queue</Text>
+            <Text style={styles.metricLabel}>{t("active_job_queue")}</Text>
             <Text style={styles.metricSubText}>
-              In Dispatch or In Progress
+              {t("in_dispatch_or_progress")}
             </Text>
           </TouchableOpacity>
 
@@ -324,10 +329,10 @@ export default function AdminDashboard() {
             </View>
             <Text style={styles.metricValue}>{totalStaffCount}</Text>
             <Text style={styles.metricLabel}>
-              {isSuperAdmin ? "Global Staff Roster" : "On-Duty Division Crew"}
+              {isSuperAdmin ? t("global_staff_roster") : t("on_duty_division_crew")}
             </Text>
             <Text style={styles.metricSubText}>
-              Certified Field Technicians
+              {t("certified_field_technicians")}
             </Text>
           </TouchableOpacity>
 
@@ -347,10 +352,10 @@ export default function AdminDashboard() {
               {isSuperAdmin ? activeDivisionsCount : servicesCount}
             </Text>
             <Text style={styles.metricLabel}>
-              {isSuperAdmin ? "Active Divisions" : "Division Service Offerings"}
+              {isSuperAdmin ? t("active_divisions_label") : t("division_service_offerings")}
             </Text>
             <Text style={styles.metricSubText}>
-              {isSuperAdmin ? `${totalDivisionsCount} Registered Divisions` : "Published Catalogs"}
+              {isSuperAdmin ? `${totalDivisionsCount} ${t("registered_divisions_label")}` : t("published_catalogs")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -361,7 +366,7 @@ export default function AdminDashboard() {
             <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6 }}>
               <Ionicons name={isSuperAdmin ? "layers" : "business"} size={18} color="#34D399" />
               <Text style={styles.subCenterCardTitle}>
-                {isSuperAdmin ? "Enterprise Sector & Division Volume" : "Division Operations & Service Performance"}
+                {isSuperAdmin ? t("enterprise_sector_volume") : t("division_ops_performance")}
               </Text>
             </View>
 
@@ -371,7 +376,7 @@ export default function AdminDashboard() {
             >
               <Ionicons name={isSuperAdmin ? "business-outline" : "document-text-outline"} size={13} color="#FFF" />
               <Text style={{ color: "#FFF", fontSize: 10, fontWeight: "800" }}>
-                {isSuperAdmin ? "Manage Sectors" : "Reports Hub"}
+                {isSuperAdmin ? t("manage_sectors_btn") : t("reports_hub_btn")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -486,7 +491,7 @@ export default function AdminDashboard() {
 
         {/* ── QUICK ACTION HUB TILE GRID ── */}
         <Text style={styles.sectionHeaderTitle}>
-          {isSuperAdmin ? "👑 Enterprise Management Suite" : "⚡ Division Operations Control Hub"}
+          {isSuperAdmin ? `👑 ${t("enterprise_management_suite")}` : `⚡ ${t("division_ops_control_hub")}`}
         </Text>
 
         <View style={styles.actionGrid}>
@@ -566,8 +571,8 @@ export default function AdminDashboard() {
         ) : bookings.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="calendar-outline" size={40} color="#475569" />
-            <Text style={{ color: "#FFF", fontSize: 14, fontWeight: "700", marginTop: 8 }}>No Active Orders</Text>
-            <Text style={{ color: "#94A3B8", fontSize: 12, marginTop: 2 }}>
+            <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700", marginTop: 8 }}>No Active Orders</Text>
+            <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 2 }}>
               Customer bookings for this division will appear here in real-time.
             </Text>
           </View>
@@ -668,13 +673,13 @@ export default function AdminDashboard() {
               </TouchableOpacity>
             </View>
 
-            <Text style={{ color: "#CBD5E1", fontSize: 12, marginBottom: 10 }}>
+            <Text style={{ color: colors.subtext, fontSize: 12, marginBottom: 10 }}>
               Select an available technician to dispatch to client site:
             </Text>
 
             <ScrollView style={{ maxHeight: 280 }}>
               {staff.length === 0 ? (
-                <Text style={{ color: "#94A3B8", textAlign: "center", paddingVertical: 20 }}>
+                <Text style={{ color: colors.subtext, textAlign: "center", paddingVertical: 20 }}>
                   No technicians found on roster. Go to Staff screen to register crew.
                 </Text>
               ) : (
@@ -691,8 +696,8 @@ export default function AdminDashboard() {
                         <Text style={{ color: "#A78BFA", fontWeight: "800" }}>{staffName.charAt(0)}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ color: "#FFF", fontWeight: "700", fontSize: 14 }}>{staffName}</Text>
-                        <Text style={{ color: "#94A3B8", fontSize: 11 }}>
+                        <Text style={{ color: colors.text, fontWeight: "700", fontSize: 14 }}>{staffName}</Text>
+                        <Text style={{ color: colors.subtext, fontSize: 11 }}>
                           💼 {s.role_title || "Field Tech"} {s.user?.phone ? `• 📞 ${s.user.phone}` : ""}
                         </Text>
                       </View>
@@ -734,21 +739,21 @@ export default function AdminDashboard() {
 }
 
 /* ================= STYLES ================= */
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F172A" },
+const getStyles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: colors.cardBorder,
     gap: 10,
   },
-  headerTitle: { fontSize: 17, fontWeight: "800", color: "#F8FAFC" },
-  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
-  iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#334155", justifyContent: "center", alignItems: "center" },
+  headerTitle: { fontSize: 17, fontWeight: "800", color: colors.text },
+  headerSubtitle: { fontSize: 11, color: colors.subtext, marginTop: 1 },
+  iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.isDark ? "#334155" : colors.cardBorder, justifyContent: "center", alignItems: "center" },
   scrollContent: { padding: 16, paddingBottom: 40 },
   heroCard: { padding: 18, borderRadius: 16, marginBottom: 16 },
   heroRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -756,59 +761,59 @@ const styles = StyleSheet.create({
   heroValue: { fontSize: 20, fontWeight: "800", color: "#FFF", marginTop: 2 },
   activeStatusBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(0,0,0,0.25)", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
-  metricCard: { width: "48%", backgroundColor: "#1E293B", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#334155" },
+  metricCard: { width: "48%", backgroundColor: colors.card, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: colors.cardBorder },
   metricCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
   metricIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#10B98122", alignItems: "center", justifyContent: "center" },
-  metricValue: { fontSize: 18, fontWeight: "800", color: "#FFF" },
-  metricLabel: { fontSize: 11, color: "#94A3B8", marginTop: 2 },
-  metricSubText: { fontSize: 10, color: "#64748B", marginTop: 4 },
+  metricValue: { fontSize: 18, fontWeight: "800", color: colors.text },
+  metricLabel: { fontSize: 11, color: colors.subtext, marginTop: 2 },
+  metricSubText: { fontSize: 10, color: colors.subtext, marginTop: 4 },
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, marginBottom: 10 },
-  sectionHeaderTitle: { fontSize: 15, fontWeight: "800", color: "#F8FAFC", marginBottom: 10 },
+  sectionHeaderTitle: { fontSize: 15, fontWeight: "800", color: colors.text, marginBottom: 10 },
   actionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
-  actionTile: { width: "48%", backgroundColor: "#1E293B", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "#334155" },
-  actionTileTitle: { fontSize: 13, fontWeight: "800", color: "#FFF", marginTop: 8 },
-  actionTileSub: { fontSize: 10, color: "#94A3B8", marginTop: 2 },
-  jobCard: { backgroundColor: "#1E293B", borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: "#334155" },
+  actionTile: { width: "48%", backgroundColor: colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.cardBorder },
+  actionTileTitle: { fontSize: 13, fontWeight: "800", color: colors.text, marginTop: 8 },
+  actionTileSub: { fontSize: 10, color: colors.subtext, marginTop: 2 },
+  jobCard: { backgroundColor: colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.cardBorder },
   jobHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  jobTitle: { fontSize: 14, fontWeight: "800", color: "#FFF" },
-  jobCustomer: { fontSize: 12, color: "#CBD5E1", marginTop: 2 },
+  jobTitle: { fontSize: 14, fontWeight: "800", color: colors.text },
+  jobCustomer: { fontSize: 12, color: colors.subtext, marginTop: 2 },
   jobPrice: { fontSize: 15, fontWeight: "800", color: "#34D399" },
   statusPill: { backgroundColor: "#10B98122", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
   statusPillText: { fontSize: 10, color: "#34D399", fontWeight: "800" },
-  jobFooter: { flexDirection: "row", alignItems: "center", marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#334155" },
-  jobMeta: { fontSize: 11, color: "#94A3B8" },
+  jobFooter: { flexDirection: "row", alignItems: "center", marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.cardBorder },
+  jobMeta: { fontSize: 11, color: colors.subtext },
   dispatchCrewBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#059669", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  emptyCard: { backgroundColor: "#1E293B", borderRadius: 14, padding: 30, alignItems: "center", borderWidth: 1, borderColor: "#334155" },
+  emptyCard: { backgroundColor: colors.card, borderRadius: 14, padding: 30, alignItems: "center", borderWidth: 1, borderColor: colors.cardBorder },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.8)", justifyContent: "center", padding: 16 },
-  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, maxHeight: "90%", borderWidth: 1, borderColor: "#334155" },
+  modalCard: { backgroundColor: colors.card, borderRadius: 20, padding: 20, maxHeight: "90%", borderWidth: 1, borderColor: colors.cardBorder },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: "#F8FAFC" },
-  staffSelectItem: { flexDirection: "row", alignItems: "center", backgroundColor: "#0F172A", padding: 12, borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: "#334155", gap: 10 },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: colors.text },
+  staffSelectItem: { flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, padding: 12, borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: colors.cardBorder, gap: 10 },
   staffSelectItemActive: { borderColor: "#10B981", backgroundColor: "#10B98115" },
   staffAvatarBox: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#A78BFA22", alignItems: "center", justifyContent: "center" },
-  closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
-  closeBtnText: { color: "#FFF", fontWeight: "700" },
+  closeBtn: { flex: 1, backgroundColor: colors.isDark ? "#334155" : colors.cardBorder, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  closeBtnText: { color: colors.text, fontWeight: "700" },
   submitBtn: { flex: 1, backgroundColor: "#059669", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
   subCenterAnalyticsCard: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   subCenterCardHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: colors.cardBorder,
     paddingBottom: 10,
   },
   subCenterCardTitle: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: colors.text,
   },
   branchStatRow: {
     flexDirection: "row",
@@ -817,7 +822,7 @@ const styles = StyleSheet.create({
   branchNameText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#E2E8F0",
+    color: colors.text,
   },
   branchRevText: {
     fontSize: 11,
@@ -826,7 +831,7 @@ const styles = StyleSheet.create({
   },
   branchProgressBarTrack: {
     height: 6,
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.isDark ? "#0F172A" : colors.cardBorder,
     borderRadius: 3,
     overflow: "hidden",
   },
@@ -861,7 +866,7 @@ const styles = StyleSheet.create({
   },
   jobAddressText: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: colors.subtext,
     flex: 1,
   },
 });

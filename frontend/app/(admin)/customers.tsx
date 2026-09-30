@@ -20,6 +20,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import API from "../../src/api/client";
 import { useAuth } from "../../contexts/AuthContext";
+import { useColors } from "../../hooks/useColors";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 /* ================= TYPES ================= */
 interface Customer {
@@ -128,6 +130,9 @@ export default function AdminTechniciansAndCustomers() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const colors = useColors();
+  const { t } = useLanguage();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const isSuperAdmin = user?.role === "super_admin";
 
   const [activeTab, setActiveTab] = useState<"technicians" | "customers">(
@@ -585,7 +590,7 @@ export default function AdminTechniciansAndCustomers() {
           }}
           style={styles.backBtn}
         >
-          <Ionicons name="arrow-back" size={20} color="#FFF" />
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
@@ -742,7 +747,7 @@ export default function AdminTechniciansAndCustomers() {
         {/* ── SEARCH & ACTION BUTTON ROW ── */}
         <View style={styles.actionBar}>
           <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color="#94A3B8" />
+            <Ionicons name="search" size={18} color={colors.subtext} />
             <TextInput
               style={styles.searchInput}
               placeholder={
@@ -750,13 +755,13 @@ export default function AdminTechniciansAndCustomers() {
                   ? "Search tech by name, role, email, phone..."
                   : "Search client by name, email, or phone..."
               }
-              placeholderTextColor="#64748B"
+              placeholderTextColor={colors.subtext}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery ? (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              <TouchableOpacity onPress={() => setSearchQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={18} color={colors.subtext} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -1044,16 +1049,16 @@ export default function AdminTechniciansAndCustomers() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={styles.modalTitle}>
                   {editingStaff ? "Edit Technician Qualifications" : "Register Field Crew Member"}
                 </Text>
-                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                <Text style={{ color: colors.subtext, fontSize: 11, marginTop: 2 }}>
                   Assign certifications & operational qualifications
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setTechModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#94A3B8" />
+              <TouchableOpacity onPress={() => setTechModalVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={24} color={colors.subtext} />
               </TouchableOpacity>
             </View>
 
@@ -1062,7 +1067,7 @@ export default function AdminTechniciansAndCustomers() {
                 <Text style={styles.inputLabel}>Technician Full Name *</Text>
                 <TextInput
                   placeholder="e.g. Dawit Yohannes"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.subtext}
                   value={techForm.name}
                   onChangeText={(t) => setTechForm({ ...techForm, name: t })}
                   style={styles.textInput}
@@ -1073,7 +1078,7 @@ export default function AdminTechniciansAndCustomers() {
                 <Text style={styles.inputLabel}>Role Title / Designation *</Text>
                 <TextInput
                   placeholder="e.g. Lead Auto Specialist"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.subtext}
                   value={techForm.role_title}
                   onChangeText={(t) => setTechForm({ ...techForm, role_title: t })}
                   style={styles.textInput}
@@ -1084,7 +1089,7 @@ export default function AdminTechniciansAndCustomers() {
                 <Text style={styles.inputLabel}>Email Address</Text>
                 <TextInput
                   placeholder="e.g. dawit@clean.et"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.subtext}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={techForm.email}
@@ -1097,7 +1102,7 @@ export default function AdminTechniciansAndCustomers() {
                 <Text style={styles.inputLabel}>Phone Contact Number</Text>
                 <TextInput
                   placeholder="e.g. +251922..."
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.subtext}
                   keyboardType="phone-pad"
                   value={techForm.phone}
                   onChangeText={(t) => setTechForm({ ...techForm, phone: t })}
@@ -1110,7 +1115,7 @@ export default function AdminTechniciansAndCustomers() {
                   <Text style={styles.inputLabel}>Initial Password</Text>
                   <TextInput
                     placeholder="Min 6 characters (default: password123)"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.subtext}
                     secureTextEntry
                     value={techForm.password}
                     onChangeText={(t) => setTechForm({ ...techForm, password: t })}
@@ -1247,16 +1252,16 @@ export default function AdminTechniciansAndCustomers() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <View>
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={styles.modalTitle}>
                   {editingCustomer ? "Edit Client Profile" : "Register Customer Account"}
                 </Text>
-                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                <Text style={{ color: colors.subtext, fontSize: 11, marginTop: 2 }}>
                   Register client profile contact and account credentials
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setCustomerModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#94A3B8" />
+              <TouchableOpacity onPress={() => setCustomerModalVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={24} color={colors.subtext} />
               </TouchableOpacity>
             </View>
 
@@ -1265,7 +1270,7 @@ export default function AdminTechniciansAndCustomers() {
                 <Text style={styles.inputLabel}>Client Full Name *</Text>
                 <TextInput
                   placeholder="e.g. Abebe Bikila"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.subtext}
                   value={customerForm.name}
                   onChangeText={(t) => setCustomerForm({ ...customerForm, name: t })}
                   style={styles.textInput}
@@ -1276,7 +1281,7 @@ export default function AdminTechniciansAndCustomers() {
                 <Text style={styles.inputLabel}>Email Address *</Text>
                 <TextInput
                   placeholder="e.g. abebe@gmail.com"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.subtext}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={customerForm.email}
@@ -1289,7 +1294,7 @@ export default function AdminTechniciansAndCustomers() {
                 <Text style={styles.inputLabel}>Phone Number</Text>
                 <TextInput
                   placeholder="e.g. +251911..."
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.subtext}
                   keyboardType="phone-pad"
                   value={customerForm.phone}
                   onChangeText={(t) => setCustomerForm({ ...customerForm, phone: t })}
@@ -1302,7 +1307,7 @@ export default function AdminTechniciansAndCustomers() {
                   <Text style={styles.inputLabel}>Initial Password</Text>
                   <TextInput
                     placeholder="Min 6 characters (default: password123)"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.subtext}
                     secureTextEntry
                     value={customerForm.password}
                     onChangeText={(t) => setCustomerForm({ ...customerForm, password: t })}
@@ -1463,40 +1468,41 @@ export default function AdminTechniciansAndCustomers() {
 }
 
 /* ================= STYLES ================= */
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F172A" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#1E293B",
-    borderBottomWidth: 1,
-    borderBottomColor: "#334155",
-    gap: 12,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#334155",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#F8FAFC" },
-  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
-  refreshBtn: { padding: 6 },
-  tabSwitcherOuter: {
-    flexDirection: "row",
-    backgroundColor: "#1E293B",
-    padding: 6,
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
+const getStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+      gap: 12,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: colors.isDark ? "#334155" : colors.cardBorder,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    headerTitle: { fontSize: 18, fontWeight: "800", color: colors.text },
+    headerSubtitle: { fontSize: 11, color: colors.subtext, marginTop: 1 },
+    refreshBtn: { padding: 6 },
+    tabSwitcherOuter: {
+      flexDirection: "row",
+      backgroundColor: colors.card,
+      padding: 6,
+      marginHorizontal: 16,
+      marginTop: 12,
+      borderRadius: 12,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
   tabButton: {
     flex: 1,
     flexDirection: "row",
@@ -1509,7 +1515,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB",
   },
   tabButtonText: {
-    color: "#94A3B8",
+    color: colors.subtext,
     fontSize: 13,
     fontWeight: "700",
   },
@@ -1541,32 +1547,32 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     gap: 6,
   },
-  subStatLabel: { color: "#CBD5E1", fontSize: 11 },
+  subStatLabel: { color: colors.subtext, fontSize: 11 },
   subStatValue: { color: "#FFF", fontWeight: "800", fontSize: 11 },
   filterChip: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   filterChipActive: { backgroundColor: "#2563EB", borderColor: "#3B82F6" },
-  filterChipText: { color: "#94A3B8", fontSize: 11, fontWeight: "700" },
+  filterChipText: { color: colors.subtext, fontSize: 11, fontWeight: "700" },
   filterChipTextActive: { color: "#FFF" },
   actionBar: { flexDirection: "row", marginBottom: 14, gap: 10 },
   searchBox: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     gap: 8,
   },
-  searchInput: { flex: 1, color: "#FFF", fontSize: 13, paddingVertical: 10 },
+  searchInput: { flex: 1, color: colors.text, fontSize: 13, paddingVertical: 10 },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1577,15 +1583,15 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: "#FFF", fontWeight: "800", fontSize: 12 },
   emptyState: { alignItems: "center", paddingVertical: 40 },
-  emptyTitle: { color: "#FFF", fontSize: 16, fontWeight: "800", marginTop: 10 },
-  emptySub: { color: "#94A3B8", fontSize: 12, marginTop: 4, textAlign: "center" },
+  emptyTitle: { color: colors.text, fontSize: 16, fontWeight: "800", marginTop: 10 },
+  emptySub: { color: colors.subtext, fontSize: 12, marginTop: 4, textAlign: "center" },
   card: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   cardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   avatarBox: {
@@ -1597,9 +1603,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   avatarText: { fontSize: 17, fontWeight: "800" },
-  customerName: { fontSize: 15, fontWeight: "800", color: "#FFF" },
-  customerEmail: { fontSize: 12, color: "#94A3B8", marginTop: 2 },
-  customerPhone: { fontSize: 12, color: "#CBD5E1", marginTop: 1 },
+  customerName: { fontSize: 15, fontWeight: "800", color: colors.text },
+  customerEmail: { fontSize: 12, color: colors.subtext, marginTop: 2 },
+  customerPhone: { fontSize: 12, color: colors.subtext, marginTop: 1 },
   techRoleText: { fontSize: 12, color: "#A78BFA", fontWeight: "700", marginTop: 1 },
   ordersBadge: { backgroundColor: "#3B82F622", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   ordersBadgeText: { color: "#60A5FA", fontSize: 10, fontWeight: "800" },
@@ -1624,17 +1630,17 @@ const styles = StyleSheet.create({
   },
   techStatsRow: {
     flexDirection: "row",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 10,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     gap: 12,
   },
   techMiniStat: { flex: 1 },
-  techStatLabel: { color: "#94A3B8", fontSize: 9, fontWeight: "800" },
-  techStatValue: { color: "#FFF", fontSize: 13, fontWeight: "800", marginTop: 2 },
+  techStatLabel: { color: colors.subtext, fontSize: 9, fontWeight: "800" },
+  techStatValue: { color: colors.text, fontSize: 13, fontWeight: "800", marginTop: 2 },
   qualificationsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
   qualPill: {
     flexDirection: "row",
@@ -1660,41 +1666,41 @@ const styles = StyleSheet.create({
   },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.8)", justifyContent: "center", padding: 16 },
   modalCard: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 20,
     maxHeight: "90%",
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: "#F8FAFC" },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: colors.text },
   inputGroup: { marginBottom: 12 },
-  inputLabel: { fontSize: 12, fontWeight: "700", color: "#CBD5E1", marginBottom: 6 },
+  inputLabel: { fontSize: 12, fontWeight: "700", color: colors.subtext, marginBottom: 6 },
   textInput: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: "#F8FAFC",
+    color: colors.text,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   qualSelectItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     gap: 8,
   },
   qualSelectItemActive: { borderColor: "#10B981", backgroundColor: "#10B98115" },
-  qualSelectText: { color: "#CBD5E1", fontSize: 12, fontWeight: "600", flex: 1 },
+  qualSelectText: { color: colors.subtext, fontSize: 12, fontWeight: "600", flex: 1 },
   qualSelectTextActive: { color: "#FFF", fontWeight: "700" },
-  closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
-  closeBtnText: { color: "#FFF", fontWeight: "700" },
+  closeBtn: { flex: 1, backgroundColor: colors.isDark ? "#334155" : "#E2E8F0", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  closeBtnText: { color: colors.isDark ? "#FFF" : colors.text, fontWeight: "700" },
   submitBtn: {
     flex: 1,
     borderRadius: 10,
@@ -1711,39 +1717,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   detailSection: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
-  detailLabel: { fontSize: 10, color: "#94A3B8", fontWeight: "800", textTransform: "uppercase" },
-  detailValue: { fontSize: 14, fontWeight: "700", color: "#FFF", marginTop: 2 },
+  detailLabel: { fontSize: 10, color: colors.subtext, fontWeight: "800", textTransform: "uppercase" },
+  detailValue: { fontSize: 14, fontWeight: "700", color: colors.text, marginTop: 2 },
   inspectStatCard: {
     flex: 1,
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   orderHistoryItem: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     padding: 10,
     borderRadius: 8,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   dropdownTrigger: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
@@ -1756,20 +1762,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dropdownSelectedTitle: {
-    color: "#F8FAFC",
+    color: colors.text,
     fontSize: 14,
     fontWeight: "700",
   },
   dropdownSelectedSub: {
-    color: "#94A3B8",
+    color: colors.subtext,
     fontSize: 11,
     marginTop: 1,
   },
   dropdownMenu: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     marginTop: 6,
     overflow: "hidden",
   },
@@ -1780,13 +1786,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#1E293B",
+    borderBottomColor: colors.cardBorder,
   },
   dropdownItemActive: {
     backgroundColor: "rgba(16, 185, 129, 0.12)",
   },
   dropdownItemText: {
-    color: "#CBD5E1",
+    color: colors.subtext,
     fontSize: 13,
     fontWeight: "600",
   },
@@ -1812,3 +1818,4 @@ const styles = StyleSheet.create({
   toastBannerDanger: { backgroundColor: "#7F1D1D" },
   toastText: { color: "#FFF", fontSize: 12, fontWeight: "600", flex: 1 },
 });
+

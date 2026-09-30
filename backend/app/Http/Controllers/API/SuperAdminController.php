@@ -12,6 +12,7 @@ use App\Models\SystemSetting;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\TenantPayout;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,10 @@ use Illuminate\Support\Facades\DB;
  */
 class SuperAdminController extends Controller
 {
+    public function __construct(private NotificationService $notificationService)
+    {
+    }
+
     /**
      * GET /api/super-admin/analytics
      * Returns Gross Merchandise Value (GMV), Tenant distributions, Global Bookings, Customers, Staff.
@@ -380,17 +385,27 @@ class SuperAdminController extends Controller
 
         $query = User::query();
         if ($validated['target'] === 'tenant_admins') {
-            $query->whereIn('role', ['tenant_admin', 'admin']);
+            $query->where('role', 'tenant_admin');
         } elseif ($validated['target'] === 'customers') {
             $query->where('role', 'customer');
         } elseif ($validated['target'] === 'staff') {
-            $query->whereIn('role', ['staff', 'technician', 'cleaner', 'field_staff']);
+            $query->where('role', 'staff');
+        }
+        // target === 'all' → no filter, every user account
+
+        $recipients = $query->get();
+
+        foreach ($recipients as $recipient) {
+            $this->notificationService->notify(
+                $recipient,
+                $validated['title'],
+                $validated['message'],
+                ['screen' => '/profile/notifications'],
+                'system'
+            );
         }
 
-        $userCount = $query->count();
-        if ($userCount === 0 && $validated['target'] === 'staff') {
-            $userCount = StaffProfile::withoutGlobalScopes()->count();
-        }
+        $userCount = $recipients->count();
 
         AuditLog::log(
             'SYSTEM_BROADCAST_SENT',
