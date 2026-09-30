@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   View,
   Text,
@@ -33,15 +33,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
+import { useColors } from "../../hooks/useColors";
 
-const LANGUAGES = ["English", "Amharic", "Oromo", "French", "Spanish"];
+const LANGUAGES = ["English", "Amharic"];
 
 const LANGUAGE_CODE_MAP: Record<string, string> = {
   English: "en",
   Amharic: "am",
-  Oromo: "om",
-  French: "fr",
-  Spanish: "es",
 };
 
 export default function SettingsScreen() {
@@ -49,12 +47,16 @@ export default function SettingsScreen() {
   const { isDark, toggleDark } = useTheme();
   const { language, setLanguage } = useLanguage();
   const { user, updateUser } = useAuth();
+  const colors = useColors();
   const isSuperAdmin = user?.role === "super_admin";
 
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [confirmClearVisible, setConfirmClearVisible] = useState(false);
   const [showCacheSuccess, setShowCacheSuccess] = useState(false);
-  const [successToast, setSuccessToast] = useState<{ title: string; message: string } | null>(null);
+  const [successToast, setSuccessToast] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
 
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle) => {
     if (Platform.OS !== "web") {
@@ -98,7 +100,10 @@ export default function SettingsScreen() {
     try {
       const keys = await AsyncStorage.getAllKeys();
       const cacheKeys = keys.filter(
-        (k) => k !== "@clean_auth_token" && k !== "@app_language" && k !== "@app_dark_mode"
+        (k) =>
+          k !== "@clean_auth_token" &&
+          k !== "@app_language" &&
+          k !== "@app_dark_mode",
       );
       if (cacheKeys.length > 0) {
         await AsyncStorage.multiRemove(cacheKeys);
@@ -111,44 +116,67 @@ export default function SettingsScreen() {
   };
 
   return (
-    <LinearGradient colors={["#0B0F19", "#111827", "#1E1B4B"]} style={styles.container}>
+    <LinearGradient
+      colors={colors.gradients.background}
+      style={styles.container}
+    >
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <Pressable onPress={handleBack} style={styles.backButton}>
-          <ChevronLeft color="#ffffff" size={28} />
+          <ChevronLeft color={colors.text} size={28} />
         </Pressable>
-        <Text style={styles.headerTitle}>App & System Settings</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>App & System Settings</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-
-        <Text style={styles.sectionTitle}>App Preferences</Text>
+        <Text style={[styles.sectionTitle, { color: colors.subtext }]}>App Preferences</Text>
 
         <View style={styles.settingGroup}>
-          <BlurView intensity={20} tint="dark" style={styles.settingItem}>
-            <Pressable style={styles.pressableItem} onPress={() => setLangModalVisible(true)}>
+          <BlurView intensity={20} tint={isDark ? "dark" : "light"} style={[styles.settingItem, { borderColor: colors.cardBorder }]}>
+            <Pressable
+              style={styles.pressableItem}
+              onPress={() => setLangModalVisible(true)}
+            >
               <View style={styles.itemLeft}>
-                <View style={[styles.iconBox, { backgroundColor: "rgba(59,130,246,0.15)" }]}>
+                <View
+                  style={[
+                    styles.iconBox,
+                    { backgroundColor: "rgba(59,130,246,0.15)" },
+                  ]}
+                >
                   <Globe size={20} color="#3b82f6" />
                 </View>
                 <View>
-                  <Text style={styles.itemTitle}>Language</Text>
-                  <Text style={styles.itemSubtitle}>{language || "English"}</Text>
+                  <Text style={[styles.itemTitle, { color: colors.text }]}>Language</Text>
+                  <Text style={[styles.itemSubtitle, { color: colors.subtext }]}>
+                    {language || "English"}
+                  </Text>
                 </View>
               </View>
-              <ChevronRight size={18} color="#64748b" />
+              <ChevronRight size={18} color={colors.subtext} />
             </Pressable>
           </BlurView>
 
-          <BlurView intensity={20} tint="dark" style={styles.settingItem}>
+          <BlurView intensity={20} tint={isDark ? "dark" : "light"} style={[styles.settingItem, { borderColor: colors.cardBorder }]}>
             <View style={styles.pressableItem}>
               <View style={styles.itemLeft}>
-                <View style={[styles.iconBox, { backgroundColor: "rgba(139,92,246,0.15)" }]}>
-                  {isDark ? <Moon size={20} color="#8b5cf6" /> : <Sun size={20} color="#f59e0b" />}
+                <View
+                  style={[
+                    styles.iconBox,
+                    { backgroundColor: "rgba(139,92,246,0.15)" },
+                  ]}
+                >
+                  {isDark ? (
+                    <Moon size={20} color="#8b5cf6" />
+                  ) : (
+                    <Sun size={20} color="#f59e0b" />
+                  )}
                 </View>
                 <View>
-                  <Text style={styles.itemTitle}>Dark Mode</Text>
-                  <Text style={styles.itemSubtitle}>{isDark ? "Enabled" : "Disabled"}</Text>
+                  <Text style={[styles.itemTitle, { color: colors.text }]}>Dark Mode</Text>
+                  <Text style={[styles.itemSubtitle, { color: colors.subtext }]}>
+                    {isDark ? "Enabled" : "Disabled"}
+                  </Text>
                 </View>
               </View>
               <Switch
@@ -160,18 +188,26 @@ export default function SettingsScreen() {
           </BlurView>
         </View>
 
-        <Text style={styles.sectionTitle}>Storage & Maintenance</Text>
+        <Text style={[styles.sectionTitle, { color: colors.subtext }]}>Storage & Maintenance</Text>
 
         <View style={styles.settingGroup}>
-          <BlurView intensity={20} tint="dark" style={styles.settingItem}>
-            <Pressable style={styles.pressableItem} onPress={() => setConfirmClearVisible(true)}>
+          <BlurView intensity={20} tint={isDark ? "dark" : "light"} style={[styles.settingItem, { borderColor: colors.cardBorder }]}>
+            <Pressable
+              style={styles.pressableItem}
+              onPress={() => setConfirmClearVisible(true)}
+            >
               <View style={styles.itemLeft}>
-                <View style={[styles.iconBox, { backgroundColor: "rgba(239,68,68,0.15)" }]}>
+                <View
+                  style={[
+                    styles.iconBox,
+                    { backgroundColor: "rgba(239,68,68,0.15)" },
+                  ]}
+                >
                   <Database size={20} color="#ef4444" />
                 </View>
                 <View>
-                  <Text style={styles.itemTitle}>Clear Cache & Temporary Files</Text>
-                  <Text style={styles.itemSubtitle}>Frees storage space while keeping auth tokens safe</Text>
+                  <Text style={[styles.itemTitle, { color: colors.text }]}>Clear Cache & Temporary Files</Text>
+                  <Text style={[styles.itemSubtitle, { color: colors.subtext }]}>Frees storage space while keeping auth tokens safe</Text>
                 </View>
               </View>
             </Pressable>
@@ -213,22 +249,30 @@ export default function SettingsScreen() {
       )}
 
       {/* Language Selector Modal */}
-      <Modal visible={langModalVisible} transparent animationType="slide" onRequestClose={() => setLangModalVisible(false)}>
+      <Modal
+        visible={langModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLangModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Select Language</Text>
+          <View style={[styles.modalCard, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF", borderColor: isDark ? "#334155" : "#E2E8F0" }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Language</Text>
             {LANGUAGES.map((lang) => (
               <Pressable
                 key={lang}
                 style={styles.langOption}
                 onPress={() => handleSelectLanguage(lang)}
               >
-                <Text style={styles.langText}>{lang}</Text>
+                <Text style={[styles.langText, { color: colors.text }]}>{lang === "English" ? "🇺🇸 English" : "🇪🇹 አማርኛ (Amharic)"}</Text>
                 {language === lang && <Check size={20} color="#10b981" />}
               </Pressable>
             ))}
-            <Pressable style={styles.closeBtn} onPress={() => setLangModalVisible(false)}>
-              <Text style={styles.closeBtnText}>Cancel</Text>
+            <Pressable
+              style={styles.closeBtn}
+              onPress={() => setLangModalVisible(false)}
+            >
+              <Text style={[styles.closeBtnText, { color: colors.subtext }]}>Cancel</Text>
             </Pressable>
           </View>
         </View>
@@ -268,18 +312,63 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   govBtnText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginBottom: 12 },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#64748b",
+    textTransform: "uppercase",
+    marginBottom: 12,
+  },
   settingGroup: { gap: 10, marginBottom: 24 },
-  settingItem: { borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  pressableItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16 },
+  settingItem: {
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  pressableItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+  },
   itemLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
-  iconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   itemTitle: { fontSize: 15, fontWeight: "600", color: "#ffffff" },
   itemSubtitle: { fontSize: 12, color: "#64748b", marginTop: 2 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "center", padding: 20 },
-  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, borderWidth: 1, borderColor: "#334155" },
-  modalTitle: { fontSize: 18, fontWeight: "bold", color: "#ffffff", marginBottom: 16, textAlign: "center" },
-  langOption: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#334155" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: "#1E293B",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#ffffff",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  langOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#334155",
+  },
   langText: { fontSize: 16, color: "#ffffff" },
   closeBtn: { marginTop: 16, paddingVertical: 12, alignItems: "center" },
   closeBtnText: { color: "#94a3b8", fontWeight: "600", fontSize: 15 },

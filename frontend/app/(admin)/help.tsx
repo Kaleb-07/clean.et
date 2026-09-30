@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -46,6 +46,8 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import ActionModal from "../../src/components/ActionModal";
 import { useAuth } from "../../contexts/AuthContext";
+import { useColors } from "../../hooks/useColors";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -137,6 +139,8 @@ const INITIAL_TICKETS: SupportTicket[] = [
 ];
 
 export default function HelpScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
@@ -401,11 +405,11 @@ export default function HelpScreen() {
   };
 
   return (
-    <LinearGradient colors={["#0B0F19", "#111827", "#1E1B4B"]} style={styles.container}>
+    <LinearGradient colors={colors.gradients.background} style={styles.container}>
       {/* ── EXECUTIVE HEADER ── */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <Pressable onPress={handleBack} style={styles.backButton}>
-          <ChevronLeft color="#ffffff" size={28} />
+          <ChevronLeft color={colors.text} size={28} />
         </Pressable>
         <View style={{ flex: 1, alignItems: "center" }}>
           <Text style={styles.headerTitle}>👑 Executive Governance & Help Portal</Text>
@@ -428,7 +432,7 @@ export default function HelpScreen() {
               Sanctum Auth REST API v1.0
             </Text>
           </View>
-          <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 4 }}>
+          <Text style={{ color: colors.subtext, fontSize: 11, marginTop: 4 }}>
             System Latency: &lt; 45ms &bull; Database Status: Synced &bull; Default Currency: ETB
           </Text>
         </View>
@@ -438,23 +442,23 @@ export default function HelpScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <BookOpen size={22} color="#F472B6" />
             <View style={{ flex: 1 }}>
-              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
+              <Text style={{ color: colors.text, fontWeight: "800", fontSize: 15 }}>
                 Ethiopian Enterprise Multi-Department Architecture
               </Text>
-              <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 1 }}>
+              <Text style={{ color: colors.subtext, fontSize: 11, marginTop: 1 }}>
                 Global Super Admin Governance over Operational Divisions & Settlements
               </Text>
             </View>
           </View>
 
           <View style={styles.specsBox}>
-            <Text style={{ color: "#F8FAFC", fontWeight: "800", fontSize: 12, marginBottom: 4 }}>
+            <Text style={{ color: colors.text, fontWeight: "800", fontSize: 12, marginBottom: 4 }}>
               🏢 Operational Service Divisions:
             </Text>
-            <Text style={{ color: "#CBD5E1", fontSize: 11 }}>
+            <Text style={{ color: colors.subtext, fontSize: 11 }}>
               &bull; <Text style={{ fontWeight: "700", color: "#60A5FA" }}>Car Washing Division</Text>: Sub-centers (Corporate Fleet, Mobile Doorstep, Valet Pickup, Bay Station).
             </Text>
-            <Text style={{ color: "#CBD5E1", fontSize: 11, marginTop: 2 }}>
+            <Text style={{ color: colors.subtext, fontSize: 11, marginTop: 2 }}>
               &bull; <Text style={{ fontWeight: "700", color: "#34D399" }}>Building Cleaning Division</Text>: Sub-centers (High-Rise Facade Glass, Interior Deep Sanitization).
             </Text>
           </View>
@@ -465,23 +469,23 @@ export default function HelpScreen() {
               style={styles.shortcutBtn}
               onPress={() => router.push("/(admin)/reports")}
             >
-              <BarChart2 size={14} color="#FFF" />
+              <BarChart2 size={14} color={colors.text} />
               <Text style={styles.shortcutText}>Reports Page</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.shortcutBtn}
-              onPress={() => router.push("/(admin)/system")}
+              onPress={() => router.push("/profile/settings" as any)}
             >
-              <Sliders size={14} color="#FFF" />
-              <Text style={styles.shortcutText}>Infrastructure</Text>
+              <Sliders size={14} color={colors.text} />
+              <Text style={styles.shortcutText}>Settings</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.shortcutBtn}
               onPress={() => router.push("/(admin)/broadcast")}
             >
-              <Megaphone size={14} color="#FFF" />
+              <Megaphone size={14} color={colors.text} />
               <Text style={styles.shortcutText}>Broadcast</Text>
             </TouchableOpacity>
 
@@ -489,7 +493,7 @@ export default function HelpScreen() {
               style={styles.shortcutBtn}
               onPress={() => router.push("/(admin)/tenants")}
             >
-              <Building2 size={14} color="#FFF" />
+              <Building2 size={14} color={colors.text} />
               <Text style={styles.shortcutText}>Divisions</Text>
             </TouchableOpacity>
           </View>
@@ -531,7 +535,7 @@ export default function HelpScreen() {
           <View style={styles.ticketsSection}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <Text style={styles.sectionTitleNoMargin}>📋 Logged Support Tickets ({tickets.length})</Text>
-              <Text style={{ color: "#94A3B8", fontSize: 10 }}>Tap status badge to update</Text>
+              <Text style={{ color: colors.subtext, fontSize: 10 }}>Tap status badge to update</Text>
             </View>
 
             {tickets.map((t) => {
@@ -543,16 +547,16 @@ export default function HelpScreen() {
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                        <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>{t.subject}</Text>
+                        <Text style={{ color: colors.text, fontWeight: "800", fontSize: 13 }}>{t.subject}</Text>
                         <View style={[styles.priorityBadge, { borderColor: priorityColor }]}>
                           <Text style={[styles.priorityBadgeText, { color: priorityColor }]}>{t.priority}</Text>
                         </View>
                       </View>
 
-                      <Text style={{ color: "#94A3B8", fontSize: 11 }}>
+                      <Text style={{ color: colors.subtext, fontSize: 11 }}>
                         {t.system} &bull; Ticket #{t.id} &bull; {t.createdAt}
                       </Text>
-                      <Text style={{ color: "#CBD5E1", fontSize: 12, marginTop: 4, lineHeight: 16 }}>{t.message}</Text>
+                      <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 4, lineHeight: 16 }}>{t.message}</Text>
                     </View>
 
                     <View style={{ alignItems: "flex-end", gap: 6 }}>
@@ -580,8 +584,8 @@ export default function HelpScreen() {
 
           <View style={{ flexDirection: "row", gap: 8 }}>
             <TouchableOpacity style={styles.resetFaqBtn} onPress={handleResetDefaults}>
-              <RotateCcw size={12} color="#94A3B8" />
-              <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700" }}>Reset</Text>
+              <RotateCcw size={12} color={colors.subtext} />
+              <Text style={{ color: colors.subtext, fontSize: 10, fontWeight: "700" }}>Reset</Text>
             </TouchableOpacity>
 
             {isSuperAdmin && (
@@ -595,11 +599,11 @@ export default function HelpScreen() {
 
         {/* SEARCH BAR */}
         <View style={styles.searchContainer}>
-          <Search size={18} color="#64748b" style={{ marginRight: 10 }} />
+          <Search size={18} color={colors.subtext} style={{ marginRight: 10 }} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search FAQs, API endpoints, or governance terms..."
-            placeholderTextColor="#475569"
+            placeholderTextColor={colors.subtext}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -628,7 +632,7 @@ export default function HelpScreen() {
           {filteredFaqs.map((faq, index) => {
             const isExpanded = expandedIndex === index;
             return (
-              <BlurView key={faq.id || index} intensity={20} tint="dark" style={styles.faqWrapper}>
+              <View key={faq.id || index} style={styles.faqWrapper}>
                 <View style={styles.faqHeader}>
                   <Pressable style={{ flex: 1 }} onPress={() => toggleFaq(index)}>
                     <Text style={styles.faqQuestion}>{faq.q}</Text>
@@ -646,7 +650,7 @@ export default function HelpScreen() {
                       </>
                     )}
                     <Pressable onPress={() => toggleFaq(index)}>
-                      {isExpanded ? <ChevronUp size={18} color="#EC4899" /> : <ChevronDown size={18} color="#64748b" />}
+                      {isExpanded ? <ChevronUp size={18} color="#EC4899" /> : <ChevronDown size={18} color={colors.subtext} />}
                     </Pressable>
                   </View>
                 </View>
@@ -656,7 +660,7 @@ export default function HelpScreen() {
                     <Text style={styles.faqAnswer}>{faq.a}</Text>
                   </View>
                 )}
-              </BlurView>
+              </View>
             );
           })}
         </View>
@@ -672,7 +676,7 @@ export default function HelpScreen() {
                 <Text style={styles.modalTitle}>Log Executive Support Ticket</Text>
               </View>
               <Pressable onPress={() => setTicketModalVisible(false)}>
-                <X color="#94a3b8" size={24} />
+                <X color={colors.subtext} size={24} />
               </Pressable>
             </View>
 
@@ -696,7 +700,7 @@ export default function HelpScreen() {
                 value={ticketSystem}
                 onChangeText={setTicketSystem}
                 placeholder="e.g. Car Washing Division / API Gateway"
-                placeholderTextColor="#475569"
+                placeholderTextColor={colors.subtext}
               />
             </View>
 
@@ -707,7 +711,7 @@ export default function HelpScreen() {
                 value={ticketSubject}
                 onChangeText={setTicketSubject}
                 placeholder="Brief summary of incident or request..."
-                placeholderTextColor="#475569"
+                placeholderTextColor={colors.subtext}
               />
             </View>
 
@@ -719,7 +723,7 @@ export default function HelpScreen() {
                 value={ticketMessage}
                 onChangeText={setTicketMessage}
                 placeholder="Provide full technical details..."
-                placeholderTextColor="#475569"
+                placeholderTextColor={colors.subtext}
               />
             </View>
 
@@ -741,7 +745,7 @@ export default function HelpScreen() {
                 <Text style={styles.modalTitle}>Executive Email Dispatch</Text>
               </View>
               <Pressable onPress={() => setEmailModalVisible(false)}>
-                <X color="#94a3b8" size={24} />
+                <X color={colors.subtext} size={24} />
               </Pressable>
             </View>
 
@@ -761,7 +765,7 @@ export default function HelpScreen() {
                 value={emailSubject}
                 onChangeText={setEmailSubject}
                 placeholder="Super Admin Executive Inquiry..."
-                placeholderTextColor="#475569"
+                placeholderTextColor={colors.subtext}
               />
             </View>
 
@@ -773,7 +777,7 @@ export default function HelpScreen() {
                 value={emailMessage}
                 onChangeText={setEmailMessage}
                 placeholder="Write your email message..."
-                placeholderTextColor="#475569"
+                placeholderTextColor={colors.subtext}
               />
             </View>
 
@@ -795,7 +799,7 @@ export default function HelpScreen() {
                 <Text style={styles.modalTitle}>{editingFaq ? "Edit FAQ Article" : "Add FAQ Knowledge Article"}</Text>
               </View>
               <Pressable onPress={() => setFaqModalVisible(false)}>
-                <X color="#94a3b8" size={24} />
+                <X color={colors.subtext} size={24} />
               </Pressable>
             </View>
 
@@ -824,7 +828,7 @@ export default function HelpScreen() {
                 value={faqQuestion}
                 onChangeText={setFaqQuestion}
                 placeholder="e.g. How are division commission rates set?"
-                placeholderTextColor="#475569"
+                placeholderTextColor={colors.subtext}
               />
             </View>
 
@@ -836,7 +840,7 @@ export default function HelpScreen() {
                 value={faqAnswer}
                 onChangeText={setFaqAnswer}
                 placeholder="Provide complete explanation..."
-                placeholderTextColor="#475569"
+                placeholderTextColor={colors.subtext}
               />
             </View>
 
@@ -889,7 +893,7 @@ export default function HelpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: "row",
@@ -897,33 +901,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
-  headerTitle: { fontSize: 16, fontWeight: "800", color: "#ffffff" },
-  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
+  headerTitle: { fontSize: 16, fontWeight: "800", color: colors.text },
+  headerSubtitle: { fontSize: 11, color: colors.subtext, marginTop: 1 },
   backButton: { padding: 8 },
   content: { padding: 20 },
   statusCard: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   blueprintCard: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   specsBox: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     padding: 12,
     borderRadius: 10,
     marginTop: 4,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   shortcutRow: { flexDirection: "row", gap: 6, marginTop: 12 },
   shortcutBtn: {
@@ -931,43 +935,44 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     paddingVertical: 8,
     borderRadius: 8,
     gap: 4,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
-  shortcutText: { color: "#FFF", fontSize: 10, fontWeight: "700" },
-  sectionTitle: { fontSize: 13, fontWeight: "800", color: "#64748b", textTransform: "uppercase", marginBottom: 12 },
-  sectionTitleNoMargin: { fontSize: 13, fontWeight: "800", color: "#64748b", textTransform: "uppercase" },
+  shortcutText: { color: colors.text, fontSize: 10, fontWeight: "700" },
+  sectionTitle: { fontSize: 13, fontWeight: "800", color: colors.subtext, textTransform: "uppercase", marginBottom: 12 },
+  sectionTitleNoMargin: { fontSize: 13, fontWeight: "800", color: colors.subtext, textTransform: "uppercase" },
   contactRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
   contactCard: {
     flex: 1,
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
+    borderColor: colors.cardBorder,
     alignItems: "center",
   },
   contactIconBox: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  contactTitle: { color: "#FFF", fontSize: 13, fontWeight: "800", marginTop: 6 },
-  contactSub: { color: "#94a3b8", fontSize: 11, marginTop: 2, textAlign: "center" },
+  contactTitle: { color: colors.text, fontSize: 13, fontWeight: "800", marginTop: 6 },
+  contactSub: { color: colors.subtext, fontSize: 11, marginTop: 2, textAlign: "center" },
   ticketsSection: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   ticketCard: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   priorityBadge: {
     paddingHorizontal: 6,
@@ -998,54 +1003,69 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: colors.surface,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: colors.cardBorder,
   },
-  searchInput: { flex: 1, color: "#ffffff", fontSize: 14 },
+  searchInput: { flex: 1, color: colors.text, fontSize: 14 },
   catPill: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   catPillActive: { backgroundColor: "#EC489922", borderColor: "#EC4899" },
-  catPillText: { color: "#94A3B8", fontSize: 11, fontWeight: "700" },
+  catPillText: { color: colors.subtext, fontSize: 11, fontWeight: "700" },
   catPillTextActive: { color: "#F472B6" },
   faqList: { gap: 10, marginBottom: 24 },
-  faqWrapper: { borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
+  faqWrapper: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
   faqHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16 },
-  faqQuestion: { fontSize: 14, fontWeight: "600", color: "#ffffff", flex: 1, marginRight: 10 },
-  faqBody: { paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)", paddingTop: 12 },
-  faqAnswer: { color: "#94a3b8", fontSize: 13, lineHeight: 20 },
+  faqQuestion: { fontSize: 14, fontWeight: "600", color: colors.text, flex: 1, marginRight: 10 },
+  faqBody: { paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: colors.cardBorder, paddingTop: 12 },
+  faqAnswer: { color: colors.subtext, fontSize: 13, lineHeight: 20 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "center", padding: 20 },
-  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, borderWidth: 1, borderColor: "#334155" },
+  modalCard: { backgroundColor: colors.card, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.cardBorder },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  modalTitle: { fontSize: 17, fontWeight: "800", color: "#ffffff" },
+  modalTitle: { fontSize: 17, fontWeight: "800", color: colors.text },
   inputGroup: { marginBottom: 12 },
-  inputLabel: { color: "#94a3b8", fontSize: 10, fontWeight: "800", marginBottom: 4 },
-  input: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 12, color: "#ffffff", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", fontSize: 13 },
-  priorityPill: { flex: 1, paddingVertical: 8, borderRadius: 8, backgroundColor: "#0F172A", alignItems: "center", borderWidth: 1, borderColor: "#334155" },
+  inputLabel: { color: colors.subtext, fontSize: 10, fontWeight: "800", marginBottom: 4 },
+  input: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    fontSize: 13,
+  },
+  priorityPill: { flex: 1, paddingVertical: 8, borderRadius: 8, backgroundColor: colors.surface, alignItems: "center", borderWidth: 1, borderColor: colors.cardBorder },
   priorityPillActive: { backgroundColor: "#EC489922", borderColor: "#EC4899" },
-  priorityText: { color: "#94A3B8", fontSize: 10, fontWeight: "700" },
+  priorityText: { color: colors.subtext, fontSize: 10, fontWeight: "700" },
   priorityTextActive: { color: "#F472B6" },
   sendBtn: { flexDirection: "row", backgroundColor: "#EC4899", paddingVertical: 14, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 8 },
-  sendBtnText: { color: "#ffffff", fontWeight: "bold", fontSize: 14 },
+  sendBtnText: { color: "#FFF", fontWeight: "bold", fontSize: 14 },
 });
+
 

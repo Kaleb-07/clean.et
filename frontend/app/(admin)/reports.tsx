@@ -18,6 +18,8 @@ import { useSuperAdmin } from "../../hooks/useSuperAdmin";
 import { useAuth } from "../../contexts/AuthContext";
 import { downloadCsvFile, openPrintableReceipt } from "../../src/utils/exportHelpers";
 import API from "../../src/api/client";
+import { useColors } from "../../hooks/useColors";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 interface DownloadedStatement {
   id: string;
@@ -56,10 +58,10 @@ const YEARS = [2024, 2025, 2026, 2027];
 
 const DEFAULT_SECTORS: SectorItem[] = [
   { id: "all", title: "All Sectors" },
-  { id: "car-washing", title: "🚗 Car Wash" },
-  { id: "building-cleaning", title: "🏢 Building Clean" },
-  { id: "laundry", title: "👕 Laundry" },
-  { id: "hvac", title: "❄️ HVAC" },
+  { id: "car-washing", title: "?? Car Wash" },
+  { id: "building-cleaning", title: "?? Building Clean" },
+  { id: "laundry", title: "?? Laundry" },
+  { id: "hvac", title: "?? HVAC" },
 ];
 
 const STORAGE_DOWNLOAD_HISTORY_KEY = "@clean_et_download_history";
@@ -68,6 +70,8 @@ export default function ExecutiveReportsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const colors = useColors();
+  const styles = getStyles(colors);
 
   const isSuperAdmin = user?.role === "super_admin";
   const divisionTitle = user?.tenant?.business_name || "Sector Division";
@@ -451,12 +455,12 @@ export default function ExecutiveReportsScreen() {
         type: "csv",
         recordsCount: items.length,
         totalAmount: totalAmt,
-        summary: `${items.length} records • Total ETB ${totalAmt.toLocaleString("en-ET", { minimumFractionDigits: 2 })}`,
+        summary: `${items.length} records � Total ETB ${totalAmt.toLocaleString("en-ET", { minimumFractionDigits: 2 })}`,
         csvContent,
       });
 
       Alert.alert(
-        "🎉 Statement Exported",
+        "?? Statement Exported",
         `Downloaded as ${filename}.\n\nA permanent record has been logged in the "Downloaded Statements" section below.`
       );
     } catch (e: any) {
@@ -513,12 +517,12 @@ export default function ExecutiveReportsScreen() {
         type: "csv",
         recordsCount: bookingsList.length,
         totalAmount: totalAmt,
-        summary: `Complete booking ledger • ${bookingsList.length} total entries`,
+        summary: `Complete booking ledger � ${bookingsList.length} total entries`,
         csvContent,
       });
 
       Alert.alert(
-        "🎉 Master Ledger Downloaded",
+        "?? Master Ledger Downloaded",
         `Exported as ${filename}.\n\nLogged in the Downloaded Statements section below.`
       );
     } catch (e: any) {
@@ -575,7 +579,7 @@ export default function ExecutiveReportsScreen() {
         csvContent,
       });
 
-      Alert.alert("🎉 CSV Downloaded", `Sub-center station analytics saved to history.`);
+      Alert.alert("?? CSV Downloaded", `Sub-center station analytics saved to history.`);
     } catch (e: any) {
       Alert.alert("Export Error", "Failed to export sub-center CSV.");
     }
@@ -609,7 +613,7 @@ export default function ExecutiveReportsScreen() {
         csvContent,
       });
 
-      Alert.alert("🎉 CSV Downloaded", `Crew roster audit log saved to history.`);
+      Alert.alert("?? CSV Downloaded", `Crew roster audit log saved to history.`);
     } catch (e: any) {
       Alert.alert("Export Error", "Failed to export crew audit CSV.");
     }
@@ -670,7 +674,7 @@ export default function ExecutiveReportsScreen() {
           <body>
             <div class="header">
               <div>
-                <div class="title">🏢 ${divisionTitle.toUpperCase()}</div>
+                <div class="title">?? ${divisionTitle.toUpperCase()}</div>
                 <div class="subtitle">Official Executive Financial Statement & Sector Audit &bull; ${dateStr}</div>
               </div>
               <div style="text-align: right;">
@@ -694,7 +698,7 @@ export default function ExecutiveReportsScreen() {
               </div>
             </div>
 
-            <h3 style="margin-bottom: 8px;">📋 Itemized Booking Ledger</h3>
+            <h3 style="margin-bottom: 8px;">?? Itemized Booking Ledger</h3>
             <table>
               <thead>
                 <tr>
@@ -749,12 +753,12 @@ export default function ExecutiveReportsScreen() {
         type: "pdf",
         recordsCount: items.length,
         totalAmount: Number(gmv),
-        summary: `Printable certified PDF statement • ${items.length} itemized bookings`,
+        summary: `Printable certified PDF statement � ${items.length} itemized bookings`,
         pdfHtml: html,
       });
 
       Alert.alert(
-        "🎉 PDF Generated",
+        "?? PDF Generated",
         `Print dialog opened.\n\nLogged in the Downloaded Statements section below.`
       );
     } catch (e: any) {
@@ -775,7 +779,7 @@ export default function ExecutiveReportsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* ── HEADER ── */}
+      {/* -- HEADER -- */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
@@ -784,12 +788,12 @@ export default function ExecutiveReportsScreen() {
           }}
           style={styles.backBtn}
         >
-          <Ionicons name="arrow-back" size={20} color="#FFF" />
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>
-            {isSuperAdmin ? "👑 Enterprise Governance & Reports" : `🏢 ${divisionTitle} Reports`}
+            {isSuperAdmin ? "?? Enterprise Governance & Reports" : `?? ${divisionTitle} Reports`}
           </Text>
           <Text style={styles.headerSubtitle}>
             {isSuperAdmin
@@ -808,7 +812,7 @@ export default function ExecutiveReportsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* ── FILTER TOOLBAR CARD ── */}
+        {/* -- FILTER TOOLBAR CARD -- */}
         <Animated.View entering={FadeInDown.duration(300)} style={styles.filterCard}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -847,7 +851,7 @@ export default function ExecutiveReportsScreen() {
                 onPress={() => setTimeframe(mode)}
               >
                 <Text style={[styles.pillText, timeframe === mode && styles.pillTextActive]}>
-                  {mode === "monthly" ? "📅 Monthly" : mode === "annual" ? "📊 Annual" : "⚡ Custom Range"}
+                  {mode === "monthly" ? "?? Monthly" : mode === "annual" ? "?? Annual" : "? Custom Range"}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -938,7 +942,7 @@ export default function ExecutiveReportsScreen() {
                   onPress={() => setSelectedTenantId("all")}
                 >
                   <Text style={[styles.pillText, selectedTenantId === "all" && styles.pillTextActive]}>
-                    🏢 All Divisions
+                    ?? All Divisions
                   </Text>
                 </TouchableOpacity>
 
@@ -974,7 +978,7 @@ export default function ExecutiveReportsScreen() {
           </ScrollView>
         </Animated.View>
 
-        {/* ── REPORT CONTENT ── */}
+        {/* -- REPORT CONTENT -- */}
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color="#10B981" />
@@ -991,7 +995,7 @@ export default function ExecutiveReportsScreen() {
                   <Text style={styles.reportTitle}>{reportData?.period_title || "Executive Financial Statement"}</Text>
                   <Text style={{ color: "#94A3B8", fontSize: 12, marginTop: 3 }}>
                     {isSuperAdmin
-                      ? `Platform Commission Rate: ${reportData?.commission_rate || 10}% • Currency: ${reportData?.currency || "ETB"}`
+                      ? `Platform Commission Rate: ${reportData?.commission_rate || 10}% � Currency: ${reportData?.currency || "ETB"}`
                       : `Certified Financial Statement & Operational Audit for ${divisionTitle}`}
                   </Text>
                 </View>
@@ -1002,7 +1006,7 @@ export default function ExecutiveReportsScreen() {
               </View>
             </View>
 
-            {/* ── 4 EXECUTIVE KPI CARDS ── */}
+            {/* -- 4 EXECUTIVE KPI CARDS -- */}
             <View style={styles.kpiGrid}>
               {isSuperAdmin ? (
                 <>
@@ -1107,7 +1111,7 @@ export default function ExecutiveReportsScreen() {
               )}
             </View>
 
-            {/* ── EXPORT ACTION TOOLBAR ── */}
+            {/* -- EXPORT ACTION TOOLBAR -- */}
             <View style={styles.exportToolbar}>
               <TouchableOpacity
                 style={[styles.exportBtn, { backgroundColor: "#064E3B", borderColor: "#10B98177" }]}
@@ -1136,10 +1140,10 @@ export default function ExecutiveReportsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* ── ADDITIONAL COMPREHENSIVE EXPORTS ── */}
+            {/* -- ADDITIONAL COMPREHENSIVE EXPORTS -- */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionCardTitle}>
-                📑 Specialized Financial & Operational Statements
+                ?? Specialized Financial & Operational Statements
               </Text>
 
               <View style={{ gap: 8 }}>
@@ -1147,7 +1151,7 @@ export default function ExecutiveReportsScreen() {
                   <Ionicons name="document-text" size={20} color="#34D399" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.statementTitle}>
-                      📄 Master Financial Booking Ledger (.CSV)
+                      ?? Master Financial Booking Ledger (.CSV)
                     </Text>
                     <Text style={styles.statementSub}>Complete booking log with customer names, phones, prices & status.</Text>
                   </View>
@@ -1157,7 +1161,7 @@ export default function ExecutiveReportsScreen() {
                 <TouchableOpacity onPress={handleExportSubCenterCSV} style={styles.statementRow}>
                   <Ionicons name="business" size={20} color="#60A5FA" />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statementTitle}>🏬 Sub-Center Station Analytics (.CSV)</Text>
+                    <Text style={styles.statementTitle}>?? Sub-Center Station Analytics (.CSV)</Text>
                     <Text style={styles.statementSub}>Branch-by-branch revenue contribution & booking volume breakdown.</Text>
                   </View>
                   <Ionicons name="download-outline" size={18} color="#60A5FA" />
@@ -1166,7 +1170,7 @@ export default function ExecutiveReportsScreen() {
                 <TouchableOpacity onPress={handleExportCrewAuditCSV} style={styles.statementRow}>
                   <Ionicons name="construct" size={20} color="#A78BFA" />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.statementTitle}>👷 Field Crew Fulfillment Audit (.CSV)</Text>
+                    <Text style={styles.statementTitle}>?? Field Crew Fulfillment Audit (.CSV)</Text>
                     <Text style={styles.statementSub}>Technician roster, phone contacts & real-time availability status.</Text>
                   </View>
                   <Ionicons name="download-outline" size={18} color="#A78BFA" />
@@ -1174,10 +1178,10 @@ export default function ExecutiveReportsScreen() {
               </View>
             </View>
 
-            {/* ── SUPER ADMIN ONLY: DEPARTMENT BREAKDOWN ── */}
+            {/* -- SUPER ADMIN ONLY: DEPARTMENT BREAKDOWN -- */}
             {isSuperAdmin && reportData?.department_breakdown?.length > 0 && (
               <View style={styles.sectionCard}>
-                <Text style={styles.sectionCardTitle}>🏢 Division / Department Performance</Text>
+                <Text style={styles.sectionCardTitle}>?? Division / Department Performance</Text>
                 {reportData.department_breakdown.map((dept: any) => (
                   <View key={dept.tenant_id} style={styles.deptRow}>
                     <View style={{ flex: 1 }}>
@@ -1199,11 +1203,11 @@ export default function ExecutiveReportsScreen() {
               </View>
             )}
 
-            {/* ── ITEMIZED TRANSACTIONS PREVIEW TABLE ── */}
+            {/* -- ITEMIZED TRANSACTIONS PREVIEW TABLE -- */}
             <View style={styles.sectionCard}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <Text style={styles.sectionCardTitle}>
-                  📋 Itemized {isSuperAdmin ? "Platform" : divisionTitle} Ledger ({displayedItems.length})
+                  ?? Itemized {isSuperAdmin ? "Platform" : divisionTitle} Ledger ({displayedItems.length})
                 </Text>
               </View>
 
@@ -1244,11 +1248,11 @@ export default function ExecutiveReportsScreen() {
                         </View>
                       </View>
                       <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 3 }}>
-                        👤 {item.customer_name} {item.phone ? `(${item.phone})` : ""} &bull; 🗓️ {item.date}
+                        ?? {item.customer_name} {item.phone ? `(${item.phone})` : ""} &bull; ??? {item.date}
                       </Text>
                       {item.address ? (
                         <Text style={{ color: "#64748B", fontSize: 10, marginTop: 1 }}>
-                          📍 {item.address}
+                          ?? {item.address}
                         </Text>
                       ) : null}
                     </View>
@@ -1266,7 +1270,7 @@ export default function ExecutiveReportsScreen() {
               )}
             </View>
 
-            {/* ── 📥 DOWNLOADED STATEMENTS & EXPORT HISTORY ── */}
+            {/* -- ?? DOWNLOADED STATEMENTS & EXPORT HISTORY -- */}
             {/* User Request: "once download keep it in the page and buttom" */}
             <View style={[styles.sectionCard, { borderColor: "#10B98155", borderWidth: 1.5 }]}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -1276,7 +1280,7 @@ export default function ExecutiveReportsScreen() {
                   </View>
                   <View>
                     <Text style={styles.sectionCardTitle}>
-                      📥 Downloaded Statements & Export History
+                      ?? Downloaded Statements & Export History
                     </Text>
                     <Text style={{ color: "#94A3B8", fontSize: 11 }}>
                       Locally preserved records of downloaded CSVs and printable receipts
@@ -1320,7 +1324,7 @@ export default function ExecutiveReportsScreen() {
                           <Text style={styles.historyTitle}>{stmt.title}</Text>
                           <Text style={styles.historyFilename}>{stmt.filename}</Text>
                           <Text style={styles.historyMeta}>
-                            🗓️ {stmt.timestamp} &bull; {stmt.summary}
+                            ??? {stmt.timestamp} &bull; {stmt.summary}
                           </Text>
                         </View>
 
@@ -1362,16 +1366,16 @@ export default function ExecutiveReportsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0B0F19" },
+const getStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: colors.cardBorder,
     gap: 12,
   },
   backBtn: {
@@ -1382,40 +1386,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { fontSize: 16, fontWeight: "800", color: "#F8FAFC" },
-  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
+  headerTitle: { fontSize: 16, fontWeight: "800", color: colors.text },
+  headerSubtitle: { fontSize: 11, color: colors.subtext, marginTop: 1 },
   refreshBtn: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   scrollContent: { padding: 16, paddingBottom: 40 },
   filterCard: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
-  filterCardTitle: { fontSize: 15, fontWeight: "800", color: "#F8FAFC" },
+  filterCardTitle: { fontSize: 15, fontWeight: "800", color: colors.text },
   resetBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     gap: 4,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
-  resetBtnText: { color: "#94A3B8", fontSize: 11, fontWeight: "700" },
+  resetBtnText: { color: colors.subtext, fontSize: 11, fontWeight: "700" },
   scopeBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -1428,46 +1432,46 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   scopeBadgeText: { color: "#34D399", fontSize: 10, fontWeight: "800" },
-  inputLabel: { fontSize: 10, fontWeight: "800", color: "#94A3B8", marginTop: 12, marginBottom: 5 },
+  inputLabel: { fontSize: 10, fontWeight: "800", color: colors.subtext, marginTop: 12, marginBottom: 5 },
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   pillBtn: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   pillBtnActive: { backgroundColor: "#10B98122", borderColor: "#10B981" },
-  pillText: { color: "#94A3B8", fontSize: 11, fontWeight: "700" },
+  pillText: { color: colors.subtext, fontSize: 11, fontWeight: "700" },
   pillTextActive: { color: "#34D399" },
   presetBtn: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   presetText: { color: "#60A5FA", fontSize: 11, fontWeight: "700" },
   textInput: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    color: "#F8FAFC",
+    color: colors.text,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     fontSize: 12,
   },
   loadingBox: { padding: 40, alignItems: "center", justifyContent: "center" },
   reportHeaderCard: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   reportTitle: { fontSize: 17, fontWeight: "800", color: "#10B981" },
   liveIndicator: {
@@ -1487,15 +1491,15 @@ const styles = StyleSheet.create({
   kpiCard: {
     flex: 1,
     minWidth: "47%",
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   kpiHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  kpiLabel: { fontSize: 10, color: "#94A3B8", fontWeight: "800", letterSpacing: 0.5 },
-  kpiValue: { fontSize: 17, fontWeight: "800", color: "#F8FAFC", marginTop: 6 },
+  kpiLabel: { fontSize: 10, color: colors.subtext, fontWeight: "800", letterSpacing: 0.5 },
+  kpiValue: { fontSize: 17, fontWeight: "800", color: colors.text, marginTop: 6 },
   kpiSub: { fontSize: 10, color: "#64748B", marginTop: 2 },
   exportToolbar: { flexDirection: "row", gap: 10, marginBottom: 16 },
   exportBtn: {
@@ -1510,57 +1514,57 @@ const styles = StyleSheet.create({
   },
   exportBtnText: { fontSize: 12, fontWeight: "800" },
   sectionCard: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
-  sectionCardTitle: { fontSize: 14, fontWeight: "800", color: "#F8FAFC" },
+  sectionCardTitle: { fontSize: 14, fontWeight: "800", color: colors.text },
   statementRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     gap: 10,
   },
   statementTitle: { color: "#FFF", fontWeight: "700", fontSize: 13 },
-  statementSub: { color: "#94A3B8", fontSize: 11, marginTop: 2 },
+  statementSub: { color: colors.subtext, fontSize: 11, marginTop: 2 },
   deptRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     padding: 12,
     borderRadius: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     gap: 8,
   },
-  searchInput: { flex: 1, color: "#F8FAFC", fontSize: 12 },
+  searchInput: { flex: 1, color: colors.text, fontSize: 12 },
   tableRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: colors.cardBorder,
   },
   statusTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   statusCompleted: { backgroundColor: "#10B98122" },
@@ -1587,14 +1591,14 @@ const styles = StyleSheet.create({
   },
   clearHistoryText: { color: "#EF4444", fontSize: 11, fontWeight: "700" },
   emptyHistoryBox: { padding: 24, alignItems: "center" },
-  emptyHistoryTitle: { color: "#CBD5E1", fontSize: 13, fontWeight: "700", marginTop: 8 },
+  emptyHistoryTitle: { color: colors.subtext, fontSize: 13, fontWeight: "700", marginTop: 8 },
   emptyHistorySub: { color: "#64748B", fontSize: 11, textAlign: "center", marginTop: 4, lineHeight: 16 },
   historyCard: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   fileTypeBadge: {
     paddingHorizontal: 6,
@@ -1610,7 +1614,7 @@ const styles = StyleSheet.create({
   fileTypeText: { fontSize: 9, fontWeight: "800" },
   historyTitle: { color: "#FFF", fontSize: 12, fontWeight: "700" },
   historyFilename: { color: "#60A5FA", fontSize: 10, marginTop: 1 },
-  historyMeta: { color: "#94A3B8", fontSize: 10, marginTop: 3 },
+  historyMeta: { color: colors.subtext, fontSize: 10, marginTop: 3 },
   reDownloadBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1624,6 +1628,7 @@ const styles = StyleSheet.create({
   deleteHistoryBtn: {
     padding: 5,
     borderRadius: 6,
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
   },
 });
+

@@ -85,34 +85,6 @@ export default function PrivacyScreen() {
     }
   };
 
-  const handleDownloadData = () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      "Download My Data",
-      `An archive of your account data (profile, bookings, addresses, invoices) is being prepared and will be sent to ${user?.email || "your registered email"}.`,
-      [{ text: "OK" }]
-    );
-  };
-
-  const handleDeleteAccount = () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert(
-      "Delete Account",
-      "Are you sure you want to permanently delete your Clean.et account? All your bookings, vehicles, and saved data will be erased. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete Account",
-          style: "destructive",
-          onPress: async () => {
-            await logout();
-            router.replace("/(auth)/login");
-          },
-        },
-      ]
-    );
-  };
-
   const handleLogout = async () => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert("Log Out", "Are you sure you want to log out?", [
@@ -145,7 +117,12 @@ export default function PrivacyScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? "#0B0F19" : "#F8FAFC" }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? "#0B0F19" : "#F8FAFC" },
+      ]}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 60 }}
@@ -153,7 +130,10 @@ export default function PrivacyScreen() {
         {/* ── TOP RED BANNER (Matches Screenshot) ── */}
         <LinearGradient
           colors={["#EF4444", "#DC2626"]}
-          style={[styles.headerBanner, { paddingTop: Math.max(insets.top + 8, 28) }]}
+          style={[
+            styles.headerBanner,
+            { paddingTop: Math.max(insets.top + 8, 28) },
+          ]}
         >
           {/* Top Bar: Back, Title, Edit */}
           <View style={styles.topBar}>
@@ -163,7 +143,10 @@ export default function PrivacyScreen() {
 
             <Text style={styles.topBarTitle}>My Profile</Text>
 
-            <Pressable onPress={() => router.replace("/(tabs)/profile")} style={styles.headerIconButton}>
+            <Pressable
+              onPress={() => router.replace("/(tabs)/profile")}
+              style={styles.headerIconButton}
+            >
               <Pencil size={18} color="#ffffff" strokeWidth={2.2} />
             </Pressable>
           </View>
@@ -194,40 +177,102 @@ export default function PrivacyScreen() {
         <View style={styles.tabsRow}>
           <Pressable
             onPress={() => router.replace("/(tabs)/profile")}
-            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+            style={[
+              styles.tabPill,
+              styles.tabPillInactive,
+              { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" },
+            ]}
           >
-            <UserIcon size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
-            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>Info</Text>
+            <UserIcon
+              size={18}
+              color={isDark ? "#94A3B8" : "#64748B"}
+              strokeWidth={2}
+            />
+            <Text
+              style={[
+                styles.tabPillText,
+                { color: isDark ? "#94A3B8" : "#64748B" },
+              ]}
+            >
+              Info
+            </Text>
           </Pressable>
 
           <Pressable
             onPress={() => router.push("/(tabs)/booking")}
-            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+            style={[
+              styles.tabPill,
+              styles.tabPillInactive,
+              { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" },
+            ]}
           >
-            <FileText size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
-            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>History</Text>
+            <FileText
+              size={18}
+              color={isDark ? "#94A3B8" : "#64748B"}
+              strokeWidth={2}
+            />
+            <Text
+              style={[
+                styles.tabPillText,
+                { color: isDark ? "#94A3B8" : "#64748B" },
+              ]}
+            >
+              History
+            </Text>
           </Pressable>
 
           <Pressable
             onPress={() => router.push("/vehicles")}
-            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+            style={[
+              styles.tabPill,
+              styles.tabPillInactive,
+              { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" },
+            ]}
           >
-            <Heart size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
-            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>Saved</Text>
+            <Heart
+              size={18}
+              color={isDark ? "#94A3B8" : "#64748B"}
+              strokeWidth={2}
+            />
+            <Text
+              style={[
+                styles.tabPillText,
+                { color: isDark ? "#94A3B8" : "#64748B" },
+              ]}
+            >
+              Saved
+            </Text>
           </Pressable>
 
           <Pressable
             onPress={() => router.replace("/(tabs)/profile")}
-            style={[styles.tabPill, styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }]}
+            style={[
+              styles.tabPill,
+              styles.tabPillInactive,
+              { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" },
+            ]}
           >
-            <MapPin size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
-            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>Address</Text>
+            <MapPin
+              size={18}
+              color={isDark ? "#94A3B8" : "#64748B"}
+              strokeWidth={2}
+            />
+            <Text
+              style={[
+                styles.tabPillText,
+                { color: isDark ? "#94A3B8" : "#64748B" },
+              ]}
+            >
+              Address
+            </Text>
           </Pressable>
 
           {/* Active Settings Tab */}
           <Pressable style={[styles.tabPill, styles.tabPillActive]}>
             <SettingsIcon size={18} color="#ffffff" strokeWidth={2} />
-            <Text style={[styles.tabPillText, { color: "#ffffff" }]}>Settings</Text>
+            <Text style={[styles.tabPillText, { color: "#ffffff" }]}>
+              Settings
+            </Text>
           </Pressable>
         </View>
 
@@ -245,9 +290,18 @@ export default function PrivacyScreen() {
                 },
               ]}
             >
-              <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+              <ArrowLeft
+                size={18}
+                color={isDark ? "#FFFFFF" : "#0F172A"}
+                strokeWidth={2.4}
+              />
             </Pressable>
-            <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+            <Text
+              style={[
+                styles.subPageTitleText,
+                { color: isDark ? "#FFFFFF" : "#0F172A" },
+              ]}
+            >
               Privacy & Security
             </Text>
           </View>
@@ -265,10 +319,20 @@ export default function PrivacyScreen() {
             {/* 1. Two-Factor Authentication */}
             <View style={styles.settingsRowItem}>
               <View style={styles.settingsTextCol}>
-                <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.settingsItemLabel,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Two-Factor Authentication
                 </Text>
-                <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.settingsItemSubtitle,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Add an extra layer of security
                 </Text>
               </View>
@@ -280,15 +344,30 @@ export default function PrivacyScreen() {
               />
             </View>
 
-            <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+            <View
+              style={[
+                styles.settingsDivider,
+                { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+              ]}
+            />
 
             {/* 2. Biometric Login */}
             <View style={styles.settingsRowItem}>
               <View style={styles.settingsTextCol}>
-                <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.settingsItemLabel,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Biometric Login
                 </Text>
-                <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.settingsItemSubtitle,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Use fingerprint or face recognition
                 </Text>
               </View>
@@ -300,15 +379,30 @@ export default function PrivacyScreen() {
               />
             </View>
 
-            <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+            <View
+              style={[
+                styles.settingsDivider,
+                { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+              ]}
+            />
 
             {/* 3. Login Alerts */}
             <View style={styles.settingsRowItem}>
               <View style={styles.settingsTextCol}>
-                <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.settingsItemLabel,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Login Alerts
                 </Text>
-                <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.settingsItemSubtitle,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Get notified on new logins
                 </Text>
               </View>
@@ -321,53 +415,6 @@ export default function PrivacyScreen() {
             </View>
           </View>
 
-          {/* Data Management Card (Matches Screenshot) */}
-          <View
-            style={[
-              styles.dataManagementCardBox,
-              {
-                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                borderColor: isDark ? "#334155" : "#E2E8F0",
-              },
-            ]}
-          >
-            <Text style={[styles.dataManagementHeading, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
-              Data Management
-            </Text>
-
-            {/* Download My Data Button */}
-            <Pressable
-              onPress={handleDownloadData}
-              style={({ pressed }) => [
-                styles.downloadDataBtn,
-                {
-                  backgroundColor: isDark ? "#0F172A" : "#FFFFFF",
-                  borderColor: isDark ? "#334155" : "#E2E8F0",
-                },
-                pressed && { opacity: 0.8 },
-              ]}
-            >
-              <Text style={[styles.downloadDataBtnText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
-                Download My Data
-              </Text>
-            </Pressable>
-
-            {/* Delete Account Button */}
-            <Pressable
-              onPress={handleDeleteAccount}
-              style={({ pressed }) => [
-                styles.deleteAccountBtn,
-                {
-                  backgroundColor: isDark ? "rgba(239, 68, 68, 0.08)" : "#FFFFFF",
-                  borderColor: isDark ? "rgba(239, 68, 68, 0.3)" : "#FECACA",
-                },
-                pressed && { opacity: 0.8 },
-              ]}
-            >
-              <Text style={styles.deleteAccountBtnText}>Delete Account</Text>
-            </Pressable>
-          </View>
-
           {/* LOG OUT BUTTON (Matches Screenshot) */}
           <Pressable
             onPress={handleLogout}
@@ -376,7 +423,12 @@ export default function PrivacyScreen() {
               pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
             ]}
           >
-            <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
+            <LogOut
+              size={18}
+              color="#EF4444"
+              strokeWidth={2.2}
+              style={{ marginRight: 8 }}
+            />
             <Text style={styles.screenshotLogoutText}>Log Out</Text>
           </Pressable>
         </View>
@@ -573,49 +625,6 @@ const styles = StyleSheet.create({
   },
   settingsDivider: {
     height: 1,
-  },
-
-  // ── Data Management Card ──
-  dataManagementCardBox: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  dataManagementHeading: {
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 16,
-    letterSpacing: -0.2,
-  },
-  downloadDataBtn: {
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  downloadDataBtnText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  deleteAccountBtn: {
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  deleteAccountBtnText: {
-    color: "#EF4444",
-    fontSize: 14,
-    fontWeight: "600",
   },
 
   // ── Log Out Button ──

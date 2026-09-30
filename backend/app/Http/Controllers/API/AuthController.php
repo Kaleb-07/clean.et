@@ -79,7 +79,7 @@ class AuthController extends Controller
             'name'       => 'sometimes|required|string|max:255',
             'email'      => ['sometimes', 'nullable', 'email', Rule::unique('users', 'email')->ignore($user->id)],
             'phone'      => ['sometimes', 'nullable', 'string', 'max:20', Rule::unique('users', 'phone')->ignore($user->id)],
-            'language'   => 'sometimes|required|string|in:en,am,om,ti',
+            'language'   => 'sometimes|required|string|in:en,am',
             'push_token' => 'sometimes|nullable|string|max:500',
         ], [
             'name.required' => 'Full name cannot be empty.',

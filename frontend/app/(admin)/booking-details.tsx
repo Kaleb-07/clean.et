@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,11 +12,16 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useColors } from "../../hooks/useColors";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function BookingDetails() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const { t } = useLanguage();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -51,13 +56,13 @@ export default function BookingDetails() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return { label: "COMPLETED", color: "#34D399", bg: "#10B98122", border: "#10B98155" };
+        return { label: t("stage_completed").toUpperCase(), color: "#34D399", bg: "#10B98122", border: "#10B98155" };
       case "in_progress":
-        return { label: "DISPATCHED", color: "#60A5FA", bg: "#3B82F622", border: "#3B82F655" };
+        return { label: t("stage_cleaning").toUpperCase(), color: "#60A5FA", bg: "#3B82F622", border: "#3B82F655" };
       case "pending":
-        return { label: "PENDING QUEUE", color: "#FBBF24", bg: "#F59E0B22", border: "#F59E0B55" };
+        return { label: t("stage_received").toUpperCase(), color: "#FBBF24", bg: "#F59E0B22", border: "#F59E0B55" };
       default:
-        return { label: (status || "UNKNOWN").toUpperCase(), color: "#94A3B8", bg: "#47556922", border: "#47556955" };
+        return { label: (status || "UNKNOWN").toUpperCase(), color: colors.subtext, bg: colors.isDark ? "#47556922" : "#E2E8F0", border: colors.cardBorder };
     }
   };
 
@@ -73,7 +78,7 @@ export default function BookingDetails() {
     return (
       <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
         <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>Booking record not found.</Text>
+        <Text style={styles.errorText}>{t("booking_not_found")}</Text>
         <TouchableOpacity
           onPress={() => {
             if (router.canGoBack()) router.back();
@@ -81,7 +86,7 @@ export default function BookingDetails() {
           }}
           style={styles.errorBtn}
         >
-          <Text style={styles.errorBtnText}>Return to Dispatch</Text>
+          <Text style={styles.errorBtnText}>{t("return_to_dispatch")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -97,12 +102,12 @@ export default function BookingDetails() {
   };
 
   const LIFECYCLE_STEPS = [
-    { key: "pending", label: "Received", icon: "time-outline", color: "#FBBF24" },
-    { key: "confirmed", label: "Confirmed", icon: "checkmark-circle-outline", color: "#60A5FA" },
-    { key: "driver_assigned", label: "Driver Assigned", icon: "person-add-outline", color: "#818CF8" },
-    { key: "in_progress", label: "Cleaning", icon: "play-circle-outline", color: "#C084FC" },
-    { key: "completed", label: "Completed", icon: "checkmark-done-circle-outline", color: "#34D399" },
-    { key: "invoiced", label: "Invoiced", icon: "document-text-outline", color: "#2DD4BF" },
+    { key: "pending", label: t("stage_received"), icon: "time-outline", color: "#FBBF24" },
+    { key: "confirmed", label: t("stage_confirmed"), icon: "checkmark-circle-outline", color: "#60A5FA" },
+    { key: "driver_assigned", label: t("stage_assigned"), icon: "person-add-outline", color: "#818CF8" },
+    { key: "in_progress", label: t("stage_cleaning"), icon: "play-circle-outline", color: "#C084FC" },
+    { key: "completed", label: t("stage_completed"), icon: "checkmark-done-circle-outline", color: "#34D399" },
+    { key: "invoiced", label: t("stage_invoiced"), icon: "document-text-outline", color: "#2DD4BF" },
   ];
 
   const badge = getStatusBadge(booking.status);
@@ -118,11 +123,11 @@ export default function BookingDetails() {
           }}
           style={styles.backBtn}
         >
-          <Ionicons name="arrow-back" size={20} color="#FFF" />
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Booking Record #{booking.id}</Text>
+          <Text style={styles.headerTitle}>{t("booking_record_title")} #{booking.id}</Text>
           <Text style={styles.headerSubtitle}>
             🏢 {booking.tenant?.business_name || "Platform Direct"}
           </Text>
@@ -134,7 +139,7 @@ export default function BookingDetails() {
         <LinearGradient colors={["#1E1B4B", "#312E81"]} style={styles.heroCard}>
           <View style={styles.heroRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.heroLabel}>Total Booking Amount</Text>
+              <Text style={styles.heroLabel}>{t("total_booking_amount")}</Text>
               <Text style={styles.heroValue}>
                 ETB {Number(booking.service?.price || 0).toLocaleString("en-ET", { minimumFractionDigits: 2 })}
               </Text>
@@ -147,7 +152,7 @@ export default function BookingDetails() {
 
         {/* ── 🔄 STAGE LIFECYCLE TRACKER ── */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Job Lifecycle Stage (Tap to Update Stage)</Text>
+          <Text style={styles.sectionTitle}>{t("job_lifecycle_stage")}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 }}>
               {LIFECYCLE_STEPS.map((step, idx) => {
@@ -162,8 +167,8 @@ export default function BookingDetails() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      backgroundColor: isCurrent ? step.color + "33" : isPast ? "#1E293B" : "#0F172A",
-                      borderColor: isCurrent ? step.color : isPast ? "#34D39955" : "#334155",
+                      backgroundColor: isCurrent ? step.color + "33" : isPast ? (colors.isDark ? "#1E293B" : "#E2E8F0") : (colors.isDark ? "#0F172A" : colors.card),
+                      borderColor: isCurrent ? step.color : isPast ? "#34D39955" : colors.cardBorder,
                       borderWidth: 1.5,
                       paddingHorizontal: 10,
                       paddingVertical: 6,
@@ -174,11 +179,11 @@ export default function BookingDetails() {
                     <Ionicons
                       name={isPast ? "checkmark-circle" : (step.icon as any)}
                       size={14}
-                      color={isCurrent ? step.color : isPast ? "#34D399" : "#64748B"}
+                      color={isCurrent ? step.color : isPast ? "#34D399" : colors.subtext}
                     />
                     <Text
                       style={{
-                        color: isCurrent ? "#FFF" : isPast ? "#CBD5E1" : "#64748B",
+                        color: isCurrent ? colors.text : isPast ? colors.text : colors.subtext,
                         fontSize: 11,
                         fontWeight: isCurrent ? "800" : "600",
                       }}
@@ -194,49 +199,49 @@ export default function BookingDetails() {
 
         {/* DETAILS SECTION */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Customer Details</Text>
+          <Text style={styles.sectionTitle}>{t("customer_details")}</Text>
           <View style={styles.infoRow}>
             <Ionicons name="person" size={16} color="#60A5FA" />
-            <Text style={styles.infoLabel}>Name:</Text>
+            <Text style={styles.infoLabel}>{t("client_name")}</Text>
             <Text style={styles.infoValue}>{booking.customer?.name || "Anonymous Client"}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="mail" size={16} color="#60A5FA" />
-            <Text style={styles.infoLabel}>Email:</Text>
+            <Text style={styles.infoLabel}>{t("client_email")}</Text>
             <Text style={styles.infoValue}>{booking.customer?.email || "No email registered"}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="call" size={16} color="#60A5FA" />
-            <Text style={styles.infoLabel}>Phone:</Text>
+            <Text style={styles.infoLabel}>{t("client_phone")}</Text>
             <Text style={styles.infoValue}>{booking.customer?.phone || "No phone registered"}</Text>
           </View>
         </View>
 
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Service Scope</Text>
+          <Text style={styles.sectionTitle}>{t("service_scope")}</Text>
           <View style={styles.infoRow}>
             <Ionicons name="cut" size={16} color="#34D399" />
-            <Text style={styles.infoLabel}>Service:</Text>
+            <Text style={styles.infoLabel}>{t("service_label")}</Text>
             <Text style={styles.infoValue}>{booking.service?.name || "Standard Clean"}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="calendar" size={16} color="#34D399" />
-            <Text style={styles.infoLabel}>Date:</Text>
+            <Text style={styles.infoLabel}>{t("date_label")}</Text>
             <Text style={styles.infoValue}>{booking.booking_date}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="time" size={16} color="#34D399" />
-            <Text style={styles.infoLabel}>Time:</Text>
+            <Text style={styles.infoLabel}>{t("time_label")}</Text>
             <Text style={styles.infoValue}>{booking.booking_time}</Text>
           </View>
         </View>
 
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Assigned Dispatch Crew</Text>
+          <Text style={styles.sectionTitle}>{t("assigned_dispatch_crew")}</Text>
           <View style={styles.infoRow}>
             <Ionicons name="construct" size={16} color="#A78BFA" />
-            <Text style={styles.infoLabel}>Technician:</Text>
-            <Text style={styles.infoValue}>{booking.staff?.name || "Unassigned"}</Text>
+            <Text style={styles.infoLabel}>{t("technician_label")}</Text>
+            <Text style={styles.infoValue}>{booking.staff?.name || t("unassigned_label")}</Text>
           </View>
         </View>
       </ScrollView>
@@ -244,42 +249,50 @@ export default function BookingDetails() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F172A" },
-  center: { justifyContent: "center", alignItems: "center", padding: 20 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#1E293B",
-    borderBottomWidth: 1,
-    borderBottomColor: "#334155",
-    gap: 12,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#334155",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#F8FAFC" },
-  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
-  scrollContent: { padding: 16, paddingBottom: 40 },
-  heroCard: { padding: 18, borderRadius: 16, marginBottom: 16 },
-  heroRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  heroLabel: { fontSize: 12, color: "#DBEAFE", fontWeight: "500" },
-  heroValue: { fontSize: 24, fontWeight: "800", color: "#FFF", marginTop: 4 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
-  statusText: { fontSize: 11, fontWeight: "800" },
-  sectionCard: { backgroundColor: "#1E293B", borderRadius: 14, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: "#334155" },
-  sectionTitle: { fontSize: 14, fontWeight: "800", color: "#FFF", marginBottom: 10 },
-  infoRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  infoLabel: { fontSize: 12, color: "#94A3B8", width: 80, marginLeft: 8 },
-  infoValue: { fontSize: 13, fontWeight: "700", color: "#F8FAFC", flex: 1 },
-  errorText: { color: "#F87171", fontSize: 14, fontWeight: "700", marginTop: 10 },
-  errorBtn: { backgroundColor: "#334155", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, marginTop: 14 },
-  errorBtnText: { color: "#FFF", fontWeight: "700", fontSize: 12 },
-});
+const getStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    center: { justifyContent: "center", alignItems: "center", padding: 20 },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+      gap: 12,
+    },
+    backBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: colors.isDark ? "#334155" : colors.cardBorder,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    headerTitle: { fontSize: 18, fontWeight: "700", color: colors.text },
+    headerSubtitle: { fontSize: 11, color: colors.subtext, marginTop: 1 },
+    scrollContent: { padding: 16, paddingBottom: 40 },
+    heroCard: { padding: 18, borderRadius: 16, marginBottom: 16 },
+    heroRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    heroLabel: { fontSize: 12, color: "#DBEAFE", fontWeight: "500" },
+    heroValue: { fontSize: 24, fontWeight: "800", color: "#FFF", marginTop: 4 },
+    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+    statusText: { fontSize: 11, fontWeight: "800" },
+    sectionCard: {
+      backgroundColor: colors.card,
+      borderRadius: 14,
+      padding: 16,
+      marginBottom: 14,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    sectionTitle: { fontSize: 14, fontWeight: "800", color: colors.text, marginBottom: 10 },
+    infoRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+    infoLabel: { fontSize: 12, color: colors.subtext, width: 80, marginLeft: 8 },
+    infoValue: { fontSize: 13, fontWeight: "700", color: colors.text, flex: 1 },
+    errorText: { color: "#F87171", fontSize: 14, fontWeight: "700", marginTop: 10 },
+    errorBtn: { backgroundColor: colors.isDark ? "#334155" : colors.cardBorder, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, marginTop: 14 },
+    errorBtnText: { color: colors.text, fontWeight: "700", fontSize: 12 },
+  });

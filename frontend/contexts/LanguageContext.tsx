@@ -8,7 +8,9 @@ interface LanguageContextType {
   t: (key: string) => string;
 }
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LanguageContext = createContext<LanguageContextType | undefined>(
+  undefined,
+);
 
 const STORAGE_KEY = "@app_language";
 
@@ -22,7 +24,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const loadLanguage = async () => {
     try {
       const saved = await AsyncStorage.getItem(STORAGE_KEY);
-      if (saved && (saved === "English" || saved === "Amharic" || saved === "Oromo" || saved === "French" || saved === "Spanish")) {
+      if (saved && (saved === "English" || saved === "Amharic")) {
         setLang(saved as Language);
       }
     } catch (e) {
@@ -41,7 +43,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const t = (key: string): string => {
     try {
-      return translations[language]?.[key] || translations["English"]?.[key] || key;
+      return (
+        translations[language]?.[key] || translations["English"]?.[key] || key
+      );
     } catch (e) {
       return key;
     }

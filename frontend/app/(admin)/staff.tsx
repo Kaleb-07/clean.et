@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import API from "../../src/api/client";
+import { useColors } from "../../hooks/useColors";
+import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
 
 /* ================= TYPES ================= */
@@ -119,6 +121,9 @@ export default function AdminStaff() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const colors = useColors();
+  const { t } = useLanguage();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const isSuperAdmin = user?.role === "super_admin";
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -445,7 +450,7 @@ export default function AdminStaff() {
           }}
           style={styles.backBtn}
         >
-          <Ionicons name="arrow-back" size={20} color="#FFF" />
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
@@ -946,16 +951,16 @@ export default function AdminStaff() {
 }
 
 /* ================= STYLES ================= */
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F172A" },
+const getStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: colors.cardBorder,
     gap: 12,
   },
   backBtn: {
@@ -966,8 +971,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#F8FAFC" },
-  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: colors.text },
+  headerSubtitle: { fontSize: 11, color: colors.subtext, marginTop: 1 },
   refreshBtn: { padding: 6 },
   scrollContent: { padding: 16, paddingBottom: 40 },
   heroCard: { padding: 18, borderRadius: 16, marginBottom: 14 },
@@ -984,23 +989,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(52, 211, 153, 0.3)",
   },
-  filterChip: { backgroundColor: "#1E293B", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "#334155" },
+  filterChip: { backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.cardBorder },
   filterChipActive: { backgroundColor: "#059669", borderColor: "#10B981" },
-  filterChipText: { color: "#94A3B8", fontSize: 11, fontWeight: "700" },
+  filterChipText: { color: colors.subtext, fontSize: 11, fontWeight: "700" },
   filterChipTextActive: { color: "#FFF" },
   actionBar: { flexDirection: "row", marginBottom: 16, gap: 10 },
   searchBox: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 42,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
-  searchInput: { flex: 1, color: "#F8FAFC", marginLeft: 8, fontSize: 13 },
+  searchInput: { flex: 1, color: colors.text, marginLeft: 8, fontSize: 13 },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1011,12 +1016,12 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: "#FFF", fontWeight: "700", marginLeft: 4, fontSize: 13 },
   card: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   cardHeader: { flexDirection: "row", alignItems: "flex-start" },
   avatarBox: {
@@ -1032,11 +1037,11 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: "#60A5FA", fontWeight: "800", fontSize: 18 },
   staffName: { color: "#FFF", fontWeight: "800", fontSize: 15 },
-  staffMeta: { color: "#94A3B8", fontSize: 11, marginTop: 2 },
+  staffMeta: { color: colors.subtext, fontSize: 11, marginTop: 2 },
   dutyBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   dutyText: { fontSize: 10, fontWeight: "800" },
   qualRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
-  qualTag: { backgroundColor: "#0F172A", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: "#334155" },
+  qualTag: { backgroundColor: colors.surface, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: colors.cardBorder },
   qualTagText: { color: "#A5B4FC", fontSize: 9, fontWeight: "700" },
   cardActions: {
     flexDirection: "row",
@@ -1056,27 +1061,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   emptyState: { alignItems: "center", paddingVertical: 50 },
-  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#F8FAFC", marginTop: 10 },
-  emptySub: { fontSize: 12, color: "#94A3B8", marginTop: 4 },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: colors.text, marginTop: 10 },
+  emptySub: { fontSize: 12, color: colors.subtext, marginTop: 4 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.8)", justifyContent: "center", padding: 16 },
-  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, maxHeight: "90%", borderWidth: 1, borderColor: "#334155" },
+  modalCard: { backgroundColor: colors.card, borderRadius: 20, padding: 20, maxHeight: "90%", borderWidth: 1, borderColor: colors.cardBorder },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: "#F8FAFC" },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: colors.text },
   inputGroup: { marginBottom: 12 },
-  inputLabel: { fontSize: 12, fontWeight: "700", color: "#CBD5E1", marginBottom: 6 },
-  textInput: { backgroundColor: "#0F172A", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: "#F8FAFC", borderWidth: 1, borderColor: "#334155" },
+  inputLabel: { fontSize: 12, fontWeight: "700", color: colors.subtext, marginBottom: 6 },
+  textInput: { backgroundColor: colors.surface, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, borderWidth: 1, borderColor: colors.cardBorder },
   qualSelectItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     gap: 8,
   },
   qualSelectItemActive: { backgroundColor: "#10B98115", borderColor: "#10B98155" },
-  qualSelectText: { color: "#94A3B8", fontSize: 12, fontWeight: "600" },
+  qualSelectText: { color: colors.subtext, fontSize: 12, fontWeight: "600" },
   qualSelectTextActive: { color: "#FFF", fontWeight: "700" },
   closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   closeBtnText: { color: "#FFF", fontWeight: "700" },
@@ -1086,10 +1091,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
@@ -1102,20 +1107,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dropdownSelectedTitle: {
-    color: "#F8FAFC",
+    color: colors.text,
     fontSize: 14,
     fontWeight: "700",
   },
   dropdownSelectedSub: {
-    color: "#94A3B8",
+    color: colors.subtext,
     fontSize: 11,
     marginTop: 1,
   },
   dropdownMenu: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     marginTop: 6,
     overflow: "hidden",
   },
@@ -1126,13 +1131,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#1E293B",
+    borderBottomColor: colors.cardBorder,
   },
   dropdownItemActive: {
     backgroundColor: "rgba(16, 185, 129, 0.12)",
   },
   dropdownItemText: {
-    color: "#CBD5E1",
+    color: colors.subtext,
     fontSize: 13,
     fontWeight: "600",
   },
@@ -1170,7 +1175,7 @@ const styles = StyleSheet.create({
   lockedSectorBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#10B98155",
@@ -1187,12 +1192,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   lockedSectorTitle: {
-    color: "#F8FAFC",
+    color: colors.text,
     fontSize: 13,
     fontWeight: "700",
   },
   lockedSectorSub: {
-    color: "#94A3B8",
+    color: colors.subtext,
     fontSize: 11,
     marginTop: 1,
   },
@@ -1213,3 +1218,4 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+

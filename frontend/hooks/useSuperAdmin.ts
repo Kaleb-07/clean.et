@@ -126,7 +126,7 @@ export interface UpdatePayoutStatusPayload {
 export interface BroadcastPayload {
   title: string;
   message: string;
-  target: "all" | "tenant_admins" | "customers";
+  target: "all" | "tenant_admins" | "customers" | "staff";
 }
 
 export function useSuperAdmin() {
