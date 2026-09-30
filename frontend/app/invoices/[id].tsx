@@ -42,10 +42,11 @@ const STATUS_CONFIG: Record<
 };
 
 const PROVIDERS: { value: PaymentProvider; label: string; emoji: string }[] = [
-  { value: "telebirr",  label: "Telebirr",  emoji: "📱" },
-  { value: "cbe_birr",  label: "CBE Birr",  emoji: "🏦" },
-  { value: "amole",     label: "Amole",     emoji: "💳" },
-  { value: "cash",      label: "Cash",      emoji: "💵" },
+  { value: "chapa",     label: "Chapa (Online Payment)", emoji: "⚡" },
+  { value: "telebirr",  label: "Telebirr",              emoji: "📱" },
+  { value: "cbe_birr",  label: "CBE Birr",              emoji: "🏦" },
+  { value: "amole",     label: "Amole",                 emoji: "💳" },
+  { value: "cash",      label: "Cash",                  emoji: "💵" },
 ];
 
 export default function InvoiceDetailScreen() {
@@ -87,14 +88,11 @@ export default function InvoiceDetailScreen() {
       const payment: Payment = res.data.data || res.data;
 
       if (payment.checkout_url) {
-        const supported = await Linking.canOpenURL(payment.checkout_url);
-        if (supported) {
-          await Linking.openURL(payment.checkout_url);
+        if (Platform.OS === "web" && typeof window !== "undefined") {
+          window.location.href = payment.checkout_url;
+          return;
         } else {
-          Alert.alert(
-            "Payment Initiated",
-            `Your payment reference is: ${payment.provider_reference}`
-          );
+          await Linking.openURL(payment.checkout_url);
         }
       } else {
         Alert.alert(
@@ -134,7 +132,7 @@ export default function InvoiceDetailScreen() {
   const StatusIcon = sc.Icon;
   const isPaid = invoice.status === "paid" || invoice.status === "cancelled";
   const hasActivePayment = invoice.payments.some((p) =>
-    ["pending", "paid"].includes(p.status)
+    ["pending", "completed", "paid"].includes(p.status)
   );
 
   return (
@@ -234,7 +232,7 @@ export default function InvoiceDetailScreen() {
             </BlurView>
           ) : (
             invoice.payments.map((p) => {
-              const isPaidPayment = p.status === "paid";
+              const isPaidPayment = ["completed", "paid"].includes(p.status);
               return (
                 <BlurView key={p.id} intensity={15} tint={colors.isDark ? "dark" : "light"} style={[styles.paymentRow, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
                   <View style={{ flex: 1 }}>

@@ -203,12 +203,15 @@ class SuperAdminController extends Controller
             ?? SystemSetting::getByKey('sector_categories')
             ?? $defaultSectors;
 
+        $plans = SystemSetting::getByKey('subscription_plans') ?? [];
+
         return response()->json([
             'data' => [
                 'default_currency'         => $currency,
                 'platform_commission_rate' => (float) $commission,
                 'support_email'            => $supportEmail,
                 'maintenance_mode'         => (bool) $maintenance,
+                'subscription_plans'       => $plans,
                 'sector_categories'        => $sectors,
             ]
         ]);
@@ -224,6 +227,7 @@ class SuperAdminController extends Controller
             'platform_commission_rate' => 'sometimes|numeric|min:0|max:100',
             'support_email'            => 'sometimes|email|max:255',
             'maintenance_mode'         => 'sometimes|boolean',
+            'subscription_plans'       => 'sometimes|array',
             'sector_categories'        => 'sometimes|array',
         ]);
 

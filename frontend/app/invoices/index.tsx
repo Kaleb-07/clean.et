@@ -67,15 +67,11 @@ export default function InvoicesScreen() {
       setSelectedInvoice(null);
 
       if (payment.checkout_url) {
-        // Open provider's mobile-money redirect URL
-        const supported = await Linking.canOpenURL(payment.checkout_url);
-        if (supported) {
-          await Linking.openURL(payment.checkout_url);
+        if (Platform.OS === "web" && typeof window !== "undefined") {
+          window.location.href = payment.checkout_url;
+          return;
         } else {
-          Alert.alert(
-            "Payment Initiated",
-            `Your payment reference is: ${payment.provider_reference}`
-          );
+          await Linking.openURL(payment.checkout_url);
         }
       } else {
         Alert.alert(
@@ -108,7 +104,7 @@ export default function InvoicesScreen() {
     const isPaid = item.status === "paid" || item.status === "cancelled";
     const pendingPayment = item.payments.find((p) => p.status === "pending");
     const hasActivePayment = item.payments.some((p) =>
-      ["pending", "paid"].includes(p.status)
+      ["pending", "completed", "paid"].includes(p.status)
     );
 
     return (

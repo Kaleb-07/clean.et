@@ -16,6 +16,8 @@ class Payment extends Model
         'amount',
         'provider_reference',
         'checkout_url',
+        'phone_number',
+        'chapa_tx_ref',
     ];
 
     protected $casts = [

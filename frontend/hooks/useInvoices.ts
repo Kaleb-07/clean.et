@@ -4,13 +4,14 @@ import { apiFetch } from "../src/api/client";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type InvoiceStatus = "unpaid" | "paid" | "overdue" | "cancelled";
-export type PaymentStatus = "pending" | "paid" | "failed";
+export type PaymentStatus = "pending" | "completed" | "paid" | "failed";
 export type PaymentProvider =
   | "telebirr"
   | "cbe_birr"
   | "amole"
   | "stripe"
-  | "cash";
+  | "cash"
+  | "chapa";
 
 export interface Payment {
   id: number;

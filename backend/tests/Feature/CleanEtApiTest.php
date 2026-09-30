@@ -741,7 +741,68 @@ class CleanEtApiTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('message', 'System broadcast dispatched successfully to 2 users.');
+            ->assertJsonPath('message', 'System broadcast dispatched successfully to 2 accounts.');
+    }
+
+    /**
+     * Test staff and customer cash payment collection after cleaning completed.
+     */
+    public function test_cash_payment_collection_and_settlement(): void
+    {
+        $user = User::factory()->create([
+            'phone' => '+251912345678',
+            'role' => 'customer',
+            'tenant_id' => $this->tenant->id,
+        ]);
+        $customer = Customer::create(['user_id' => $user->id]);
+
+        $staffUser = User::factory()->create([
+            'phone' => '+251987654321',
+            'role' => 'staff',
+            'tenant_id' => $this->tenant->id,
+        ]);
+        $staffProfile = \App\Models\StaffProfile::create([
+            'user_id' => $staffUser->id,
+            'tenant_id' => $this->tenant->id,
+            'role_title' => 'Sanitation Specialist',
+            'phone' => '+251987654321',
+            'sector_qualifications' => json_encode(['car-washing']),
+        ]);
+
+        $booking = Booking::create([
+            'tenant_id' => $this->tenant->id,
+            'sector_id' => $this->bayWashSector->id,
+            'user_id' => $user->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staffProfile->id,
+            'price' => 500.00,
+            'currency' => 'ETB',
+            'scheduled_at' => now(),
+            'booking_date' => now()->toDateString(),
+            'booking_time' => '10:00',
+            'status' => 'completed',
+        ]);
+
+        // Staff collects cash payment after cleaning completed
+        $response = $this->actingAs($staffUser)->postJson("/api/bookings/{$booking->id}/collect-payment", [
+            'provider' => 'cash',
+            'amount_received' => 500.00,
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('paid', true)
+            ->assertJsonPath('payment.status', 'completed');
+
+        $this->assertDatabaseHas('payments', [
+            'provider' => 'cash',
+            'status' => 'completed',
+            'amount' => 500.00,
+        ]);
+
+        $this->assertDatabaseHas('invoices', [
+            'booking_id' => $booking->id,
+            'status' => 'paid',
+        ]);
     }
 }
 

@@ -243,7 +243,7 @@ return new class extends Migration
             Schema::create('payments', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('invoice_id')->constrained()->cascadeOnDelete();
-                $table->enum('provider', ['telebirr', 'cbe']);
+                $table->enum('provider', ['telebirr', 'cbe', 'cbe_birr', 'amole', 'stripe', 'cash', 'chapa']);
                 $table->enum('status', ['pending', 'completed', 'failed'])->default('pending');
                 $table->decimal('amount', 10, 2);
                 $table->string('provider_reference', 100)->nullable();

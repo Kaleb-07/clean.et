@@ -288,6 +288,7 @@ export default function AdminStaff() {
     setIsSubmitting(true);
     try {
       if (editingStaff) {
+        // UPDATE existing staff member
         await API.put(`/staff/${editingStaff.id}`, {
           name: form.name.trim(),
           email: form.email ? form.email.trim().toLowerCase() : undefined,
@@ -296,7 +297,9 @@ export default function AdminStaff() {
           qualifications: form.qualifications,
         });
         triggerNotification(`✨ Technician "${form.name.trim()}" profile & qualifications updated!`, "success");
-        const matchedTenant = tenants.find((t: any) => t.categories_enabled?.includes(selectedSectorId)) || tenants[0];
+      } else {
+        // CREATE new staff member
+        const tenantId = user?.tenant_id ?? user?.tenant?.id ?? null;
         await API.post("/staff", {
           name: form.name.trim(),
           email: form.email ? form.email.trim().toLowerCase() : undefined,
@@ -304,7 +307,7 @@ export default function AdminStaff() {
           password: form.password ? form.password.trim() : "password123",
           role_title: form.role_title.trim(),
           qualifications: form.qualifications,
-          tenant_id: matchedTenant?.id || user?.tenant?.id,
+          tenant_id: tenantId,
         });
         triggerNotification(`🎉 Technician "${form.name.trim()}" registered to company roster!`, "success");
       }

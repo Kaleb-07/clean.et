@@ -95,6 +95,7 @@ export default function AdminBookings() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [assigning, setAssigning] = useState(false);
+  const [loadingStaff, setLoadingStaff] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: "success" | "danger" } | null>(null);
   const [inspectBooking, setInspectBooking] = useState<Booking | null>(null);
 
@@ -125,6 +126,25 @@ export default function AdminBookings() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshStaff = async () => {
+    setLoadingStaff(true);
+    try {
+      const sRes = await API.get("/staff");
+      setStaff(sRes.data?.data ?? sRes.data ?? []);
+    } catch (e) {
+      console.log("Error refreshing staff:", e);
+    } finally {
+      setLoadingStaff(false);
+    }
+  };
+
+  const openAssignModal = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setSelectedStaffId(booking.staff?.id || null);
+    setAssignModal(true);
+    refreshStaff();
   };
 
   const onRefresh = async () => {
@@ -356,11 +376,7 @@ export default function AdminBookings() {
 
                       <TouchableOpacity
                         style={[styles.miniBtn, !isSuperAdmin && { backgroundColor: "#059669" }]}
-                        onPress={() => {
-                          setSelectedBooking(b);
-                          setSelectedStaffId(b.staff?.id || null);
-                          setAssignModal(true);
-                        }}
+                        onPress={() => openAssignModal(b)}
                       >
                         <Ionicons name="flash" size={14} color="#FFF" />
                         <Text style={styles.miniBtnText}>Dispatch</Text>
@@ -374,9 +390,7 @@ export default function AdminBookings() {
                             style={[styles.miniBtn, { backgroundColor: stepAction.color }]}
                             onPress={() => {
                               if (stepAction.next === "driver_assigned") {
-                                setSelectedBooking(b);
-                                setSelectedStaffId(b.staff?.id || null);
-                                setAssignModal(true);
+                                openAssignModal(b);
                               } else {
                                 handleUpdateStatus(b.id, stepAction.next);
                               }
@@ -532,10 +546,8 @@ export default function AdminBookings() {
                     onPress={() => {
                       if (!inspectBooking) return;
                       if (stepAction.next === "driver_assigned") {
-                        setSelectedBooking(inspectBooking);
-                        setSelectedStaffId(inspectBooking.staff?.id || null);
                         setInspectBooking(null);
-                        setAssignModal(true);
+                        openAssignModal(inspectBooking);
                       } else {
                         handleUpdateStatus(inspectBooking.id, stepAction.next);
                         setInspectBooking({ ...inspectBooking, status: stepAction.next });
@@ -564,9 +576,21 @@ export default function AdminBookings() {
                   Booking #{selectedBooking?.id} · {selectedBooking?.service?.name}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setAssignModal(false)}>
-                <Ionicons name="close" size={24} color="#94A3B8" />
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <TouchableOpacity
+                  onPress={refreshStaff}
+                  disabled={loadingStaff}
+                  style={{ padding: 6, backgroundColor: "#0F172A", borderRadius: 8, borderWidth: 1, borderColor: "#334155" }}
+                >
+                  {loadingStaff
+                    ? <ActivityIndicator size={16} color="#34D399" />
+                    : <Ionicons name="refresh" size={18} color="#34D399" />
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setAssignModal(false)}>
+                  <Ionicons name="close" size={24} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <Text style={{ color: "#CBD5E1", fontSize: 12, marginBottom: 10 }}>
@@ -574,7 +598,12 @@ export default function AdminBookings() {
             </Text>
 
             <ScrollView style={{ maxHeight: 280 }}>
-              {staff.length === 0 ? (
+              {loadingStaff ? (
+                <View style={{ alignItems: "center", paddingVertical: 30 }}>
+                  <ActivityIndicator color="#34D399" size="large" />
+                  <Text style={{ color: "#94A3B8", marginTop: 10, fontSize: 12 }}>Loading roster...</Text>
+                </View>
+              ) : staff.length === 0 ? (
                 <Text style={{ color: "#94A3B8", textAlign: "center", paddingVertical: 20 }}>
                   No technicians on roster. Go to Staff screen to register crew.
                 </Text>

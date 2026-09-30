@@ -20,6 +20,8 @@ use App\Http\Controllers\API\TenantController;
 use App\Http\Controllers\API\SuperAdminController;
 use App\Http\Controllers\API\NotificationController;
 
+use App\Http\Controllers\API\ChapaWebhookController;
+
 // ─── Health Check ──────────────────────────────────────────────────────────────
 Route::get('/test', fn () => response()->json([
     'message' => 'Clean.et API is running',
@@ -81,6 +83,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/bookings/{id}',          [BookingController::class, 'update']);
     Route::patch('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
     Route::delete('/bookings/{id}',       [BookingController::class, 'destroy']);
+
+    // Staff-only: accept / start / complete / cancel their own assigned jobs
+    Route::patch('/bookings/{id}/staff-status', [BookingController::class, 'staffUpdateStatus']);
+    // Staff-only: collect payment before completing
+    Route::post('/bookings/{id}/collect-payment', [BookingController::class, 'staffCollectPayment']);
+    // Staff-only: poll payment status for a booking (used for Chapa mobile polling)
+    Route::get('/bookings/{id}/payment-status', [BookingController::class, 'paymentStatus']);
 });
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
@@ -174,6 +183,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payments/{payment}',           [PaymentController::class, 'show']);
     Route::post('/payments/{payment}/verify',   [PaymentController::class, 'verify']);
 });
+
+// Chapa webhook — no auth (Chapa calls this from their servers)
+Route::post('/payments/chapa/webhook', [ChapaWebhookController::class, 'handle'])
+    ->withoutMiddleware(['auth:sanctum'])
+    ->name('chapa.webhook');
 
 // ─── SUBSCRIPTIONS ───────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   Modal,
+  Linking,
 } from "react-native";
 import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,14 +22,17 @@ import {
   CheckCircle2,
   Info,
   Check,
+  Banknote,
+  Smartphone,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeInRight, FadeIn, ZoomIn } from "react-native-reanimated";
 
-import { useServices } from "../../hooks/useServices";
-import { useBookings } from "../../hooks/useBookings";
-import { useLanguage } from "../../contexts/LanguageContext";
-import { useColors } from "../../hooks/useColors";
+import API from "../../../src/api/client";
+import { useServices } from "../../../hooks/useServices";
+import { useBookings } from "../../../hooks/useBookings";
+import { useLanguage } from "../../../contexts/LanguageContext";
+import { useColors } from "../../../hooks/useColors";
 
 const TIME_SLOTS = [
   "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
@@ -48,6 +52,8 @@ export default function BookingDetailsScreen() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [paymentTiming, setPaymentTiming] = useState<"after" | "before">("after");
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   const service = useMemo(() => 
     services.find(s => String(s.id) === String(serviceId)),
@@ -66,13 +72,16 @@ export default function BookingDetailsScreen() {
   }, []);
 
   const handleBooking = async () => {
+    setBookingError(null);
+
     if (!selectedTime) {
-      Alert.alert("Selection Required", "Please select a time slot for your wash.");
+      const err = "Please select a time slot for your service.";
+      setBookingError(err);
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(err);
+      else Alert.alert("Selection Required", err);
       return;
     }
 
-    console.log("Starting booking process...");
-    
     if (Platform.OS !== "web") {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
@@ -85,17 +94,59 @@ export default function BookingDetailsScreen() {
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
 
-      await addBooking({
+      const created = await addBooking({
         serviceId: serviceId!,
         date: dateStr,
         timeSlot: selectedTime,
       });
 
+      // If user chose Pay Online Now (Chapa), initiate payment & redirect to Chapa immediately
+      if (paymentTiming === "before" && created?.id) {
+        try {
+          // Build return_url — Chapa will redirect back here after payment
+          const appBaseUrl = process.env.EXPO_PUBLIC_APP_URL ?? "http://localhost:8081";
+          const returnUrl = `${appBaseUrl}/payment/callback?booking_id=${created.id}`;
+
+          const res = await API.post(`/bookings/${created.id}/collect-payment`, {
+            provider: "chapa",
+            return_url: returnUrl,
+          });
+          const checkoutUrl = res.data?.checkout_url || res.data?.payment?.checkout_url;
+          if (checkoutUrl) {
+            if (Platform.OS === "web" && typeof window !== "undefined") {
+              window.location.assign(checkoutUrl);
+              return;
+            } else {
+              await Linking.openURL(checkoutUrl);
+              router.replace(`/payment/callback?booking_id=${created.id}` as any);
+              return;
+            }
+          }
+        } catch (payErr: any) {
+          const msg = payErr?.response?.data?.message || payErr?.message || "Could not connect to Chapa payment gateway.";
+          setBookingError(msg);
+          if (Platform.OS === "web" && typeof window !== "undefined") window.alert(`Chapa Payment Error: ${msg}`);
+          else Alert.alert("Chapa Payment Error", msg);
+          return;
+        }
+      }
+
+      // Cash on Delivery: show success modal
       setShowSuccess(true);
     } catch (e: any) {
       console.error("Booking submission error:", e);
-      const msg = e.response?.data?.message || e.message || "Failed to create booking";
-      Alert.alert("Booking Failed", msg);
+      const validationErrors = e?.response?.data?.errors;
+      let msg = "";
+      if (validationErrors) {
+        msg = Object.entries(validationErrors)
+          .map(([field, msgs]) => `• ${field}: ${(msgs as string[]).join(", ")}`)
+          .join("\n");
+      } else {
+        msg = e?.response?.data?.message || e?.message || "Failed to create booking";
+      }
+      setBookingError(msg);
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(`Booking Error:\n${msg}`);
+      else Alert.alert("Booking Failed", msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -239,6 +290,91 @@ export default function BookingDetailsScreen() {
           </View>
         </View>
 
+        {/* PAYMENT OPTION (PAY BEFORE VS PAY AFTER) */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Banknote size={18} color="#8b5cf6" />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Payment Option</Text>
+          </View>
+          <View style={{ gap: 10 }}>
+            {/* Pay After Cleaning (Cash on Delivery) */}
+            <Pressable
+              onPress={() => {
+                setPaymentTiming("after");
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              style={[
+                {
+                  padding: 14,
+                  borderRadius: 14,
+                  borderWidth: 1.5,
+                  backgroundColor: colors.card,
+                  borderColor: paymentTiming === "after" ? "#10b981" : colors.cardBorder,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                }
+              ]}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                backgroundColor: paymentTiming === "after" ? "rgba(16, 185, 129, 0.15)" : colors.surface,
+                justifyContent: "center",
+                alignItems: "center",
+              }}>
+                <Banknote size={20} color={paymentTiming === "after" ? "#10b981" : colors.subtext} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Pay After Cleaning (Cash on Delivery)</Text>
+                <Text style={{ fontSize: 12, color: colors.subtext, marginTop: 2 }}>Pay cash to field staff on-site after service</Text>
+              </View>
+              {paymentTiming === "after" && (
+                <CheckCircle2 size={18} color="#10b981" />
+              )}
+            </Pressable>
+
+            {/* Pay Online Now (Chapa / Mobile Money) */}
+            <Pressable
+              onPress={() => {
+                setPaymentTiming("before");
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              style={[
+                {
+                  padding: 14,
+                  borderRadius: 14,
+                  borderWidth: 1.5,
+                  backgroundColor: colors.card,
+                  borderColor: paymentTiming === "before" ? "#8b5cf6" : colors.cardBorder,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                }
+              ]}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                backgroundColor: paymentTiming === "before" ? "rgba(139, 92, 246, 0.15)" : colors.surface,
+                justifyContent: "center",
+                alignItems: "center",
+              }}>
+                <Smartphone size={20} color={paymentTiming === "before" ? "#a78bfa" : colors.subtext} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Pay Online Now (Chapa / Mobile Money)</Text>
+                <Text style={{ fontSize: 12, color: colors.subtext, marginTop: 2 }}>Pay immediately via Telebirr, CBE Birr, or Card</Text>
+              </View>
+              {paymentTiming === "before" && (
+                <CheckCircle2 size={18} color="#8b5cf6" />
+              )}
+            </Pressable>
+          </View>
+        </View>
+
         {/* SUMMARY & BUTTON */}
         <View style={styles.footer}>
           {selectedTime && (
@@ -255,6 +391,28 @@ export default function BookingDetailsScreen() {
               <CheckCircle2 size={16} color="#10b981" />
               <Text style={styles.summaryText}>
                 Scheduled for {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {selectedTime}
+              </Text>
+            </Animated.View>
+          )}
+
+          {bookingError && (
+            <Animated.View
+              entering={FadeInDown}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                backgroundColor: "rgba(239, 68, 68, 0.15)",
+                borderColor: "rgba(239, 68, 68, 0.3)",
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 12,
+              }}
+            >
+              <Info size={18} color="#ef4444" />
+              <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "600", flex: 1 }}>
+                {bookingError}
               </Text>
             </Animated.View>
           )}

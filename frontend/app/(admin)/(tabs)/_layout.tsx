@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "../../../contexts/AuthContext";
 
 export default function TabLayout() {
   const { user, isLoading } = useAuth();
