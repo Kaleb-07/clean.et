@@ -9,18 +9,15 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuth } from "@/contexts/AuthContext";
-import { useColors } from "@/hooks/useColors";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "../../../contexts/AuthContext";
 
 export default function TabLayout() {
   const { user, isLoading } = useAuth();
-  const colors = useColors();
 
   // ✅ Loading state
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", backgroundColor: colors.background }}>
+      <View style={{ flex: 1, justifyContent: "center", backgroundColor: "#0F172A" }}>
         <ActivityIndicator color="#10B981" />
       </View>
     );
@@ -67,14 +64,12 @@ function AdminTabIcon({ Icon, color, focused }: AdminTabIconProps) {
 function ClassicTabLayout() {
   const insets = useSafeAreaInsets();
   const bottomInset = insets.bottom > 0 ? insets.bottom : 8;
-  const colors = useColors();
-  const { t } = useLanguage();
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: "#10B981",
-        tabBarInactiveTintColor: colors.subtext,
+        tabBarInactiveTintColor: "#64748B",
         headerShown: false,
         tabBarLabelStyle: {
           fontSize: 11,
@@ -82,9 +77,9 @@ function ClassicTabLayout() {
           marginTop: -2,
         },
         tabBarStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: "#0F172A",
           borderTopWidth: 1,
-          borderTopColor: colors.cardBorder,
+          borderTopColor: "#334155",
           elevation: 12,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -4 },
@@ -99,7 +94,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: t("dashboard"),
+          title: "Dashboard",
           tabBarIcon: ({ color, focused }) => (
             <AdminTabIcon Icon={Home} color={color} focused={focused} />
           ),
@@ -108,7 +103,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="bookings"
         options={{
-          title: t("booking"),
+          title: "Bookings",
           tabBarIcon: ({ color, focused }) => (
             <AdminTabIcon Icon={Calendar} color={color} focused={focused} />
           ),
@@ -117,7 +112,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="Profile"
         options={{
-          title: t("profile"),
+          title: "Profile",
           tabBarIcon: ({ color, focused }) => (
             <AdminTabIcon Icon={User} color={color} focused={focused} />
           ),
