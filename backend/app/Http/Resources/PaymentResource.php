@@ -20,6 +20,8 @@ class PaymentResource extends JsonResource
             'amount'             => (float) $this->amount,
             'provider_reference' => $this->provider_reference,
             'checkout_url'       => $this->checkout_url ?? null,
+            'chapa_tx_ref'       => $this->chapa_tx_ref ?? null,
+            'phone_number'       => $this->phone_number ?? null,
             'created_at'         => $this->created_at?->toISOString(),
         ];
     }

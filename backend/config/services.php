@@ -35,4 +35,25 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Chapa – Ethiopian Payment Gateway
+    | Docs: https://developer.chapa.co / https://docs.chapa.global/docs/v2
+    |--------------------------------------------------------------------------
+    | Set CHAPA_MODE=test  to use test keys (default).
+    | Set CHAPA_MODE=live  when going to production.
+    |
+    | Test phone numbers (Direct Charge / mobile-money):
+    |   251900000000 → success
+    |   251911111111 → INSUFFICIENT_FUNDS
+    |   251922222222 → USER_CANCELLED
+    |   251933333333 → timeout / incomplete
+    */
+    'chapa' => [
+        'mode'          => env('CHAPA_MODE', 'test'),
+        'secret_key'    => env('CHAPA_SECRET_KEY', ''),
+        'base_url'      => env('CHAPA_BASE_URL', 'https://api.chapa.global/v2'),
+        'webhook_secret' => env('CHAPA_WEBHOOK_SECRET', ''),
+    ],
+
 ];

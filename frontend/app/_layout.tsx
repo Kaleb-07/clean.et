@@ -9,7 +9,7 @@ import {
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { Platform, View, ActivityIndicator } from "react-native";
+import { Platform, View, ActivityIndicator, LogBox } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -17,6 +17,11 @@ import { useColors } from "../hooks/useColors";
 import { AuthProvider } from "../contexts/AuthContext";
 import { LanguageProvider } from "../contexts/LanguageContext";
 import { ThemeProvider } from "../contexts/ThemeContext";
+
+// Suppress Metro error overlay LogBox crash on web
+if (Platform.OS === "web") {
+  LogBox.ignoreAllLogs(true);
+}
 
 // Global web style reset to eliminate default browser focus outline boxes & borders on all inputs
 if (Platform.OS === "web" && typeof document !== "undefined") {
@@ -77,7 +82,7 @@ function RootNavigator() {
 
         {/* Booking Flows */}
         <Stack.Screen name="booking/[sectorId]" />
-        <Stack.Screen name="booking/[serviceId]" />
+        <Stack.Screen name="booking/service/[serviceId]" />
         <Stack.Screen name="booking/status/[bookingId]" />
         <Stack.Screen name="booking/edit/[id]" />
 
@@ -90,6 +95,9 @@ function RootNavigator() {
 
         {/* Admin Panel */}
         <Stack.Screen name="(admin)" />
+
+        {/* Staff Portal */}
+        <Stack.Screen name="(staff)" />
       </Stack>
     </View>
   );

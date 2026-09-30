@@ -48,6 +48,8 @@ class BookingResource extends JsonResource
             'price'               => $this->price,
             'currency'            => $this->currency ?? 'ETB',
             'scheduled_at'        => $this->scheduled_at ? $this->scheduled_at->toIso8601String() : null,
+            'address'             => $this->requirement_data['address'] ?? $this->requirement_data['location'] ?? null,
+            'notes'               => $this->requirement_data['notes'] ?? $this->requirement_data['special_instructions'] ?? null,
 
             // Legacy date/time fields for compatibility
             'booking_date' => $this->booking_date
@@ -62,10 +64,17 @@ class BookingResource extends JsonResource
             'status' => $this->status,
 
             'staff' => $this->staff ? [
-                'id' => $this->staff->id,
+                'id'         => $this->staff->id,
+                'user_id'    => $this->staff->user_id,
                 'role_title' => $this->staff->role_title,
-                'name' => $this->staff->user?->name,
-                'phone' => $this->staff->user?->phone,
+                'name'       => $this->staff->user?->name,
+                'phone'      => $this->staff->user?->phone,
+                'user'       => $this->staff->user ? [
+                    'id'    => $this->staff->user->id,
+                    'name'  => $this->staff->user->name,
+                    'phone' => $this->staff->user->phone,
+                    'email' => $this->staff->user->email,
+                ] : null,
             ] : null,
 
             // Associated customer profiles/vehicles if present

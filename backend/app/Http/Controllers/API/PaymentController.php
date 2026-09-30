@@ -47,9 +47,9 @@ class PaymentController extends Controller
             );
         }
 
-        // Guard: don't create a second payment while one is already pending/paid
+        // Guard: don't create a second payment while one is already pending/completed/paid
         $existing = $invoice->payments()
-            ->whereIn('status', ['pending', 'paid'])
+            ->whereIn('status', ['pending', 'completed', 'paid'])
             ->first();
 
         if ($existing) {
@@ -62,25 +62,29 @@ class PaymentController extends Controller
             $payment = $invoice->payments()->create([
                 'provider' => $request->provider,
                 'status'   => 'pending',
-                'amount'   => $invoice->amount,
+                'amount'   => $request->amount_received ?? $invoice->amount,
             ]);
 
             // Delegate to the provider adapter
             $result = $this->gateway->initiate(
                 $payment,
-                (float) $invoice->amount,
+                (float) ($request->amount_received ?? $invoice->amount),
                 $invoice->currency ?? 'ETB',
                 ['return_url' => $request->return_url]
             );
 
+            $statusToSave = in_array($result['status'], ['completed', 'paid']) ? 'completed' : $result['status'];
+
             $payment->update([
-                'status'             => $result['status'],
+                'status'             => $statusToSave,
                 'provider_reference' => $result['provider_reference'],
                 'checkout_url'       => $result['checkout_url'] ?? null,
+                'chapa_tx_ref'       => $result['chapa_tx_ref'] ?? null,
             ]);
 
-            // If payment is immediately paid (e.g. cash shortcut), settle invoice
-            if ($result['status'] === 'paid') {
+            // Cash or completed payment: mark invoice paid
+            if ($request->provider === 'cash' || in_array($result['status'], ['completed', 'paid'])) {
+                $payment->update(['status' => 'completed']);
                 $invoice->update(['status' => 'paid']);
             }
 

@@ -11,6 +11,7 @@ import {
   Modal,
   TextInput,
   Switch,
+  Linking,
 } from "react-native";
 import { useLocalSearchParams, router, Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,10 +30,14 @@ import {
   RefreshCw,
   Car,
   Building2,
+  Banknote,
+  CreditCard,
+  Smartphone,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeInRight, FadeIn, ZoomIn } from "react-native-reanimated";
 
+import API from "../../src/api/client";
 import { useCategories } from "../../hooks/useCategories";
 import { useBookings } from "../../hooks/useBookings";
 import { useVehicles } from "../../hooks/useVehicles";
@@ -69,6 +74,9 @@ export default function DynamicBookingScreen() {
   const [recurring, setRecurring] = useState(false);
   const [recurrenceRule, setRecurrenceRule] = useState("weekly");
 
+  // Payment timing choice ("after" = Pay Cash on delivery after service, "before" = Pay Online now via Chapa)
+  const [paymentTiming, setPaymentTiming] = useState<"after" | "before">("after");
+
   // Vehicle & Building Profile hooks
   const { vehicles } = useVehicles();
   const { profiles: buildingProfiles } = useBuildingProfiles();
@@ -95,17 +103,22 @@ export default function DynamicBookingScreen() {
     return list;
   }, []);
 
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
   // Update dynamic fields state with defaults if not present
   useEffect(() => {
     if (sector?.requirement_schema?.fields) {
-      const defaults: Record<string, any> = {};
+      const defaults: Record<string, any> = { ...requirementData };
       sector.requirement_schema.fields.forEach(field => {
-        if (field.type === "boolean") {
-          defaults[field.key] = false;
-        } else if (field.type === "select" && field.options && field.options.length > 0) {
-          defaults[field.key] = field.options[0];
-        } else {
-          defaults[field.key] = "";
+        if (defaults[field.key] === undefined || defaults[field.key] === "") {
+          if (field.type === "boolean") {
+            defaults[field.key] = false;
+          } else if (field.type === "select" && field.options && field.options.length > 0) {
+            const firstOpt = field.options[0];
+            defaults[field.key] = typeof firstOpt === "object" && firstOpt !== null ? firstOpt.value ?? firstOpt.label : firstOpt;
+          } else {
+            defaults[field.key] = "";
+          }
         }
       });
       setRequirementData(defaults);
@@ -146,6 +159,7 @@ export default function DynamicBookingScreen() {
   }, [requirementData, sector, estimatePrice]);
 
   const handleFieldChange = (key: string, value: any) => {
+    setBookingError(null);
     setRequirementData(prev => ({
       ...prev,
       [key]: value
@@ -153,8 +167,13 @@ export default function DynamicBookingScreen() {
   };
 
   const handleBooking = async () => {
+    setBookingError(null);
+
     if (!selectedTime) {
-      Alert.alert("Selection Required", "Please select a time slot for your service.");
+      const err = "Please select a time slot for your service.";
+      setBookingError(err);
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(err);
+      else Alert.alert("Selection Required", err);
       return;
     }
 
@@ -165,7 +184,10 @@ export default function DynamicBookingScreen() {
     );
 
     if (missingField) {
-      Alert.alert("Input Required", `Please specify a value for: ${missingField.label}`);
+      const err = `Please specify a value for: ${missingField.label}`;
+      setBookingError(err);
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(err);
+      else Alert.alert("Input Required", err);
       return;
     }
 
@@ -181,7 +203,7 @@ export default function DynamicBookingScreen() {
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
 
-      await addBooking({
+      const created = await addBooking({
         sectorId: sectorId!,
         date: dateStr,
         timeSlot: selectedTime,
@@ -192,11 +214,54 @@ export default function DynamicBookingScreen() {
         recurrenceRule: recurring ? recurrenceRule : undefined,
       });
 
+      // If user chose Pay Online Now (Chapa), initiate payment & redirect to Chapa immediately
+      if (paymentTiming === "before" && created?.id) {
+        try {
+          // Build return_url — Chapa will redirect back here after payment
+          const appBaseUrl = process.env.EXPO_PUBLIC_APP_URL ?? "http://localhost:8081";
+          const returnUrl = `${appBaseUrl}/payment/callback?booking_id=${created.id}`;
+
+          const res = await API.post(`/bookings/${created.id}/collect-payment`, {
+            provider: "chapa",
+            return_url: returnUrl,
+          });
+          const checkoutUrl = res.data?.checkout_url || res.data?.payment?.checkout_url;
+          if (checkoutUrl) {
+            if (Platform.OS === "web" && typeof window !== "undefined") {
+              window.location.assign(checkoutUrl);
+              return;
+            } else {
+              await Linking.openURL(checkoutUrl);
+              router.replace(`/payment/callback?booking_id=${created.id}` as any);
+              return;
+            }
+          }
+        } catch (payErr: any) {
+          const msg = payErr?.response?.data?.message || payErr?.message || "Could not connect to Chapa payment gateway.";
+          setBookingError(msg);
+          if (Platform.OS === "web" && typeof window !== "undefined") window.alert(`Chapa Payment Error: ${msg}`);
+          else Alert.alert("Chapa Payment Error", msg);
+          return;
+        }
+      }
+
+      // Cash on Delivery: show success modal
       setShowSuccess(true);
     } catch (e: any) {
-      console.error("Booking error:", e);
-      const msg = e.response?.data?.message || e.message || "Failed to create booking";
-      Alert.alert("Booking Failed", msg);
+      console.error("Booking error full:", JSON.stringify(e?.response?.data));
+      // Flatten Laravel validation errors into a readable message
+      const validationErrors = e?.response?.data?.errors;
+      let msg = "";
+      if (validationErrors) {
+        msg = Object.entries(validationErrors)
+          .map(([field, msgs]) => `• ${field}: ${(msgs as string[]).join(", ")}`)
+          .join("\n");
+      } else {
+        msg = e?.response?.data?.message || e?.message || "Failed to create booking. Please try again.";
+      }
+      setBookingError(msg);
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(`Booking Error:\n${msg}`);
+      else Alert.alert("Booking Failed", msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -554,6 +619,91 @@ export default function DynamicBookingScreen() {
           </BlurView>
         </View>
 
+        {/* PAYMENT OPTION (PAY BEFORE VS PAY AFTER) */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Banknote size={18} color="#8b5cf6" />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Payment Option</Text>
+          </View>
+          <View style={{ gap: 10 }}>
+            {/* Pay After Cleaning (Cash on Delivery) */}
+            <Pressable
+              onPress={() => {
+                setPaymentTiming("after");
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              style={[
+                {
+                  padding: 14,
+                  borderRadius: 14,
+                  borderWidth: 1.5,
+                  backgroundColor: colors.card,
+                  borderColor: paymentTiming === "after" ? "#10b981" : colors.cardBorder,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                }
+              ]}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                backgroundColor: paymentTiming === "after" ? "rgba(16, 185, 129, 0.15)" : colors.surface,
+                justifyContent: "center",
+                alignItems: "center",
+              }}>
+                <Banknote size={20} color={paymentTiming === "after" ? "#10b981" : colors.subtext} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Pay After Cleaning (Cash on Delivery)</Text>
+                <Text style={{ fontSize: 12, color: colors.subtext, marginTop: 2 }}>Pay cash to field staff on-site after service</Text>
+              </View>
+              {paymentTiming === "after" && (
+                <CheckCircle2 size={18} color="#10b981" />
+              )}
+            </Pressable>
+
+            {/* Pay Online Now (Chapa / Mobile Money) */}
+            <Pressable
+              onPress={() => {
+                setPaymentTiming("before");
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              style={[
+                {
+                  padding: 14,
+                  borderRadius: 14,
+                  borderWidth: 1.5,
+                  backgroundColor: colors.card,
+                  borderColor: paymentTiming === "before" ? "#8b5cf6" : colors.cardBorder,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                }
+              ]}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                backgroundColor: paymentTiming === "before" ? "rgba(139, 92, 246, 0.15)" : colors.surface,
+                justifyContent: "center",
+                alignItems: "center",
+              }}>
+                <Smartphone size={20} color={paymentTiming === "before" ? "#a78bfa" : colors.subtext} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>Pay Online Now (Chapa / Mobile Money)</Text>
+                <Text style={{ fontSize: 12, color: colors.subtext, marginTop: 2 }}>Pay immediately via Telebirr, CBE Birr, or Card</Text>
+              </View>
+              {paymentTiming === "before" && (
+                <CheckCircle2 size={18} color="#8b5cf6" />
+              )}
+            </Pressable>
+          </View>
+        </View>
+
 
         {/* SUMMARY & SUBMIT */}
         <View style={styles.footer}>
@@ -571,6 +721,28 @@ export default function DynamicBookingScreen() {
               <CheckCircle2 size={16} color="#10b981" />
               <Text style={styles.summaryText}>
                 Scheduled for {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {selectedTime}
+              </Text>
+            </Animated.View>
+          )}
+
+          {bookingError && (
+            <Animated.View
+              entering={FadeInDown}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                backgroundColor: "rgba(239, 68, 68, 0.15)",
+                borderColor: "rgba(239, 68, 68, 0.3)",
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 12,
+              }}
+            >
+              <Info size={18} color="#ef4444" />
+              <Text style={{ color: "#ef4444", fontSize: 13, fontWeight: "600", flex: 1 }}>
+                {bookingError}
               </Text>
             </Animated.View>
           )}

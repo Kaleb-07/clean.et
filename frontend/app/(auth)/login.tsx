@@ -32,7 +32,7 @@ function getHomeRoute(role: string): string {
     case "admin":
       return "/(admin)/(tabs)/dashboard";
     case "staff":
-      return "/(admin)/(tabs)/bookings";
+      return "/(staff)/dashboard";
     default:
       return "/(tabs)/home";
   }
