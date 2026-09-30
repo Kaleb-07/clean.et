@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 
 import API from "../../src/api/client";
+import { useColors } from "../../hooks/useColors";
+import { useLanguage } from "../../contexts/LanguageContext";
 
 /* ─── TYPES ─────────────────────────────────────────────────────────────── */
 interface Invoice {
@@ -53,6 +55,8 @@ function InvoiceCard({
   onInspect: () => void;
   onQuickPay: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const color = STATUS_COLORS[invoice.status] ?? "#64748B";
   const formattedDate = invoice.issued_at
     ? new Date(invoice.issued_at).toLocaleDateString("en-ET", {
@@ -160,6 +164,9 @@ function InvoiceCard({
 export default function AdminInvoices() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const colors = useColors();
+  const { t } = useLanguage();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -251,7 +258,7 @@ export default function AdminInvoices() {
           }}
           style={styles.backBtn}
         >
-          <Ionicons name="arrow-back" size={20} color="#FFF" />
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
@@ -540,19 +547,19 @@ export default function AdminInvoices() {
 }
 
 /* ─── STYLES ─────────────────────────────────────────────────────────────── */
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: colors.cardBorder,
     gap: 12,
   },
   backBtn: {
@@ -566,11 +573,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#F8FAFC",
+    color: colors.text,
   },
   subtitle: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: colors.subtext,
     marginTop: 1,
   },
   refreshBtn: {
@@ -626,7 +633,7 @@ const styles = StyleSheet.create({
   },
   subStatLabel: {
     fontSize: 11,
-    color: "#CBD5E1",
+    color: colors.subtext,
     marginRight: 4,
   },
   subStatValue: {
@@ -637,17 +644,17 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 42,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   searchInput: {
     flex: 1,
-    color: "#F8FAFC",
+    color: colors.text,
     marginLeft: 8,
     fontSize: 13,
   },
@@ -660,9 +667,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 8,
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   filterChipActive: {
     backgroundColor: "#2563EB",
@@ -670,19 +677,19 @@ const styles = StyleSheet.create({
   },
   filterText: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: colors.subtext,
     fontWeight: "700",
   },
   filterTextActive: {
     color: "#FFF",
   },
   card: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   cardTop: {
     flexDirection: "row",
@@ -706,7 +713,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   customerText: {
-    color: "#CBD5E1",
+    color: colors.subtext,
     fontSize: 13,
     fontWeight: "600",
     marginTop: 4,
@@ -730,7 +737,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   amountText: {
-    color: "#F8FAFC",
+    color: colors.text,
     fontWeight: "800",
     fontSize: 15,
     marginTop: 6,
@@ -742,7 +749,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "#334155",
+    borderTopColor: colors.cardBorder,
   },
   dateRow: {
     flexDirection: "row",
@@ -750,7 +757,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dateText: {
-    color: "#94A3B8",
+    color: colors.subtext,
     fontSize: 11,
   },
   cardActions: {
@@ -772,12 +779,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#F8FAFC",
+    color: colors.text,
     marginTop: 10,
   },
   emptySub: {
     fontSize: 12,
-    color: "#94A3B8",
+    color: colors.subtext,
     marginTop: 4,
   },
   modalOverlay: {
@@ -787,12 +794,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalCard: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 20,
     maxHeight: "90%",
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   modalHeader: {
     flexDirection: "row",
@@ -803,7 +810,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: colors.text,
   },
   statusBanner: {
     paddingVertical: 8,
@@ -818,16 +825,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   detailCardSection: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.background,
     borderRadius: 10,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   detailLabel: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: colors.subtext,
     fontWeight: "700",
     textTransform: "uppercase",
     marginBottom: 4,
@@ -845,11 +852,11 @@ const styles = StyleSheet.create({
   infoName: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#F8FAFC",
+    color: colors.text,
   },
   infoSub: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: colors.subtext,
   },
   statusActionRow: {
     flexDirection: "row",
@@ -885,3 +892,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+

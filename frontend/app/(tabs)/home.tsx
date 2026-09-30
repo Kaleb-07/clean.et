@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -116,39 +122,48 @@ const BANNER_SLIDES = [
   },
 ];
 
-const SECTOR_METADATA: Record<string, { description: string; duration: string; startingPrice: string; image: any }> = {
-  'standard-bay-wash': {
-    description: "Standard professional wash at our fully-equipped bays. Perfect for a quick and thorough shine.",
+const SECTOR_METADATA: Record<
+  string,
+  { description: string; duration: string; startingPrice: string; image: any }
+> = {
+  "standard-bay-wash": {
+    description:
+      "Standard professional wash at our fully-equipped bays. Perfect for a quick and thorough shine.",
     duration: "30-45 min",
     startingPrice: "From 400 ETB",
     image: require("../../assets/myimage/wash-premium.png"),
   },
-  'home-to-home': {
-    description: "Mobile washing service at your doorstep. We bring the equipment, water, and power to you.",
+  "home-to-home": {
+    description:
+      "Mobile washing service at your doorstep. We bring the equipment, water, and power to you.",
     duration: "45-60 min",
     startingPrice: "From 1,000 ETB",
     image: require("../../assets/myimage/wash-basic.png"),
   },
-  'pickup-drop-off': {
-    description: "Valet washing service. We pick up your car, wash it at our facility, and return it spotless.",
+  "pickup-drop-off": {
+    description:
+      "Valet washing service. We pick up your car, wash it at our facility, and return it spotless.",
     duration: "60-90 min",
     startingPrice: "From 775 ETB",
     image: require("../../assets/myimage/wash-premium.png"),
   },
-  'corporate-fleet': {
-    description: "Tailored recurring fleet wash solutions for corporate cars, trucks, and vans.",
+  "corporate-fleet": {
+    description:
+      "Tailored recurring fleet wash solutions for corporate cars, trucks, and vans.",
     duration: "Varies",
     startingPrice: "Custom Quote",
     image: require("../../assets/myimage/wash-basic.png"),
   },
-  'interior-cleaning': {
-    description: "Deep interior building sanitization. Carpet vacuuming, surface cleaning, and dust elimination.",
+  "interior-cleaning": {
+    description:
+      "Deep interior building sanitization. Carpet vacuuming, surface cleaning, and dust elimination.",
     duration: "2-4 hours",
     startingPrice: "From 15 ETB/sqm",
     image: require("../../assets/myimage/wash-basic.png"),
   },
-  'exterior-cleaning': {
-    description: "Professional facade and window washing. Specialized crews using certified safety equipment.",
+  "exterior-cleaning": {
+    description:
+      "Professional facade and window washing. Specialized crews using certified safety equipment.",
     duration: "4-8 hours",
     startingPrice: "From 2,000 ETB",
     image: require("../../assets/myimage/wash-premium.png"),
@@ -159,13 +174,26 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const colors = useColors();
-  const { categories, loading: categoriesLoading, error: categoriesError, reload: reloadCategories } = useCategories();
-  const { bookings, isLoading: bookingsLoading, reload: reloadBookings } = useBookings();
+  const {
+    categories,
+    loading: categoriesLoading,
+    error: categoriesError,
+    reload: reloadCategories,
+  } = useCategories();
+  const {
+    bookings,
+    isLoading: bookingsLoading,
+    reload: reloadBookings,
+  } = useBookings();
 
-  const [activeCategoryId, setActiveCategoryId] = useState<number | "all">("all");
+  const [activeCategoryId, setActiveCategoryId] = useState<number | "all">(
+    "all",
+  );
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const [user, setUser] = useState<{ name: string; email?: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; email?: string } | null>(
+    null,
+  );
   const [liveServices, setLiveServices] = useState<any[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -217,7 +245,12 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    await Promise.all([reloadCategories(), reloadBookings(), loadLiveServices(), loadUnreadCount()]);
+    await Promise.all([
+      reloadCategories(),
+      reloadBookings(),
+      loadLiveServices(),
+      loadUnreadCount(),
+    ]);
     setRefreshing(false);
   }, [reloadCategories, reloadBookings]);
 
@@ -231,7 +264,11 @@ export default function HomeScreen() {
   // Find active booking for client
   const activeBooking = useMemo(() => {
     return bookings.find(
-      (b) => b.status === "in_progress" || b.status === "driver_assigned" || b.status === "confirmed" || b.status === "pending"
+      (b) =>
+        b.status === "in_progress" ||
+        b.status === "driver_assigned" ||
+        b.status === "confirmed" ||
+        b.status === "pending",
     );
   }, [bookings]);
 
@@ -246,14 +283,17 @@ export default function HomeScreen() {
 
   const filteredSectors = useMemo(() => {
     return sectors.filter((s) =>
-      s.name?.toLowerCase().includes(search.toLowerCase())
+      s.name?.toLowerCase().includes(search.toLowerCase()),
     );
   }, [sectors, search]);
 
   const currentBanner = BANNER_SLIDES[activeSlide];
 
   return (
-    <LinearGradient colors={colors.gradients.background} style={styles.container}>
+    <LinearGradient
+      colors={colors.gradients.background}
+      style={styles.container}
+    >
       <ScrollView
         contentContainerStyle={{
           paddingTop: Math.max(insets.top + 10, 50),
@@ -268,11 +308,24 @@ export default function HomeScreen() {
         }
       >
         {/* ── 1. HEADER ROW (Avatar + Location + Greeting | Notification Bell) ── */}
-        <Animated.View entering={FadeInDown.delay(100)} style={styles.headerRow}>
+        <Animated.View
+          entering={FadeInDown.delay(100)}
+          style={styles.headerRow}
+        >
           <View style={styles.userSection}>
-            <View style={[styles.avatarBox, { backgroundColor: colors.accentLight, borderColor: colors.secondary }]}>
+            <View
+              style={[
+                styles.avatarBox,
+                {
+                  backgroundColor: colors.accentLight,
+                  borderColor: colors.secondary,
+                },
+              ]}
+            >
               {user?.name ? (
-                <Text style={[styles.avatarInitial, { color: colors.secondary }]}>
+                <Text
+                  style={[styles.avatarInitial, { color: colors.secondary }]}
+                >
                   {user.name.charAt(0).toUpperCase()}
                 </Text>
               ) : (
@@ -288,7 +341,7 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <Text style={[styles.greetingText, { color: colors.text }]}>
-                Hi, {user?.name || "Amanda"} 👋
+                {t("hi_greeting")}, {user?.name || "Amanda"} 👋
               </Text>
             </View>
           </View>
@@ -308,7 +361,9 @@ export default function HomeScreen() {
           >
             <Bell size={20} color={colors.text} />
             {unreadNotifications > 0 && (
-              <View style={[styles.badgeCircle, { backgroundColor: colors.danger }]}>
+              <View
+                style={[styles.badgeCircle, { backgroundColor: colors.danger }]}
+              >
                 <Text style={styles.badgeCountText}>{unreadNotifications}</Text>
               </View>
             )}
@@ -316,24 +371,51 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* ── 2. SEARCH INPUT TAB ── */}
-        <Animated.View entering={FadeInDown.delay(150)} style={[styles.searchContainer, { backgroundColor: colors.card, borderWidth: 0, borderColor: "transparent" }]}>
+        <Animated.View
+          entering={FadeInDown.delay(150)}
+          style={[
+            styles.searchContainer,
+            {
+              backgroundColor: colors.card,
+              borderWidth: 0,
+              borderColor: "transparent",
+            },
+          ]}
+        >
           <Search size={18} color={colors.subtext} />
           <TextInput
-            placeholder="Search services, sectors, packages..."
+            placeholder={t("search_services")}
             placeholderTextColor={colors.subtext}
             value={search}
             onChangeText={setSearch}
-            style={[styles.searchInput, { color: colors.text, borderWidth: 0, outlineStyle: "none" } as any]}
+            style={[
+              styles.searchInput,
+              {
+                color: colors.text,
+                borderWidth: 0,
+                outlineStyle: "none",
+              } as any,
+            ]}
           />
         </Animated.View>
 
         {/* ── 3. RECTANGULAR HERO SLIDER BANNER ── */}
-        <Animated.View entering={FadeInDown.delay(200)} style={styles.sliderContainer}>
+        <Animated.View
+          entering={FadeInDown.delay(200)}
+          style={styles.sliderContainer}
+        >
           <Pressable
             onPress={() => handleBook(currentBanner.sectorId)}
-            style={({ pressed }) => [styles.bannerCard, pressed && { opacity: 0.95 }]}
+            style={({ pressed }) => [
+              styles.bannerCard,
+              pressed && { opacity: 0.95 },
+            ]}
           >
-            <Image source={currentBanner.image} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+            <Image
+              source={currentBanner.image}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            />
 
             <LinearGradient
               colors={["rgba(11, 15, 25, 0.2)", "rgba(11, 15, 25, 0.85)"]}
@@ -341,14 +423,26 @@ export default function HomeScreen() {
             />
 
             <View style={styles.bannerContent}>
-              <View style={[styles.bannerTag, { backgroundColor: colors.secondary }]}>
+              <View
+                style={[
+                  styles.bannerTag,
+                  { backgroundColor: colors.secondary },
+                ]}
+              >
                 <Text style={styles.bannerTagText}>{currentBanner.tag}</Text>
               </View>
 
               <Text style={styles.bannerTitle}>{currentBanner.title}</Text>
-              <Text style={styles.bannerSubtitle}>{currentBanner.subtitle}</Text>
+              <Text style={styles.bannerSubtitle}>
+                {currentBanner.subtitle}
+              </Text>
 
-              <View style={[styles.bannerCtaBtn, { backgroundColor: colors.primary }]}>
+              <View
+                style={[
+                  styles.bannerCtaBtn,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
                 <Text style={styles.bannerCtaText}>{currentBanner.cta}</Text>
               </View>
             </View>
@@ -362,7 +456,10 @@ export default function HomeScreen() {
                   style={[
                     styles.dotItem,
                     idx === activeSlide
-                      ? [styles.dotActive, { backgroundColor: colors.secondary }]
+                      ? [
+                          styles.dotActive,
+                          { backgroundColor: colors.secondary },
+                        ]
                       : styles.dotInactive,
                   ]}
                 />
@@ -373,36 +470,96 @@ export default function HomeScreen() {
 
         {/* ── ACTIVE BOOKING TRACKER HERO BANNER (IF ANY) ── */}
         {activeBooking && (
-          <Animated.View entering={FadeInUp.delay(220)} style={{ marginHorizontal: 20, marginBottom: 20 }}>
-            <BlurView intensity={35} tint={colors.isDark ? "dark" : "light"} style={[styles.activeBookingCard, { borderColor: colors.secondary, backgroundColor: colors.card }]}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.secondary }} />
-                  <Text style={{ color: colors.secondary, fontSize: 12, fontWeight: "700", textTransform: "uppercase" }}>
+          <Animated.View
+            entering={FadeInUp.delay(220)}
+            style={{ marginHorizontal: 20, marginBottom: 20 }}
+          >
+            <BlurView
+              intensity={35}
+              tint={colors.isDark ? "dark" : "light"}
+              style={[
+                styles.activeBookingCard,
+                { borderColor: colors.secondary, backgroundColor: colors.card },
+              ]}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 10,
+                }}
+              >
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+                >
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: colors.secondary,
+                    }}
+                  />
+                  <Text
+                    style={{
+                      color: colors.secondary,
+                      fontSize: 12,
+                      fontWeight: "700",
+                      textTransform: "uppercase",
+                    }}
+                  >
                     Active Booking • {activeBooking.status.replace("_", " ")}
                   </Text>
                 </View>
-                <Text style={{ color: colors.subtext, fontSize: 12 }}>#{activeBooking.id}</Text>
+                <Text style={{ color: colors.subtext, fontSize: 12 }}>
+                  #{activeBooking.id}
+                </Text>
               </View>
 
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "bold", marginBottom: 4 }}>
-                {activeBooking.sector?.name || activeBooking.service?.name || "Clean.et Service"}
+              <Text
+                style={{
+                  color: colors.text,
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  marginBottom: 4,
+                }}
+              >
+                {activeBooking.sector?.name ||
+                  activeBooking.service?.name ||
+                  "Clean.et Service"}
               </Text>
 
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 14,
+                }}
+              >
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                >
                   <Calendar size={13} color={colors.subtext} />
-                  <Text style={{ color: colors.subtext, fontSize: 13 }}>{activeBooking.booking_date}</Text>
+                  <Text style={{ color: colors.subtext, fontSize: 13 }}>
+                    {activeBooking.booking_date}
+                  </Text>
                 </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                >
                   <Clock size={13} color={colors.subtext} />
-                  <Text style={{ color: colors.subtext, fontSize: 13 }}>{activeBooking.booking_time}</Text>
+                  <Text style={{ color: colors.subtext, fontSize: 13 }}>
+                    {activeBooking.booking_time}
+                  </Text>
                 </View>
               </View>
 
               <Pressable
                 onPress={() => {
-                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  if (Platform.OS !== "web")
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   router.push(`/booking/status/${activeBooking.id}`);
                 }}
                 style={({ pressed }) => [
@@ -412,7 +569,9 @@ export default function HomeScreen() {
                 ]}
               >
                 <Navigation size={15} color="#FFFFFF" />
-                <Text style={styles.trackButtonText}>Track Live Order Status</Text>
+                <Text style={styles.trackButtonText}>
+                  Track Live Order Status
+                </Text>
                 <ChevronRight size={16} color="#FFFFFF" />
               </Pressable>
             </BlurView>
@@ -422,18 +581,32 @@ export default function HomeScreen() {
         {/* ── 4. CATEGORY SELECTOR CARDS ── */}
         <Animated.View entering={FadeInUp.delay(240)}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Explore Service Categories</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.subtext }]}>Select sector to filter offerings</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Explore Service Categories
+            </Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.subtext }]}>
+              Select sector to filter offerings
+            </Text>
           </View>
 
           <View style={styles.categoryContainer}>
             {[
-              { id: "all" as const, name: "All Services", slug: "all", Icon: Sparkles },
+              {
+                id: "all" as const,
+                name: "All Services",
+                slug: "all",
+                Icon: Sparkles,
+              },
               ...categories.map((c) => ({
                 id: c.id,
                 name: c.name,
                 slug: c.slug,
-                Icon: c.slug === "car-washing" ? Car : c.slug === "building-cleaning" ? Building2 : Shirt,
+                Icon:
+                  c.slug === "car-washing"
+                    ? Car
+                    : c.slug === "building-cleaning"
+                      ? Building2
+                      : Shirt,
               })),
             ].map((cat) => {
               const isActive = cat.id === activeCategoryId;
@@ -455,10 +628,14 @@ export default function HomeScreen() {
                     style={[
                       styles.categoryCard,
                       {
-                        borderColor: isActive ? colors.primary : colors.cardBorder,
+                        borderColor: isActive
+                          ? colors.primary
+                          : colors.cardBorder,
                         backgroundColor: isActive
                           ? colors.primaryLight
-                          : (colors.isDark ? "rgba(255, 255, 255, 0.03)" : colors.surface),
+                          : colors.isDark
+                            ? "rgba(255, 255, 255, 0.03)"
+                            : colors.surface,
                       },
                     ]}
                   >
@@ -471,7 +648,10 @@ export default function HomeScreen() {
                       />
                     )}
                     <View style={styles.categoryIconWrapper}>
-                      <Icon size={22} color={isActive ? "#FFFFFF" : colors.subtext} />
+                      <Icon
+                        size={22}
+                        color={isActive ? "#FFFFFF" : colors.subtext}
+                      />
                     </View>
                     <Text
                       style={[
@@ -490,18 +670,25 @@ export default function HomeScreen() {
 
         {/* LOADING & ERROR */}
         {categoriesLoading && !refreshing && (
-          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+          <ActivityIndicator
+            size="large"
+            color={colors.primary}
+            style={{ marginTop: 40 }}
+          />
         )}
 
         {categoriesError && (
-          <Text style={[styles.errorText, { color: colors.danger }]}>{categoriesError}</Text>
+          <Text style={[styles.errorText, { color: colors.danger }]}>
+            {categoriesError}
+          </Text>
         )}
 
         {/* ── 5. UNIFIED SECTOR DIVISION SERVICES LIST ── */}
         <View style={styles.servicesList}>
           {filteredSectors.map((item: any, index) => {
             const meta = SECTOR_METADATA[item.slug] || {
-              description: "Professional cleaning service custom-tailored to your exact specifications.",
+              description:
+                "Professional cleaning service custom-tailored to your exact specifications.",
               duration: "Flexible",
               startingPrice: "From 400 ETB",
               image: require("../../assets/myimage/wash-premium.png"),
@@ -523,38 +710,97 @@ export default function HomeScreen() {
                           : "DIVISION SECTOR";
 
             return (
-              <Animated.View key={item.id} entering={FadeInUp.delay(index * 60)}>
-                <BlurView intensity={25} tint={colors.isDark ? "dark" : "light"} style={[styles.card, { borderColor: colors.cardBorder, backgroundColor: colors.card }]}>
+              <Animated.View
+                key={item.id}
+                entering={FadeInUp.delay(index * 60)}
+              >
+                <BlurView
+                  intensity={25}
+                  tint={colors.isDark ? "dark" : "light"}
+                  style={[
+                    styles.card,
+                    {
+                      borderColor: colors.cardBorder,
+                      backgroundColor: colors.card,
+                    },
+                  ]}
+                >
                   {/* IMAGE */}
-                  <Image source={meta.image} style={styles.cardImage} resizeMode="cover" />
+                  <Image
+                    source={meta.image}
+                    style={styles.cardImage}
+                    resizeMode="cover"
+                  />
 
                   {/* CONTENT */}
                   <View style={styles.cardContent}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                      <View style={{ backgroundColor: colors.accentLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: colors.secondary }}>
-                        <Text style={{ color: colors.secondary, fontSize: 11, fontWeight: "700" }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: colors.accentLight,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 6,
+                          borderWidth: 1,
+                          borderColor: colors.secondary,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: colors.secondary,
+                            fontSize: 11,
+                            fontWeight: "700",
+                          }}
+                        >
                           {subCenterTag}
                         </Text>
                       </View>
                     </View>
 
                     <View style={styles.cardHeader}>
-                      <Text style={[styles.cardTitle, { color: colors.text }]}>{item.name}</Text>
-                      <Text style={[styles.cardPrice, { color: colors.secondary }]}>{meta.startingPrice}</Text>
+                      <Text style={[styles.cardTitle, { color: colors.text }]}>
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={[styles.cardPrice, { color: colors.secondary }]}
+                      >
+                        {meta.startingPrice}
+                      </Text>
                     </View>
 
-                    <Text style={[styles.cardDescription, { color: colors.subtext }]} numberOfLines={2}>
+                    <Text
+                      style={[
+                        styles.cardDescription,
+                        { color: colors.subtext },
+                      ]}
+                      numberOfLines={2}
+                    >
                       {meta.description}
                     </Text>
 
                     <View style={styles.cardMeta}>
                       <View style={styles.metaItem}>
                         <Clock size={14} color={colors.subtext} />
-                        <Text style={[styles.metaText, { color: colors.subtext }]}>{meta.duration}</Text>
+                        <Text
+                          style={[styles.metaText, { color: colors.subtext }]}
+                        >
+                          {meta.duration}
+                        </Text>
                       </View>
                       <View style={styles.metaItem}>
                         <ShieldCheck size={14} color={colors.secondary} />
-                        <Text style={[styles.metaText, { color: colors.secondary }]}>Verified Division</Text>
+                        <Text
+                          style={[styles.metaText, { color: colors.secondary }]}
+                        >
+                          Verified Division
+                        </Text>
                       </View>
                     </View>
 
@@ -566,7 +812,9 @@ export default function HomeScreen() {
                       ]}
                       onPress={() => handleBook(item.id)}
                     >
-                      <Text style={styles.bookButtonText}>Book Sector Service</Text>
+                      <Text style={styles.bookButtonText}>
+                        Book Sector Service
+                      </Text>
                       <ChevronRight size={16} color="#FFFFFF" />
                     </Pressable>
                   </View>
@@ -580,23 +828,37 @@ export default function HomeScreen() {
         <CleaningTipsSection colors={colors} />
 
         {/* ── PROMO BANNER ── */}
-        <PromoOfferBanner colors={colors} onPress={() => router.push("/booking")} />
+        <PromoOfferBanner
+          colors={colors}
+          onPress={() => router.push("/booking")}
+        />
 
         {/* ENTERPRISE TRUST BADGES FOOTER */}
-        <Animated.View entering={FadeInUp.delay(300)} style={styles.trustFooter}>
-          <Text style={[styles.trustTitle, { color: colors.subtext }]}>CLEAN.ET ENTERPRISE GUARANTEE</Text>
+        <Animated.View
+          entering={FadeInUp.delay(300)}
+          style={styles.trustFooter}
+        >
+          <Text style={[styles.trustTitle, { color: colors.subtext }]}>
+            CLEAN.ET ENTERPRISE GUARANTEE
+          </Text>
           <View style={styles.trustGrid}>
             <View style={styles.trustItem}>
               <ShieldCheck size={20} color={colors.secondary} />
-              <Text style={[styles.trustItemText, { color: colors.text }]}>Verified Crew</Text>
+              <Text style={[styles.trustItemText, { color: colors.text }]}>
+                Verified Crew
+              </Text>
             </View>
             <View style={styles.trustItem}>
               <Sparkles size={20} color={colors.primary} />
-              <Text style={[styles.trustItemText, { color: colors.text }]}>Pure Eco Wash</Text>
+              <Text style={[styles.trustItemText, { color: colors.text }]}>
+                Pure Eco Wash
+              </Text>
             </View>
             <View style={styles.trustItem}>
               <Award size={20} color={colors.secondary} />
-              <Text style={[styles.trustItemText, { color: colors.text }]}>Transparent ETB</Text>
+              <Text style={[styles.trustItemText, { color: colors.text }]}>
+                Transparent ETB
+              </Text>
             </View>
           </View>
         </Animated.View>
@@ -606,7 +868,11 @@ export default function HomeScreen() {
 }
 
 // ─── CLEANING TIPS CAROUSEL COMPONENT ───────────────────────────────────────
-function CleaningTipsSection({ colors }: { colors: ReturnType<typeof import("../../hooks/useColors").useColors> }) {
+function CleaningTipsSection({
+  colors,
+}: {
+  colors: ReturnType<typeof import("../../hooks/useColors").useColors>;
+}) {
   const flatRef = useRef<FlatList>(null);
   const [activeTip, setActiveTip] = useState(0);
 
@@ -626,15 +892,23 @@ function CleaningTipsSection({ colors }: { colors: ReturnType<typeof import("../
   return (
     <Animated.View entering={FadeInUp.delay(310)} style={styles.tipsSection}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Cleaning Tips</Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.subtext }]}>Pro care advice from our crew</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Cleaning Tips
+        </Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.subtext }]}>
+          Pro care advice from our crew
+        </Text>
       </View>
 
       {/* Single outer card — FlatList + dots live inside */}
       <View
         style={[
           styles.tipOuterCard,
-          { backgroundColor: colors.card, borderColor: colors.cardBorder, marginHorizontal: 20 },
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.cardBorder,
+            marginHorizontal: 20,
+          },
         ]}
       >
         <FlatList
@@ -645,7 +919,11 @@ function CleaningTipsSection({ colors }: { colors: ReturnType<typeof import("../
           scrollEnabled
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => String(item.id)}
-          getItemLayout={(_, index) => ({ length: innerWidth, offset: innerWidth * index, index })}
+          getItemLayout={(_, index) => ({
+            length: innerWidth,
+            offset: innerWidth * index,
+            index,
+          })}
           onMomentumScrollEnd={(e) => {
             const idx = Math.round(e.nativeEvent.contentOffset.x / innerWidth);
             setActiveTip(idx);
@@ -665,8 +943,12 @@ function CleaningTipsSection({ colors }: { colors: ReturnType<typeof import("../
                 </LinearGradient>
                 {/* Text */}
                 <View style={styles.tipTextBlock}>
-                  <Text style={[styles.tipTitle, { color: colors.text }]}>{item.title}</Text>
-                  <Text style={[styles.tipDesc, { color: colors.subtext }]}>{item.desc}</Text>
+                  <Text style={[styles.tipTitle, { color: colors.text }]}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.tipDesc, { color: colors.subtext }]}>
+                    {item.desc}
+                  </Text>
                 </View>
               </View>
             );
@@ -698,7 +980,6 @@ function CleaningTipsSection({ colors }: { colors: ReturnType<typeof import("../
   );
 }
 
-
 // ─── PROMO OFFER BANNER COMPONENT ────────────────────────────────────────────
 function PromoOfferBanner({
   colors,
@@ -707,8 +988,12 @@ function PromoOfferBanner({
   colors: ReturnType<typeof import("../../hooks/useColors").useColors>;
   onPress: () => void;
 }) {
+  const { t } = useLanguage();
   return (
-    <Animated.View entering={FadeInUp.delay(350)} style={styles.promoBannerWrapper}>
+    <Animated.View
+      entering={FadeInUp.delay(350)}
+      style={styles.promoBannerWrapper}
+    >
       <LinearGradient
         colors={[colors.primary, "#1D4ED8"]}
         start={{ x: 0, y: 0 }}
@@ -716,21 +1001,44 @@ function PromoOfferBanner({
         style={styles.promoBanner}
       >
         {/* Decorative circle */}
-        <View style={[styles.promoCircle, { backgroundColor: "rgba(16,185,129,0.2)" }]} />
-        <View style={[styles.promoCircleSmall, { backgroundColor: "rgba(255,255,255,0.08)" }]} />
+        <View
+          style={[
+            styles.promoCircle,
+            { backgroundColor: "rgba(16,185,129,0.2)" },
+          ]}
+        />
+        <View
+          style={[
+            styles.promoCircleSmall,
+            { backgroundColor: "rgba(255,255,255,0.08)" },
+          ]}
+        />
 
         {/* Badge */}
-        <View style={[styles.promoBadge, { backgroundColor: "rgba(255,255,255,0.15)", borderColor: "rgba(255,255,255,0.35)" }]}>
+        <View
+          style={[
+            styles.promoBadge,
+            {
+              backgroundColor: "rgba(255,255,255,0.15)",
+              borderColor: "rgba(255,255,255,0.35)",
+            },
+          ]}
+        >
           <Text style={{ fontSize: 13 }}>⚡</Text>
-          <Text style={[styles.promoBadgeText, { color: "#FFFFFF" }]}>LIMITED OFFER</Text>
+          <Text style={[styles.promoBadgeText, { color: "#FFFFFF" }]}>
+            LIMITED OFFER
+          </Text>
         </View>
 
         {/* Headline */}
         <Text style={styles.promoHeadline}>
           Get 20% Off Your{"\n"}First Booking
         </Text>
-        <Text style={[styles.promoSubtitle, { color: "rgba(255,255,255,0.72)" }]}>
-          Book any sector service and save instantly — verified crews, transparent ETB pricing.
+        <Text
+          style={[styles.promoSubtitle, { color: "rgba(255,255,255,0.72)" }]}
+        >
+          Book any sector service and save instantly — verified crews,
+          transparent ETB pricing.
         </Text>
 
         {/* CTA Button */}
@@ -738,11 +1046,14 @@ function PromoOfferBanner({
           onPress={onPress}
           style={({ pressed }) => [
             styles.promoBtn,
-            { backgroundColor: "rgba(255,255,255,0.12)", borderColor: "rgba(255,255,255,0.35)" },
+            {
+              backgroundColor: "rgba(255,255,255,0.12)",
+              borderColor: "rgba(255,255,255,0.35)",
+            },
             pressed && { opacity: 0.75 },
           ]}
         >
-          <Text style={styles.promoBtnText}>Book Now →</Text>
+          <Text style={styles.promoBtnText}>{t("book_now")} →</Text>
         </Pressable>
       </LinearGradient>
     </Animated.View>
@@ -1195,5 +1506,3 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
-
-

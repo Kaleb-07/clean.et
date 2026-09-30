@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import Animated, { FadeInDown, FadeInRight, FadeOutUp } from "react-native-reani
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useColors } from "../../hooks/useColors";
+import { useLanguage } from "../../contexts/LanguageContext";
 import {
   useSuperAdmin,
   Tenant,
@@ -89,6 +91,9 @@ const DEFAULT_SECTOR_OPTIONS: SectorCategoryOption[] = [
 export default function SuperAdminTenants() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const { t } = useLanguage();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const {
     analytics,
@@ -283,7 +288,7 @@ export default function SuperAdminTenants() {
     showToast("success", `Custom sector "${newOption.title}" created & saved!`);
   };
 
-  /* ─── TOGGLE SECTOR ─── */
+  /* --- TOGGLE SECTOR --- */
   const toggleSector = (sectorId: string) => {
     setForm((prev) => {
       const exists = prev.categories_enabled.includes(sectorId);
@@ -301,7 +306,7 @@ export default function SuperAdminTenants() {
     });
   };
 
-  /* ─── OPEN ADD / EDIT MODAL ─── */
+  /* --- OPEN ADD / EDIT MODAL --- */
   const openAddModal = () => {
     setEditingTenant(null);
     setForm({
@@ -329,7 +334,7 @@ export default function SuperAdminTenants() {
     setModalVisible(true);
   };
 
-  /* ─── SAVE DIVISION (CREATE / EDIT) ─── */
+  /* --- SAVE DIVISION (CREATE / EDIT) --- */
   const handleSaveDivision = async () => {
     if (!form.business_name.trim()) {
       return Alert.alert("Required", "Division Name is required.");
@@ -357,7 +362,7 @@ export default function SuperAdminTenants() {
       } else {
         await createTenant(payload);
         Alert.alert(
-          "🎉 Success",
+          "?? Success",
           `New Cleaning Division "${form.business_name}" created!\n\nManager Account Credentials:\nEmail: ${form.admin_email}\nPassword: ${form.admin_password}`
         );
       }
@@ -379,7 +384,7 @@ export default function SuperAdminTenants() {
     }
   };
 
-  /* ─── TOGGLE DIVISION STATUS ─── */
+  /* --- TOGGLE DIVISION STATUS --- */
   const handleToggleStatus = (tenant: Tenant) => {
     const nextStatus = tenant.status === "active" ? "suspended" : "active";
     setStatusConfirmModal({ tenant, nextStatus });
@@ -415,7 +420,7 @@ export default function SuperAdminTenants() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* ── 🔔 TOAST NOTIFICATION BANNER ── */}
+      {/* -- ?? TOAST NOTIFICATION BANNER -- */}
       {toast && (
         <Animated.View
           entering={FadeInDown.duration(300)}
@@ -444,7 +449,7 @@ export default function SuperAdminTenants() {
           </TouchableOpacity>
         </Animated.View>
       )}
-      {/* ── HEADER ── */}
+      {/* -- HEADER -- */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
@@ -453,11 +458,11 @@ export default function SuperAdminTenants() {
           }}
           style={styles.backBtn}
         >
-          <Ionicons name="arrow-back" size={20} color="#FFF" />
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>👑 Super Admin Governance</Text>
+          <Text style={styles.headerTitle}>?? Super Admin Governance</Text>
           <Text style={styles.headerSubtitle}>
             Clean.et Enterprise Cleaning Divisions & Sectors Governance
           </Text>
@@ -485,7 +490,7 @@ export default function SuperAdminTenants() {
         </View>
       )}
 
-      {/* ── TOP NAV TABS (SCROLLABLE & RESPONSIVE) ── */}
+      {/* -- TOP NAV TABS (SCROLLABLE & RESPONSIVE) -- */}
       <View style={styles.tabBarOuterContainer}>
         <ScrollView
           horizontal
@@ -526,7 +531,7 @@ export default function SuperAdminTenants() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />}
       >
-        {/* ── TAB 1: OVERVIEW ── */}
+        {/* -- TAB 1: OVERVIEW -- */}
         {activeTab === "overview" && (
           <Animated.View entering={FadeInDown.duration(400)}>
             {/* HERO EXECUTIVE SUMMARY */}
@@ -574,14 +579,14 @@ export default function SuperAdminTenants() {
             </View>
 
             {/* System Divisions List Preview */}
-            <Text style={styles.sectionHeaderTitle}>🏢 Enterprise Service Divisions</Text>
+            <Text style={styles.sectionHeaderTitle}>?? Enterprise Service Divisions</Text>
             {tenants.map((tenant) => (
               <View key={tenant.id} style={styles.divisionPreviewCard}>
                 <View style={styles.divisionIconBox}>
                   <Ionicons name="business" size={20} color="#60A5FA" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 14 }}>
+                  <Text style={{ color: colors.text, fontWeight: "800", fontSize: 14 }}>
                     {tenant.business_name}
                   </Text>
                   <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
@@ -609,7 +614,7 @@ export default function SuperAdminTenants() {
           </Animated.View>
         )}
 
-        {/* ── TAB 2: DIVISIONS ── */}
+        {/* -- TAB 2: DIVISIONS -- */}
         {activeTab === "divisions" && (
           <Animated.View entering={FadeInDown.duration(400)}>
             {/* Search & Action Bar */}
@@ -696,11 +701,11 @@ export default function SuperAdminTenants() {
                       <Text style={{ color: "#94A3B8", fontSize: 11, fontWeight: "700" }}>
                         DEPARTMENT DIVISION MANAGER
                       </Text>
-                      <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "800", marginTop: 2 }}>
-                        👤 {manager ? manager.name : "Unassigned"}
+                      <Text style={{ color: colors.text, fontSize: 13, fontWeight: "800", marginTop: 2 }}>
+                        ?? {manager ? manager.name : "Unassigned"}
                       </Text>
                       <Text style={{ color: "#CBD5E1", fontSize: 11, marginTop: 1 }}>
-                        📧 {manager ? manager.email : "No Email"} {manager?.phone ? `• 📞 ${manager.phone}` : ""}
+                        ?? {manager ? manager.email : "No Email"} {manager?.phone ? `� ?? ${manager.phone}` : ""}
                       </Text>
                     </View>
 
@@ -767,20 +772,20 @@ export default function SuperAdminTenants() {
           </Animated.View>
         )}
 
-        {/* ── TAB 3: SECTORS ── */}
+        {/* -- TAB 3: SECTORS -- */}
         {activeTab === "sectors" && (
           <Animated.View entering={FadeInDown.duration(400)}>
             {/* Header & Create Button */}
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <View>
-                <Text style={styles.sectionHeaderTitle}>✨ Enterprise Cleaning Sectors</Text>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={styles.sectionHeaderTitle}>? Enterprise Cleaning Sectors</Text>
                 <Text style={{ color: "#94A3B8", fontSize: 11 }}>
                   Platform Service Domains & Division Operational Licensing
                 </Text>
               </View>
 
               <TouchableOpacity
-                style={{ backgroundColor: "#2563EB", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 6 }}
+                style={{ backgroundColor: "#2563EB", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0 }}
                 onPress={() => setCreateSectorModalVisible(true)}
               >
                 <Ionicons name="add-circle" size={16} color="#FFF" />
@@ -803,8 +808,7 @@ export default function SuperAdminTenants() {
 
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 15 }}>
-                          {sec.title}
+                        <Text style={{ color: colors.text, fontWeight: "800", fontSize: 15 }}>{sec.title}
                         </Text>
                         <View style={styles.slugBadge}>
                           <Text style={styles.slugBadgeText}>{sec.id}</Text>
@@ -823,7 +827,7 @@ export default function SuperAdminTenants() {
                     </Text>
                     <Text style={{ color: "#60A5FA", fontSize: 11, fontWeight: "600", marginTop: 2 }}>
                       {operatingDivisions.length > 0
-                        ? operatingDivisions.map((d) => d.business_name).join(" • ")
+                        ? operatingDivisions.map((d) => d.business_name).join(" � ")
                         : "No divisions currently licensed"}
                     </Text>
                   </View>
@@ -834,7 +838,7 @@ export default function SuperAdminTenants() {
         )}
       </ScrollView>
 
-      {/* ── 👁️ INSPECT DIVISION MODAL ── */}
+      {/* -- ??? INSPECT DIVISION MODAL -- */}
       <Modal visible={!!inspectTenant} transparent animationType="fade" onRequestClose={() => setInspectTenant(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -861,14 +865,13 @@ export default function SuperAdminTenants() {
                     marginTop: 2,
                   }}
                 >
-                  🟢 {inspectTenant?.status.toUpperCase()}
+                  ?? {inspectTenant?.status.toUpperCase()}
                 </Text>
               </View>
 
               <View style={styles.detailSection}>
                 <Text style={styles.detailLabel}>Authorized Cleaning Sectors</Text>
-                <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "700", marginTop: 2 }}>
-                  {(inspectTenant?.categories_enabled || ["car-washing"]).join(", ")}
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700", marginTop: 2 }}>{(inspectTenant?.categories_enabled || ["car-washing"]).join(", ")}
                 </Text>
               </View>
 
@@ -876,15 +879,15 @@ export default function SuperAdminTenants() {
                 <Text style={styles.detailLabel}>Department Manager Credentials</Text>
                 {inspectTenant?.users && inspectTenant.users.length > 0 ? (
                   <View style={{ marginTop: 4 }}>
-                    <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>
-                      👤 {inspectTenant.users[0].name}
+                    <Text style={{ color: colors.text, fontWeight: "800", fontSize: 13 }}>
+                      ?? {inspectTenant.users[0].name}
                     </Text>
-                    <Text style={{ color: "#CBD5E1", fontSize: 12, marginTop: 2 }}>
-                      📧 Email: {inspectTenant.users[0].email}
+                    <Text style={{ color: colors.subtext, fontSize: 12, marginTop: 2 }}>
+                      ?? Email: {inspectTenant.users[0].email}
                     </Text>
                     {inspectTenant.users[0].phone && (
                       <Text style={{ color: "#CBD5E1", fontSize: 12, marginTop: 1 }}>
-                        📞 Phone: {inspectTenant.users[0].phone}
+                        ?? Phone: {inspectTenant.users[0].phone}
                       </Text>
                     )}
                   </View>
@@ -901,14 +904,14 @@ export default function SuperAdminTenants() {
         </View>
       </Modal>
 
-      {/* ── ✏️ REGISTER / EDIT CLEANING DIVISION MODAL ── */}
+      {/* -- ?? REGISTER / EDIT CLEANING DIVISION MODAL -- */}
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>
-                  {editingTenant ? "✏️ Edit Cleaning Division" : "+ Register Cleaning Division"}
+                  {editingTenant ? "?? Edit Cleaning Division" : "+ Register Cleaning Division"}
                 </Text>
                 <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
                   {editingTenant
@@ -948,7 +951,7 @@ export default function SuperAdminTenants() {
                     >
                       <Ionicons name={sec.icon as any} size={20} color={sec.color} style={{ marginRight: 8 }} />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "700" }}>{sec.title}</Text>
+                        <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>{sec.title}</Text>
                         <Text style={{ color: "#94A3B8", fontSize: 10, marginTop: 1 }}>{sec.subtitle}</Text>
                       </View>
                       <Ionicons
@@ -1030,7 +1033,7 @@ export default function SuperAdminTenants() {
               {/* Manager Credentials Form */}
               <View style={styles.managerFormSection}>
                 <Text style={styles.managerSectionTitle}>
-                  👤 DEPARTMENT DIVISION MANAGER CREDENTIALS
+                  ?? DEPARTMENT DIVISION MANAGER CREDENTIALS
                 </Text>
 
                 <View style={styles.inputGroup}>
@@ -1110,7 +1113,7 @@ export default function SuperAdminTenants() {
         </View>
       </Modal>
 
-      {/* ── 🛡️ CUSTOM DIVISION STATUS TOGGLE CONFIRMATION MODAL ── */}
+      {/* -- ??? CUSTOM DIVISION STATUS TOGGLE CONFIRMATION MODAL -- */}
       <Modal
         visible={!!statusConfirmModal}
         transparent
@@ -1156,7 +1159,7 @@ export default function SuperAdminTenants() {
             <View style={styles.confirmStatusDetailBox}>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: "#94A3B8", fontSize: 10, fontWeight: "700" }}>DIVISION</Text>
-                <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "800", marginTop: 2 }} numberOfLines={1}>
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: "800", marginTop: 2 }} numberOfLines={1}>
                   {statusConfirmModal?.tenant.business_name}
                 </Text>
               </View>
@@ -1223,7 +1226,7 @@ export default function SuperAdminTenants() {
         </View>
       </Modal>
 
-      {/* ── ✨ DEDICATED SECTOR CREATION MODAL (FOR SECTORS TAB) ── */}
+      {/* -- ? DEDICATED SECTOR CREATION MODAL (FOR SECTORS TAB) -- */}
       <Modal
         visible={createSectorModalVisible}
         transparent
@@ -1234,7 +1237,7 @@ export default function SuperAdminTenants() {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>✨ Create Cleaning Sector</Text>
+                <Text style={styles.modalTitle}>? Create Cleaning Sector</Text>
                 <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
                   Define a new enterprise service category for Clean.et platform
                 </Text>
@@ -1307,16 +1310,16 @@ export default function SuperAdminTenants() {
 }
 
 /* ================= STYLES ================= */
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F172A" },
+const getStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: colors.cardBorder,
     gap: 12,
   },
   backBtn: {
@@ -1327,8 +1330,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#F8FAFC" },
-  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
+  headerTitle: { fontSize: 18, fontWeight: "800", color: colors.text },
+  headerSubtitle: { fontSize: 11, color: colors.subtext, marginTop: 1 },
   refreshBtn: { padding: 6 },
   impersonateBanner: {
     flexDirection: "row",
@@ -1341,9 +1344,9 @@ const styles = StyleSheet.create({
   impersonateText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
   exitImpersonateBtn: { backgroundColor: "#1D4ED8", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   tabBarOuterContainer: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: colors.cardBorder,
     zIndex: 10,
   },
   tabBarContentContainer: {
@@ -1363,7 +1366,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   tabItemActive: { backgroundColor: "#334155" },
-  tabText: { color: "#94A3B8", fontSize: 12, fontWeight: "700" },
+  tabText: { color: colors.subtext, fontSize: 12, fontWeight: "700" },
   tabTextActive: { color: "#FFF" },
   scrollContent: { padding: 16, paddingBottom: 40 },
   heroCard: { padding: 16, borderRadius: 16, marginBottom: 14, borderWidth: 1, borderColor: "#4338CA" },
@@ -1382,16 +1385,16 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   quickActionText: { color: "#FFF", fontWeight: "800", fontSize: 12 },
-  sectionHeaderTitle: { fontSize: 15, fontWeight: "800", color: "#FFF", marginBottom: 10 },
+  sectionHeaderTitle: { fontSize: 15, fontWeight: "800", color: colors.text, marginBottom: 10 },
   divisionPreviewCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   divisionIconBox: {
     width: 36,
@@ -1407,14 +1410,14 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 42,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
-  searchInput: { flex: 1, color: "#F8FAFC", marginLeft: 8, fontSize: 13 },
+  searchInput: { flex: 1, color: colors.text, marginLeft: 8, fontSize: 13 },
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1424,32 +1427,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   addBtnText: { color: "#FFF", fontWeight: "700", marginLeft: 4, fontSize: 13 },
-  filterChip: { backgroundColor: "#1E293B", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "#334155" },
+  filterChip: { backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.cardBorder },
   filterChipActive: { backgroundColor: "#2563EB", borderColor: "#3B82F6" },
-  filterChipText: { color: "#94A3B8", fontSize: 11, fontWeight: "700" },
+  filterChipText: { color: colors.subtext, fontSize: 11, fontWeight: "700" },
   filterChipTextActive: { color: "#FFF" },
-  card: { backgroundColor: "#1E293B", borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "#334155" },
+  card: { backgroundColor: colors.card, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: colors.cardBorder },
   avatarBox: { width: 40, height: 40, borderRadius: 10, backgroundColor: "#3B82F622", alignItems: "center", justifyContent: "center" },
-  cardTitle: { color: "#FFF", fontWeight: "800", fontSize: 15 },
-  cardSub: { color: "#94A3B8", fontSize: 11, marginTop: 1 },
+  cardTitle: { color: colors.text, fontWeight: "800", fontSize: 15 },
+  cardSub: { color: colors.subtext, fontSize: 11, marginTop: 1 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  managerDetailsRow: { backgroundColor: "#0F172A", padding: 10, borderRadius: 8, marginTop: 10, borderWidth: 1, borderColor: "#334155" },
+  managerDetailsRow: { backgroundColor: colors.background, padding: 10, borderRadius: 8, marginTop: 10, borderWidth: 1, borderColor: colors.cardBorder },
   cardActions: { flexDirection: "row", marginTop: 10, gap: 8 },
   actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
   emptyState: { alignItems: "center", paddingVertical: 40 },
-  emptyTitle: { color: "#FFF", fontSize: 16, fontWeight: "800", marginTop: 10 },
-  emptySub: { color: "#94A3B8", fontSize: 12, marginTop: 4 },
+  emptyTitle: { color: colors.text, fontSize: 16, fontWeight: "800", marginTop: 10 },
+  emptySub: { color: colors.subtext, fontSize: 12, marginTop: 4 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.8)", justifyContent: "center", padding: 16 },
-  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, maxHeight: "90%", borderWidth: 1, borderColor: "#334155" },
+  modalCard: { backgroundColor: colors.card, borderRadius: 20, padding: 20, maxHeight: "90%", borderWidth: 1, borderColor: colors.cardBorder },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: "#F8FAFC" },
-  detailSection: { backgroundColor: "#0F172A", padding: 12, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: "#334155" },
-  detailLabel: { fontSize: 11, color: "#94A3B8", fontWeight: "700", textTransform: "uppercase" },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: colors.text },
+  detailSection: { backgroundColor: colors.background, padding: 12, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: colors.cardBorder },
+  detailLabel: { fontSize: 11, color: colors.subtext, fontWeight: "700", textTransform: "uppercase" },
   inputGroup: { marginBottom: 12 },
-  inputLabel: { fontSize: 12, fontWeight: "700", color: "#CBD5E1", marginBottom: 6 },
-  textInput: { backgroundColor: "#0F172A", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: "#F8FAFC", borderWidth: 1, borderColor: "#334155" },
-  sectorOptionCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#0F172A", padding: 10, borderRadius: 10, borderWidth: 1, borderColor: "#334155" },
-  managerFormSection: { marginTop: 10, backgroundColor: "#0F172A", padding: 12, borderRadius: 12, borderWidth: 1, borderColor: "#334155" },
+  inputLabel: { fontSize: 12, fontWeight: "700", color: colors.subtext, marginBottom: 6 },
+  textInput: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, borderWidth: 1, borderColor: colors.cardBorder },
+  sectorOptionCard: { flexDirection: "row", alignItems: "center", backgroundColor: colors.background, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.cardBorder },
+  managerFormSection: { marginTop: 10, backgroundColor: colors.background, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.cardBorder },
   managerSectionTitle: { fontSize: 11, fontWeight: "800", color: "#34D399", marginBottom: 10 },
   closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
   closeBtnText: { color: "#FFF", fontWeight: "700" },
@@ -1475,14 +1478,14 @@ const styles = StyleSheet.create({
   },
   toastText: { flex: 1, color: "#FFF", fontSize: 13, fontWeight: "700" },
   confirmModalCard: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 24,
     width: "100%",
     maxWidth: 420,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.5,
@@ -1502,13 +1505,13 @@ const styles = StyleSheet.create({
   confirmModalTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#F8FAFC",
+    color: colors.text,
     textAlign: "center",
     marginBottom: 8,
   },
   confirmModalSubtitle: {
     fontSize: 13,
-    color: "#94A3B8",
+    color: colors.subtext,
     textAlign: "center",
     lineHeight: 18,
     marginBottom: 16,
@@ -1517,12 +1520,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 12,
     width: "100%",
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   cancelConfirmBtn: {
     flex: 1,
@@ -1542,7 +1545,7 @@ const styles = StyleSheet.create({
   customSectorInputCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.background,
     borderRadius: 10,
     padding: 8,
     borderWidth: 1,
@@ -1559,7 +1562,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.background,
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
@@ -1568,12 +1571,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   sectorRosterCard: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   sectorRosterIconBox: {
     width: 46,
@@ -1584,54 +1587,55 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   slugBadge: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.background,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   slugBadgeText: {
-    color: "#94A3B8",
+    color: colors.subtext,
     fontSize: 10,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     fontWeight: "700",
   },
   sectorDivisionsFooter: {
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.background,
     padding: 10,
     borderRadius: 8,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   iconColorPill: {
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.background,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
     gap: 4,
     minWidth: 90,
   },
   iconPillLabel: {
     fontSize: 9,
     fontWeight: "700",
-    color: "#94A3B8",
+    color: colors.subtext,
     textAlign: "center",
   },
   miniIconPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#0F172A",
+    backgroundColor: colors.background,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
 });
+

@@ -109,22 +109,26 @@ const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
   smsNotifications: false,
 };
 
-const CAMEL_TO_SNAKE_NOTIF_KEY: Record<keyof NotificationPreferences, string> = {
-  appointmentUpdates: "appointment_updates",
-  reminders: "reminders",
-  chatMessages: "chat_messages",
-  promotions: "promotions",
-  emailNotifications: "email_notifications",
-  smsNotifications: "sms_notifications",
-};
+const CAMEL_TO_SNAKE_NOTIF_KEY: Record<keyof NotificationPreferences, string> =
+  {
+    appointmentUpdates: "appointment_updates",
+    reminders: "reminders",
+    chatMessages: "chat_messages",
+    promotions: "promotions",
+    emailNotifications: "email_notifications",
+    smsNotifications: "sms_notifications",
+  };
 
 const mapBackendToNotifPrefs = (data: any): NotificationPreferences => ({
-  appointmentUpdates: data?.appointment_updates ?? DEFAULT_NOTIF_PREFS.appointmentUpdates,
+  appointmentUpdates:
+    data?.appointment_updates ?? DEFAULT_NOTIF_PREFS.appointmentUpdates,
   reminders: data?.reminders ?? DEFAULT_NOTIF_PREFS.reminders,
   chatMessages: data?.chat_messages ?? DEFAULT_NOTIF_PREFS.chatMessages,
   promotions: data?.promotions ?? DEFAULT_NOTIF_PREFS.promotions,
-  emailNotifications: data?.email_notifications ?? DEFAULT_NOTIF_PREFS.emailNotifications,
-  smsNotifications: data?.sms_notifications ?? DEFAULT_NOTIF_PREFS.smsNotifications,
+  emailNotifications:
+    data?.email_notifications ?? DEFAULT_NOTIF_PREFS.emailNotifications,
+  smsNotifications:
+    data?.sms_notifications ?? DEFAULT_NOTIF_PREFS.smsNotifications,
 });
 
 export interface PrivacySettings {
@@ -195,7 +199,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { isDark, toggleDark } = useTheme();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const { user, logout, updateUser } = useAuth();
 
   const [activeTab, setActiveTab] = useState<ProfileTab>("info");
@@ -213,7 +217,9 @@ export default function ProfileScreen() {
   // Address State
   const [addresses, setAddresses] = useState<UserAddress[]>(DEFAULT_ADDRESSES);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
-  const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(
+    null,
+  );
   const [addressTitle, setAddressTitle] = useState("");
   const [addressText, setAddressText] = useState("");
   const [addressIsDefault, setAddressIsDefault] = useState(false);
@@ -238,7 +244,10 @@ export default function ProfileScreen() {
   const saveAddresses = async (updated: UserAddress[]) => {
     setAddresses(updated);
     try {
-      await AsyncStorage.setItem("@user_saved_addresses", JSON.stringify(updated));
+      await AsyncStorage.setItem(
+        "@user_saved_addresses",
+        JSON.stringify(updated),
+      );
     } catch (e) {
       console.error("Failed to save addresses to storage", e);
     }
@@ -299,7 +308,10 @@ export default function ProfileScreen() {
         isDefault: addressIsDefault,
       };
       if (addressIsDefault) {
-        updated = [...addresses.map((a) => ({ ...a, isDefault: false })), newAddr];
+        updated = [
+          ...addresses.map((a) => ({ ...a, isDefault: false })),
+          newAddr,
+        ];
       } else {
         updated = [...addresses, newAddr];
       }
@@ -327,10 +339,20 @@ export default function ProfileScreen() {
 
   // Settings Tab State
   const [settingsSubPage, setSettingsSubPage] = useState<
-    "notifications" | "password" | "privacy" | "help" | "terms" | "privacy_policy" | "about" | null
+    | "notifications"
+    | "password"
+    | "privacy"
+    | "help"
+    | "terms"
+    | "privacy_policy"
+    | "about"
+    | null
   >(null);
-  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
-  const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
+  const [notifPrefs, setNotifPrefs] =
+    useState<NotificationPreferences>(DEFAULT_NOTIF_PREFS);
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(
+    DEFAULT_PRIVACY_SETTINGS,
+  );
   const [expandedFaqId, setExpandedFaqId] = useState<string | null>(null);
   const [rtlEnabled, setRtlEnabled] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(4);
@@ -361,9 +383,14 @@ export default function ProfileScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const savedPrivacy = await AsyncStorage.getItem("@user_privacy_settings");
+        const savedPrivacy = await AsyncStorage.getItem(
+          "@user_privacy_settings",
+        );
         if (savedPrivacy) {
-          setPrivacySettings({ ...DEFAULT_PRIVACY_SETTINGS, ...JSON.parse(savedPrivacy) });
+          setPrivacySettings({
+            ...DEFAULT_PRIVACY_SETTINGS,
+            ...JSON.parse(savedPrivacy),
+          });
         }
       } catch (e) {
         console.error("Failed to load privacy settings", e);
@@ -371,45 +398,21 @@ export default function ProfileScreen() {
     })();
   }, []);
 
-  const handleTogglePrivacySetting = async (key: keyof PrivacySettings, val: boolean) => {
+  const handleTogglePrivacySetting = async (
+    key: keyof PrivacySettings,
+    val: boolean,
+  ) => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     const updated = { ...privacySettings, [key]: val };
     setPrivacySettings(updated);
     try {
-      await AsyncStorage.setItem("@user_privacy_settings", JSON.stringify(updated));
+      await AsyncStorage.setItem(
+        "@user_privacy_settings",
+        JSON.stringify(updated),
+      );
     } catch (e) {
       console.error("Failed to save privacy setting", e);
     }
-  };
-
-  const handleDownloadData = () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      "Download My Data",
-      `An archive of your account data (profile, bookings, addresses, invoices) is being prepared and will be sent to ${user?.email || "your registered email"}.`,
-      [{ text: "OK" }]
-    );
-  };
-
-  const handleConfirmDeleteAccount = () => {
-    triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert(
-      "Delete Account",
-      "Are you sure you want to permanently delete your Clean.et account? All your bookings, vehicles, and saved data will be erased. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete Account",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await API.delete("/me");
-            } catch {}
-            await handleLogout();
-          },
-        },
-      ]
-    );
   };
 
   // Load saved current password so it appears in the current password field
@@ -432,7 +435,9 @@ export default function ProfileScreen() {
     (async () => {
       // 1. Instant load from local storage
       try {
-        const savedNotif = await AsyncStorage.getItem("@user_notification_preferences");
+        const savedNotif = await AsyncStorage.getItem(
+          "@user_notification_preferences",
+        );
         if (savedNotif) {
           setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...JSON.parse(savedNotif) });
         }
@@ -446,7 +451,10 @@ export default function ProfileScreen() {
         if (res.data?.data) {
           const remotePrefs = mapBackendToNotifPrefs(res.data.data);
           setNotifPrefs(remotePrefs);
-          await AsyncStorage.setItem("@user_notification_preferences", JSON.stringify(remotePrefs));
+          await AsyncStorage.setItem(
+            "@user_notification_preferences",
+            JSON.stringify(remotePrefs),
+          );
         }
       } catch (e) {
         // Silent fallback to local prefs if offline
@@ -454,14 +462,20 @@ export default function ProfileScreen() {
     })();
   }, []);
 
-  const handleToggleNotifPref = async (key: keyof NotificationPreferences, val: boolean) => {
+  const handleToggleNotifPref = async (
+    key: keyof NotificationPreferences,
+    val: boolean,
+  ) => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
     const updated = { ...notifPrefs, [key]: val };
     setNotifPrefs(updated);
 
     // Save locally
     try {
-      await AsyncStorage.setItem("@user_notification_preferences", JSON.stringify(updated));
+      await AsyncStorage.setItem(
+        "@user_notification_preferences",
+        JSON.stringify(updated),
+      );
     } catch (e) {
       console.error("Failed to save notif prefs locally", e);
     }
@@ -611,7 +625,9 @@ export default function ProfileScreen() {
     setEditLoading(true);
     setEditError("");
     try {
-      const formattedPhone = editPhone.trim() ? formatEthiopianPhone(editPhone) : null;
+      const formattedPhone = editPhone.trim()
+        ? formatEthiopianPhone(editPhone)
+        : null;
       await updateUser({
         name: editName.trim(),
         email: editEmail.trim() || null,
@@ -625,7 +641,11 @@ export default function ProfileScreen() {
       let msg = "Failed to update profile.";
       if (resData?.errors) {
         const firstField = Object.keys(resData.errors)[0];
-        if (firstField && Array.isArray(resData.errors[firstField]) && resData.errors[firstField].length > 0) {
+        if (
+          firstField &&
+          Array.isArray(resData.errors[firstField]) &&
+          resData.errors[firstField].length > 0
+        ) {
           msg = resData.errors[firstField][0];
         } else if (resData.message) {
           msg = resData.message;
@@ -645,21 +665,71 @@ export default function ProfileScreen() {
     {
       title: "Account & Assets",
       items: [
-        { icon: UserIcon, label: "Personal Information", route: "/profile/personal-info", color: "#3B82F6" },
-        { icon: Car, label: "My Vehicles", route: "/vehicles", color: "#6366F1" },
-        { icon: Building, label: "My Building Profiles", route: "/building-profiles", color: "#EC4899" },
-        { icon: CreditCard, label: "My Subscription", route: "/profile/subscription", color: "#8B5CF6" },
-        { icon: Receipt, label: "My Invoices", route: "/invoices", color: "#10B981" },
-        { icon: Bell, label: "Notifications", route: "/profile/notifications", color: "#F59E0B" },
-        { icon: Briefcase, label: "Fleet Accounts", route: "/profile/fleet", color: "#A78BFA" },
+        {
+          icon: UserIcon,
+          label: t("personal_info"),
+          route: "/profile/personal-info",
+          color: "#3B82F6",
+        },
+        {
+          icon: Car,
+          label: "My Vehicles",
+          route: "/vehicles",
+          color: "#6366F1",
+        },
+        {
+          icon: Building,
+          label: "My Building Profiles",
+          route: "/building-profiles",
+          color: "#EC4899",
+        },
+        {
+          icon: CreditCard,
+          label: "My Subscription",
+          route: "/profile/subscription",
+          color: "#8B5CF6",
+        },
+        {
+          icon: Receipt,
+          label: "My Invoices",
+          route: "/invoices",
+          color: "#10B981",
+        },
+        {
+          icon: Bell,
+          label: t("notifications"),
+          route: "/profile/notifications",
+          color: "#F59E0B",
+        },
+        {
+          icon: Briefcase,
+          label: "Fleet Accounts",
+          route: "/profile/fleet",
+          color: "#A78BFA",
+        },
       ],
     },
     {
       title: "Settings & Support",
       items: [
-        { icon: SettingsIcon, label: "App & System Settings", route: "/profile/settings", color: "#8B5CF6" },
-        { icon: Shield, label: "Privacy & Security", route: "/profile/privacy", color: "#06B6D4" },
-        { icon: HelpCircle, label: "Help Center", route: "/profile/help", color: "#14B8A6" },
+        {
+          icon: SettingsIcon,
+          label: t("app_settings"),
+          route: "/profile/settings",
+          color: "#8B5CF6",
+        },
+        {
+          icon: Shield,
+          label: t("privacy_security"),
+          route: "/profile/privacy",
+          color: "#06B6D4",
+        },
+        {
+          icon: HelpCircle,
+          label: t("help_center"),
+          route: "/profile/help",
+          color: "#14B8A6",
+        },
       ],
     },
   ];
@@ -683,7 +753,12 @@ export default function ProfileScreen() {
     : "June 15, 2024";
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? "#0B0F19" : "#F8FAFC" }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? "#0B0F19" : "#F8FAFC" },
+      ]}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -693,12 +768,19 @@ export default function ProfileScreen() {
         {/* ── TOP RED BANNER (As shown in screenshot) ── */}
         <LinearGradient
           colors={["#EF4444", "#DC2626"]}
-          style={[styles.headerBanner, { paddingTop: Math.max(insets.top + 8, 28) }]}
+          style={[
+            styles.headerBanner,
+            { paddingTop: Math.max(insets.top + 8, 28) },
+          ]}
         >
           {/* Top Bar: Back, Title, Edit */}
           <View style={styles.topBar}>
             <Pressable
-              onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/home"))}
+              onPress={() =>
+                router.canGoBack()
+                  ? router.back()
+                  : router.replace("/(tabs)/home")
+              }
               style={styles.headerIconButton}
             >
               <ChevronLeft size={22} color="#ffffff" strokeWidth={2.5} />
@@ -741,18 +823,34 @@ export default function ProfileScreen() {
               styles.tabPill,
               activeTab === "info"
                 ? styles.tabPillActive
-                : [styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }],
+                : [
+                    styles.tabPillInactive,
+                    { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" },
+                  ],
             ]}
           >
             <UserIcon
               size={18}
-              color={activeTab === "info" ? "#ffffff" : isDark ? "#94A3B8" : "#64748B"}
+              color={
+                activeTab === "info"
+                  ? "#ffffff"
+                  : isDark
+                    ? "#94A3B8"
+                    : "#64748B"
+              }
               strokeWidth={2}
             />
             <Text
               style={[
                 styles.tabPillText,
-                { color: activeTab === "info" ? "#ffffff" : isDark ? "#94A3B8" : "#64748B" },
+                {
+                  color:
+                    activeTab === "info"
+                      ? "#ffffff"
+                      : isDark
+                        ? "#94A3B8"
+                        : "#64748B",
+                },
               ]}
             >
               Info
@@ -767,8 +865,17 @@ export default function ProfileScreen() {
               { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" },
             ]}
           >
-            <FileText size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
-            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+            <FileText
+              size={18}
+              color={isDark ? "#94A3B8" : "#64748B"}
+              strokeWidth={2}
+            />
+            <Text
+              style={[
+                styles.tabPillText,
+                { color: isDark ? "#94A3B8" : "#64748B" },
+              ]}
+            >
               History
             </Text>
           </Pressable>
@@ -781,8 +888,17 @@ export default function ProfileScreen() {
               { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" },
             ]}
           >
-            <Heart size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2} />
-            <Text style={[styles.tabPillText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+            <Heart
+              size={18}
+              color={isDark ? "#94A3B8" : "#64748B"}
+              strokeWidth={2}
+            />
+            <Text
+              style={[
+                styles.tabPillText,
+                { color: isDark ? "#94A3B8" : "#64748B" },
+              ]}
+            >
               Saved
             </Text>
           </Pressable>
@@ -793,18 +909,34 @@ export default function ProfileScreen() {
               styles.tabPill,
               activeTab === "address"
                 ? styles.tabPillActive
-                : [styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }],
+                : [
+                    styles.tabPillInactive,
+                    { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" },
+                  ],
             ]}
           >
             <MapPin
               size={18}
-              color={activeTab === "address" ? "#ffffff" : isDark ? "#94A3B8" : "#64748B"}
+              color={
+                activeTab === "address"
+                  ? "#ffffff"
+                  : isDark
+                    ? "#94A3B8"
+                    : "#64748B"
+              }
               strokeWidth={2}
             />
             <Text
               style={[
                 styles.tabPillText,
-                { color: activeTab === "address" ? "#ffffff" : isDark ? "#94A3B8" : "#64748B" },
+                {
+                  color:
+                    activeTab === "address"
+                      ? "#ffffff"
+                      : isDark
+                        ? "#94A3B8"
+                        : "#64748B",
+                },
               ]}
             >
               Address
@@ -817,18 +949,34 @@ export default function ProfileScreen() {
               styles.tabPill,
               activeTab === "settings"
                 ? styles.tabPillActive
-                : [styles.tabPillInactive, { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" }],
+                : [
+                    styles.tabPillInactive,
+                    { backgroundColor: isDark ? "#1E293B" : "#FFFFFF" },
+                  ],
             ]}
           >
             <SettingsIcon
               size={18}
-              color={activeTab === "settings" ? "#ffffff" : isDark ? "#94A3B8" : "#64748B"}
+              color={
+                activeTab === "settings"
+                  ? "#ffffff"
+                  : isDark
+                    ? "#94A3B8"
+                    : "#64748B"
+              }
               strokeWidth={2}
             />
             <Text
               style={[
                 styles.tabPillText,
-                { color: activeTab === "settings" ? "#ffffff" : isDark ? "#94A3B8" : "#64748B" },
+                {
+                  color:
+                    activeTab === "settings"
+                      ? "#ffffff"
+                      : isDark
+                        ? "#94A3B8"
+                        : "#64748B",
+                },
               ]}
             >
               Settings
@@ -851,84 +999,194 @@ export default function ProfileScreen() {
             >
               {/* Row: Full Name */}
               <View style={styles.detailTableRow}>
-                <Text style={[styles.detailTableLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.detailTableLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Full Name
                 </Text>
-                <Text style={[styles.detailTableValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.detailTableValue,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   {user?.name || "Alex Johnson"}
                 </Text>
               </View>
-              <View style={[styles.detailTableDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+              <View
+                style={[
+                  styles.detailTableDivider,
+                  { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                ]}
+              />
 
               {/* Row: Email */}
               <View style={styles.detailTableRow}>
-                <Text style={[styles.detailTableLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.detailTableLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Email
                 </Text>
-                <Text style={[styles.detailTableValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.detailTableValue,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   {user?.email || "alex.johnson@email.com"}
                 </Text>
               </View>
-              <View style={[styles.detailTableDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+              <View
+                style={[
+                  styles.detailTableDivider,
+                  { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                ]}
+              />
 
               {/* Row: Phone */}
               <View style={styles.detailTableRow}>
-                <Text style={[styles.detailTableLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.detailTableLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Phone
                 </Text>
-                <Text style={[styles.detailTableValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.detailTableValue,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   {user?.phone || "+1 555-0199"}
                 </Text>
               </View>
-              <View style={[styles.detailTableDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+              <View
+                style={[
+                  styles.detailTableDivider,
+                  { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                ]}
+              />
 
               {/* Row: Member Since */}
               <View style={styles.detailTableRow}>
-                <Text style={[styles.detailTableLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.detailTableLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Member Since
                 </Text>
-                <Text style={[styles.detailTableValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.detailTableValue,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   {memberSince}
                 </Text>
               </View>
-              <View style={[styles.detailTableDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+              <View
+                style={[
+                  styles.detailTableDivider,
+                  { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                ]}
+              />
 
               {/* Row: Account Type */}
               <View style={styles.detailTableRow}>
-                <Text style={[styles.detailTableLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.detailTableLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Account Type
                 </Text>
-                <Text style={[styles.detailTableValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.detailTableValue,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Customer (Verified)
                 </Text>
               </View>
-              <View style={[styles.detailTableDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+              <View
+                style={[
+                  styles.detailTableDivider,
+                  { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                ]}
+              />
 
               {/* Row: Service Location */}
               <View style={styles.detailTableRow}>
-                <Text style={[styles.detailTableLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.detailTableLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   City / Location
                 </Text>
-                <Text style={[styles.detailTableValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.detailTableValue,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Addis Ababa, Ethiopia
                 </Text>
               </View>
-              <View style={[styles.detailTableDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+              <View
+                style={[
+                  styles.detailTableDivider,
+                  { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                ]}
+              />
 
               {/* Row: Preferred Language */}
               <View style={styles.detailTableRow}>
-                <Text style={[styles.detailTableLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.detailTableLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Language
                 </Text>
-                <Text style={[styles.detailTableValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.detailTableValue,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   {language ? language.toUpperCase() : "English"}
                 </Text>
               </View>
-              <View style={[styles.detailTableDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+              <View
+                style={[
+                  styles.detailTableDivider,
+                  { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                ]}
+              />
 
               {/* Row: Security Status */}
               <View style={styles.detailTableRow}>
-                <Text style={[styles.detailTableLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.detailTableLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Account Security
                 </Text>
                 <View style={styles.statusBadgeRow}>
@@ -948,8 +1206,13 @@ export default function ProfileScreen() {
                 pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
               ]}
             >
-              <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-              <Text style={styles.screenshotLogoutText}>Log Out</Text>
+              <LogOut
+                size={18}
+                color="#EF4444"
+                strokeWidth={2.2}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.screenshotLogoutText}>{t("log_out")}</Text>
             </Pressable>
           </View>
         )}
@@ -973,7 +1236,12 @@ export default function ProfileScreen() {
                     <View style={styles.addressIconWrap}>
                       <MapPin size={18} color="#EF4444" strokeWidth={2.4} />
                     </View>
-                    <Text style={[styles.addressTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.addressTitleText,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       {item.title}
                     </Text>
                     {item.isDefault && (
@@ -992,7 +1260,12 @@ export default function ProfileScreen() {
                   </Pressable>
                 </View>
 
-                <Text style={[styles.addressDetailsText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.addressDetailsText,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   {item.address}
                 </Text>
               </View>
@@ -1005,13 +1278,24 @@ export default function ProfileScreen() {
                 styles.addAddressDashedBtn,
                 {
                   borderColor: isDark ? "#334155" : "#CBD5E1",
-                  backgroundColor: isDark ? "rgba(30, 41, 59, 0.4)" : "rgba(241, 245, 249, 0.5)",
+                  backgroundColor: isDark
+                    ? "rgba(30, 41, 59, 0.4)"
+                    : "rgba(241, 245, 249, 0.5)",
                 },
                 pressed && { opacity: 0.7, transform: [{ scale: 0.99 }] },
               ]}
             >
-              <Plus size={18} color={isDark ? "#94A3B8" : "#64748B"} strokeWidth={2.2} />
-              <Text style={[styles.addAddressDashedText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+              <Plus
+                size={18}
+                color={isDark ? "#94A3B8" : "#64748B"}
+                strokeWidth={2.2}
+              />
+              <Text
+                style={[
+                  styles.addAddressDashedText,
+                  { color: isDark ? "#94A3B8" : "#64748B" },
+                ]}
+              >
                 Add New Address
               </Text>
             </Pressable>
@@ -1024,15 +1308,20 @@ export default function ProfileScreen() {
                 pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
               ]}
             >
-              <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-              <Text style={styles.screenshotLogoutText}>Log Out</Text>
+              <LogOut
+                size={18}
+                color="#EF4444"
+                strokeWidth={2.2}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.screenshotLogoutText}>{t("log_out")}</Text>
             </Pressable>
           </View>
         )}
 
         {/* ── TAB CONTENT: SETTINGS VIEW (Matches user's screenshot) ── */}
-        {activeTab === "settings" && (
-          settingsSubPage === "notifications" ? (
+        {activeTab === "settings" &&
+          (settingsSubPage === "notifications" ? (
             <View style={styles.bodyContent}>
               {/* Back button & Title */}
               <View style={styles.subPageHeaderRow}>
@@ -1049,9 +1338,18 @@ export default function ProfileScreen() {
                     },
                   ]}
                 >
-                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                  <ArrowLeft
+                    size={18}
+                    color={isDark ? "#FFFFFF" : "#0F172A"}
+                    strokeWidth={2.4}
+                  />
                 </Pressable>
-                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.subPageTitleText,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Notifications
                 </Text>
               </View>
@@ -1073,23 +1371,40 @@ export default function ProfileScreen() {
                       <Bell size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
                     <View style={styles.settingsTextCol}>
-                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemLabel,
+                          { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        ]}
+                      >
                         Appointment Updates
                       </Text>
-                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemSubtitle,
+                          { color: isDark ? "#94A3B8" : "#64748B" },
+                        ]}
+                      >
                         Get notified about appointment changes
                       </Text>
                     </View>
                   </View>
                   <Switch
                     value={notifPrefs.appointmentUpdates}
-                    onValueChange={(val) => handleToggleNotifPref("appointmentUpdates", val)}
+                    onValueChange={(val) =>
+                      handleToggleNotifPref("appointmentUpdates", val)
+                    }
                     trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* 2. Reminders */}
                 <View style={styles.settingsRowItem}>
@@ -1098,48 +1413,86 @@ export default function ProfileScreen() {
                       <Bell size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
                     <View style={styles.settingsTextCol}>
-                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemLabel,
+                          { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        ]}
+                      >
                         Reminders
                       </Text>
-                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemSubtitle,
+                          { color: isDark ? "#94A3B8" : "#64748B" },
+                        ]}
+                      >
                         Reminders before upcoming appointments
                       </Text>
                     </View>
                   </View>
                   <Switch
                     value={notifPrefs.reminders}
-                    onValueChange={(val) => handleToggleNotifPref("reminders", val)}
+                    onValueChange={(val) =>
+                      handleToggleNotifPref("reminders", val)
+                    }
                     trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* 3. Chat Messages */}
                 <View style={styles.settingsRowItem}>
                   <View style={styles.settingsRowLeft}>
                     <View style={styles.settingsIconCircle}>
-                      <MessageCircle size={18} color="#EF4444" strokeWidth={2.2} />
+                      <MessageCircle
+                        size={18}
+                        color="#EF4444"
+                        strokeWidth={2.2}
+                      />
                     </View>
                     <View style={styles.settingsTextCol}>
-                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemLabel,
+                          { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        ]}
+                      >
                         Chat Messages
                       </Text>
-                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemSubtitle,
+                          { color: isDark ? "#94A3B8" : "#64748B" },
+                        ]}
+                      >
                         New messages from doctors
                       </Text>
                     </View>
                   </View>
                   <Switch
                     value={notifPrefs.chatMessages}
-                    onValueChange={(val) => handleToggleNotifPref("chatMessages", val)}
+                    onValueChange={(val) =>
+                      handleToggleNotifPref("chatMessages", val)
+                    }
                     trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* 4. Promotions & Offers */}
                 <View style={styles.settingsRowItem}>
@@ -1148,23 +1501,40 @@ export default function ProfileScreen() {
                       <Info size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
                     <View style={styles.settingsTextCol}>
-                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemLabel,
+                          { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        ]}
+                      >
                         Promotions & Offers
                       </Text>
-                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemSubtitle,
+                          { color: isDark ? "#94A3B8" : "#64748B" },
+                        ]}
+                      >
                         Promotional offers and discounts
                       </Text>
                     </View>
                   </View>
                   <Switch
                     value={notifPrefs.promotions}
-                    onValueChange={(val) => handleToggleNotifPref("promotions", val)}
+                    onValueChange={(val) =>
+                      handleToggleNotifPref("promotions", val)
+                    }
                     trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* 5. Email Notifications */}
                 <View style={styles.settingsRowItem}>
@@ -1173,23 +1543,40 @@ export default function ProfileScreen() {
                       <Mail size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
                     <View style={styles.settingsTextCol}>
-                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemLabel,
+                          { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        ]}
+                      >
                         Email Notifications
                       </Text>
-                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemSubtitle,
+                          { color: isDark ? "#94A3B8" : "#64748B" },
+                        ]}
+                      >
                         Receive updates via email
                       </Text>
                     </View>
                   </View>
                   <Switch
                     value={notifPrefs.emailNotifications}
-                    onValueChange={(val) => handleToggleNotifPref("emailNotifications", val)}
+                    onValueChange={(val) =>
+                      handleToggleNotifPref("emailNotifications", val)
+                    }
                     trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* 6. SMS Notifications */}
                 <View style={styles.settingsRowItem}>
@@ -1198,17 +1585,29 @@ export default function ProfileScreen() {
                       <Phone size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
                     <View style={styles.settingsTextCol}>
-                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemLabel,
+                          { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        ]}
+                      >
                         SMS Notifications
                       </Text>
-                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemSubtitle,
+                          { color: isDark ? "#94A3B8" : "#64748B" },
+                        ]}
+                      >
                         Receive updates via text message
                       </Text>
                     </View>
                   </View>
                   <Switch
                     value={notifPrefs.smsNotifications}
-                    onValueChange={(val) => handleToggleNotifPref("smsNotifications", val)}
+                    onValueChange={(val) =>
+                      handleToggleNotifPref("smsNotifications", val)
+                    }
                     trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
                     thumbColor="#FFFFFF"
                   />
@@ -1223,8 +1622,13 @@ export default function ProfileScreen() {
                   pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
                 ]}
               >
-                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+                <LogOut
+                  size={18}
+                  color="#EF4444"
+                  strokeWidth={2.2}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.screenshotLogoutText}>{t("log_out")}</Text>
               </Pressable>
             </View>
           ) : settingsSubPage === "password" ? (
@@ -1244,9 +1648,18 @@ export default function ProfileScreen() {
                     },
                   ]}
                 >
-                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                  <ArrowLeft
+                    size={18}
+                    color={isDark ? "#FFFFFF" : "#0F172A"}
+                    strokeWidth={2.4}
+                  />
                 </Pressable>
-                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.subPageTitleText,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Change Password
                 </Text>
               </View>
@@ -1263,7 +1676,12 @@ export default function ProfileScreen() {
               >
                 {/* 1. Current Password */}
                 <View style={styles.passwordFieldGroup}>
-                  <Text style={[styles.passwordFieldLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.passwordFieldLabel,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Current Password
                   </Text>
                   <View
@@ -1276,7 +1694,12 @@ export default function ProfileScreen() {
                       },
                     ]}
                   >
-                    <Lock size={18} color="#94A3B8" strokeWidth={2} style={styles.passwordInputLeftIcon} />
+                    <Lock
+                      size={18}
+                      color="#94A3B8"
+                      strokeWidth={2}
+                      style={styles.passwordInputLeftIcon}
+                    />
                     <TextInput
                       value={currentPassword}
                       onChangeText={setCurrentPassword}
@@ -1285,7 +1708,11 @@ export default function ProfileScreen() {
                       secureTextEntry={!showCurrentPassword}
                       style={[
                         styles.passwordTextInput,
-                        { color: isDark ? "#FFFFFF" : "#0F172A", borderWidth: 0, outlineStyle: "none" } as any,
+                        {
+                          color: isDark ? "#FFFFFF" : "#0F172A",
+                          borderWidth: 0,
+                          outlineStyle: "none",
+                        } as any,
                       ]}
                       autoCapitalize="none"
                     />
@@ -1308,7 +1735,12 @@ export default function ProfileScreen() {
 
                 {/* 2. New Password */}
                 <View style={styles.passwordFieldGroup}>
-                  <Text style={[styles.passwordFieldLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.passwordFieldLabel,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     New Password
                   </Text>
                   <View
@@ -1321,7 +1753,12 @@ export default function ProfileScreen() {
                       },
                     ]}
                   >
-                    <Lock size={18} color="#94A3B8" strokeWidth={2} style={styles.passwordInputLeftIcon} />
+                    <Lock
+                      size={18}
+                      color="#94A3B8"
+                      strokeWidth={2}
+                      style={styles.passwordInputLeftIcon}
+                    />
                     <TextInput
                       value={newPassword}
                       onChangeText={setNewPassword}
@@ -1330,7 +1767,11 @@ export default function ProfileScreen() {
                       secureTextEntry={!showNewPassword}
                       style={[
                         styles.passwordTextInput,
-                        { color: isDark ? "#FFFFFF" : "#0F172A", borderWidth: 0, outlineStyle: "none" } as any,
+                        {
+                          color: isDark ? "#FFFFFF" : "#0F172A",
+                          borderWidth: 0,
+                          outlineStyle: "none",
+                        } as any,
                       ]}
                       autoCapitalize="none"
                     />
@@ -1353,7 +1794,12 @@ export default function ProfileScreen() {
 
                 {/* 3. Confirm New Password */}
                 <View style={styles.passwordFieldGroup}>
-                  <Text style={[styles.passwordFieldLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.passwordFieldLabel,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Confirm New Password
                   </Text>
                   <View
@@ -1366,7 +1812,12 @@ export default function ProfileScreen() {
                       },
                     ]}
                   >
-                    <Lock size={18} color="#94A3B8" strokeWidth={2} style={styles.passwordInputLeftIcon} />
+                    <Lock
+                      size={18}
+                      color="#94A3B8"
+                      strokeWidth={2}
+                      style={styles.passwordInputLeftIcon}
+                    />
                     <TextInput
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
@@ -1375,7 +1826,11 @@ export default function ProfileScreen() {
                       secureTextEntry={!showConfirmPassword}
                       style={[
                         styles.passwordTextInput,
-                        { color: isDark ? "#FFFFFF" : "#0F172A", borderWidth: 0, outlineStyle: "none" } as any,
+                        {
+                          color: isDark ? "#FFFFFF" : "#0F172A",
+                          borderWidth: 0,
+                          outlineStyle: "none",
+                        } as any,
                       ]}
                       autoCapitalize="none"
                     />
@@ -1397,21 +1852,31 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Password rule helper text (Matches screenshot) */}
-                <Text style={[styles.passwordHintText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                  Password must be at least 8 characters with a mix of letters and numbers.
+                <Text
+                  style={[
+                    styles.passwordHintText,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
+                  Password must be at least 8 characters with a mix of letters
+                  and numbers.
                 </Text>
 
                 {/* Error Banner */}
                 {!!passwordError && (
                   <View style={styles.passwordErrorBox}>
-                    <Text style={styles.passwordErrorText}>{passwordError}</Text>
+                    <Text style={styles.passwordErrorText}>
+                      {passwordError}
+                    </Text>
                   </View>
                 )}
 
                 {/* Success Banner */}
                 {!!passwordSuccessMsg && (
                   <View style={styles.passwordSuccessBox}>
-                    <Text style={styles.passwordSuccessText}>{passwordSuccessMsg}</Text>
+                    <Text style={styles.passwordSuccessText}>
+                      {passwordSuccessMsg}
+                    </Text>
                   </View>
                 )}
 
@@ -1428,7 +1893,9 @@ export default function ProfileScreen() {
                   {passwordLoading ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
-                    <Text style={styles.updatePasswordBtnText}>Update Password</Text>
+                    <Text style={styles.updatePasswordBtnText}>
+                      Update Password
+                    </Text>
                   )}
                 </Pressable>
               </View>
@@ -1441,8 +1908,13 @@ export default function ProfileScreen() {
                   pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
                 ]}
               >
-                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+                <LogOut
+                  size={18}
+                  color="#EF4444"
+                  strokeWidth={2.2}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.screenshotLogoutText}>{t("log_out")}</Text>
               </Pressable>
             </View>
           ) : settingsSubPage === "privacy" ? (
@@ -1462,9 +1934,18 @@ export default function ProfileScreen() {
                     },
                   ]}
                 >
-                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                  <ArrowLeft
+                    size={18}
+                    color={isDark ? "#FFFFFF" : "#0F172A"}
+                    strokeWidth={2.4}
+                  />
                 </Pressable>
-                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.subPageTitleText,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Privacy & Security
                 </Text>
               </View>
@@ -1482,107 +1963,106 @@ export default function ProfileScreen() {
                 {/* 1. Two-Factor Authentication */}
                 <View style={styles.settingsRowItem}>
                   <View style={styles.settingsTextCol}>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       Two-Factor Authentication
                     </Text>
-                    <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemSubtitle,
+                        { color: isDark ? "#94A3B8" : "#64748B" },
+                      ]}
+                    >
                       Add an extra layer of security
                     </Text>
                   </View>
                   <Switch
                     value={privacySettings.twoFactor}
-                    onValueChange={(val) => handleTogglePrivacySetting("twoFactor", val)}
+                    onValueChange={(val) =>
+                      handleTogglePrivacySetting("twoFactor", val)
+                    }
                     trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* 2. Biometric Login */}
                 <View style={styles.settingsRowItem}>
                   <View style={styles.settingsTextCol}>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       Biometric Login
                     </Text>
-                    <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemSubtitle,
+                        { color: isDark ? "#94A3B8" : "#64748B" },
+                      ]}
+                    >
                       Use fingerprint or face recognition
                     </Text>
                   </View>
                   <Switch
                     value={privacySettings.biometricLogin}
-                    onValueChange={(val) => handleTogglePrivacySetting("biometricLogin", val)}
+                    onValueChange={(val) =>
+                      handleTogglePrivacySetting("biometricLogin", val)
+                    }
                     trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* 3. Login Alerts */}
                 <View style={styles.settingsRowItem}>
                   <View style={styles.settingsTextCol}>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       Login Alerts
                     </Text>
-                    <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemSubtitle,
+                        { color: isDark ? "#94A3B8" : "#64748B" },
+                      ]}
+                    >
                       Get notified on new logins
                     </Text>
                   </View>
                   <Switch
                     value={privacySettings.loginAlerts}
-                    onValueChange={(val) => handleTogglePrivacySetting("loginAlerts", val)}
+                    onValueChange={(val) =>
+                      handleTogglePrivacySetting("loginAlerts", val)
+                    }
                     trackColor={{ false: "#CBD5E1", true: "#EF4444" }}
                     thumbColor="#FFFFFF"
                   />
                 </View>
-              </View>
-
-              {/* Data Management Card (Matches screenshot) */}
-              <View
-                style={[
-                  styles.dataManagementCardBox,
-                  {
-                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                    borderColor: isDark ? "#334155" : "#E2E8F0",
-                  },
-                ]}
-              >
-                <Text style={[styles.dataManagementHeading, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
-                  Data Management
-                </Text>
-
-                {/* Download My Data Button */}
-                <Pressable
-                  onPress={handleDownloadData}
-                  style={({ pressed }) => [
-                    styles.downloadDataBtn,
-                    {
-                      backgroundColor: isDark ? "#0F172A" : "#FFFFFF",
-                      borderColor: isDark ? "#334155" : "#E2E8F0",
-                    },
-                    pressed && { opacity: 0.8 },
-                  ]}
-                >
-                  <Text style={[styles.downloadDataBtnText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
-                    Download My Data
-                  </Text>
-                </Pressable>
-
-                {/* Delete Account Button */}
-                <Pressable
-                  onPress={handleConfirmDeleteAccount}
-                  style={({ pressed }) => [
-                    styles.deleteAccountBtn,
-                    {
-                      backgroundColor: isDark ? "rgba(239, 68, 68, 0.08)" : "#FFFFFF",
-                      borderColor: isDark ? "rgba(239, 68, 68, 0.3)" : "#FECACA",
-                    },
-                    pressed && { opacity: 0.8 },
-                  ]}
-                >
-                  <Text style={styles.deleteAccountBtnText}>Delete Account</Text>
-                </Pressable>
               </View>
 
               {/* LOG OUT BUTTON (Matches screenshot) */}
@@ -1593,8 +2073,13 @@ export default function ProfileScreen() {
                   pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
                 ]}
               >
-                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+                <LogOut
+                  size={18}
+                  color="#EF4444"
+                  strokeWidth={2.2}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.screenshotLogoutText}>{t("log_out")}</Text>
               </Pressable>
             </View>
           ) : settingsSubPage === "help" ? (
@@ -1614,9 +2099,18 @@ export default function ProfileScreen() {
                     },
                   ]}
                 >
-                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                  <ArrowLeft
+                    size={18}
+                    color={isDark ? "#FFFFFF" : "#0F172A"}
+                    strokeWidth={2.4}
+                  />
                 </Pressable>
-                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.subPageTitleText,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Help Center
                 </Text>
               </View>
@@ -1627,7 +2121,9 @@ export default function ProfileScreen() {
                 style={({ pressed }) => [
                   styles.needHelpCard,
                   {
-                    backgroundColor: isDark ? "rgba(239, 68, 68, 0.1)" : "#FFF1F2",
+                    backgroundColor: isDark
+                      ? "rgba(239, 68, 68, 0.1)"
+                      : "#FFF1F2",
                     borderColor: isDark ? "rgba(239, 68, 68, 0.25)" : "#FFE4E6",
                   },
                   pressed && { opacity: 0.85 },
@@ -1637,17 +2133,32 @@ export default function ProfileScreen() {
                   <HelpCircle size={32} color="#EF4444" strokeWidth={2.2} />
                 </View>
                 <View style={styles.needHelpTextCol}>
-                  <Text style={[styles.needHelpTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.needHelpTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Need Help?
                   </Text>
-                  <Text style={[styles.needHelpEmail, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  <Text
+                    style={[
+                      styles.needHelpEmail,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
                     support@clean.et
                   </Text>
                 </View>
               </Pressable>
 
               {/* FREQUENTLY ASKED QUESTIONS Heading */}
-              <Text style={[styles.faqSectionHeading, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+              <Text
+                style={[
+                  styles.faqSectionHeading,
+                  { color: isDark ? "#94A3B8" : "#64748B" },
+                ]}
+              >
                 FREQUENTLY ASKED QUESTIONS
               </Text>
 
@@ -1673,19 +2184,37 @@ export default function ProfileScreen() {
                           pressed && { opacity: 0.7 },
                         ]}
                       >
-                        <Text style={[styles.faqQuestionText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                        <Text
+                          style={[
+                            styles.faqQuestionText,
+                            { color: isDark ? "#FFFFFF" : "#0F172A" },
+                          ]}
+                        >
                           {faq.q}
                         </Text>
                         {isExpanded ? (
-                          <ChevronUp size={18} color="#94A3B8" strokeWidth={2} />
+                          <ChevronUp
+                            size={18}
+                            color="#94A3B8"
+                            strokeWidth={2}
+                          />
                         ) : (
-                          <ChevronDown size={18} color="#94A3B8" strokeWidth={2} />
+                          <ChevronDown
+                            size={18}
+                            color="#94A3B8"
+                            strokeWidth={2}
+                          />
                         )}
                       </Pressable>
 
                       {isExpanded && (
                         <View style={styles.faqAnswerContainer}>
-                          <Text style={[styles.faqAnswerText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                          <Text
+                            style={[
+                              styles.faqAnswerText,
+                              { color: isDark ? "#94A3B8" : "#64748B" },
+                            ]}
+                          >
                             {faq.a}
                           </Text>
                         </View>
@@ -1712,8 +2241,13 @@ export default function ProfileScreen() {
                   pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
                 ]}
               >
-                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+                <LogOut
+                  size={18}
+                  color="#EF4444"
+                  strokeWidth={2.2}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.screenshotLogoutText}>{t("log_out")}</Text>
               </Pressable>
             </View>
           ) : settingsSubPage === "terms" ? (
@@ -1733,9 +2267,18 @@ export default function ProfileScreen() {
                     },
                   ]}
                 >
-                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                  <ArrowLeft
+                    size={18}
+                    color={isDark ? "#FFFFFF" : "#0F172A"}
+                    strokeWidth={2.4}
+                  />
                 </Pressable>
-                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.subPageTitleText,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Terms of Service
                 </Text>
               </View>
@@ -1750,77 +2293,165 @@ export default function ProfileScreen() {
                   },
                 ]}
               >
-                <Text style={[styles.legalLastUpdatedText, { color: isDark ? "#94A3B8" : "#94A3B8" }]}>
+                <Text
+                  style={[
+                    styles.legalLastUpdatedText,
+                    { color: isDark ? "#94A3B8" : "#94A3B8" },
+                  ]}
+                >
                   Last updated: February 15, 2026
                 </Text>
 
                 {/* 1. Acceptance of Terms */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     1. Acceptance of Terms
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    By accessing and using Clean.et (Docly Pro), you agree to be bound by these Terms of Service.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    By accessing and using Clean.et (Docly Pro), you agree to be
+                    bound by these Terms of Service.
                   </Text>
                 </View>
 
                 {/* 2. Description of Service */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     2. Description of Service
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    Clean.et provides an on-demand cleaning service platform connecting clients with specialized cleaning crews including car washing, auto detailing, property cleaning, and facility maintenance.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    Clean.et provides an on-demand cleaning service platform
+                    connecting clients with specialized cleaning crews including
+                    car washing, auto detailing, property cleaning, and facility
+                    maintenance.
                   </Text>
                 </View>
 
                 {/* 3. User Accounts */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     3. User Accounts
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    You must provide accurate information when creating an account. You are responsible for safeguarding your password and all activities under your account.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    You must provide accurate information when creating an
+                    account. You are responsible for safeguarding your password
+                    and all activities under your account.
                   </Text>
                 </View>
 
                 {/* 4. Service Disclaimer */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     4. Service Disclaimer
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    Clean.et connects you with verified professional cleaning crews. While we inspect and train all service personnel, please ensure personal valuables are secured prior to service arrival.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    Clean.et connects you with verified professional cleaning
+                    crews. While we inspect and train all service personnel,
+                    please ensure personal valuables are secured prior to
+                    service arrival.
                   </Text>
                 </View>
 
                 {/* 5. Payment Terms */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     5. Payment Terms
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    All fees are due at the time of service or booking confirmation. Refunds are processed within 5-7 business days.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    All fees are due at the time of service or booking
+                    confirmation. Refunds are processed within 5-7 business
+                    days.
                   </Text>
                 </View>
 
                 {/* 6. Privacy */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     6. Privacy
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    Your privacy is important to us. Please refer to our Privacy Policy for details on data collection and usage.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    Your privacy is important to us. Please refer to our Privacy
+                    Policy for details on data collection and usage.
                   </Text>
                 </View>
 
                 {/* 7. Contact */}
                 <View style={[styles.legalSectionGroup, { marginBottom: 0 }]}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     7. Contact
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    For questions about these terms, contact us at support@clean.et.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    For questions about these terms, contact us at
+                    support@clean.et.
                   </Text>
                 </View>
               </View>
@@ -1833,8 +2464,13 @@ export default function ProfileScreen() {
                   pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
                 ]}
               >
-                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+                <LogOut
+                  size={18}
+                  color="#EF4444"
+                  strokeWidth={2.2}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.screenshotLogoutText}>{t("log_out")}</Text>
               </Pressable>
             </View>
           ) : settingsSubPage === "privacy_policy" ? (
@@ -1854,9 +2490,18 @@ export default function ProfileScreen() {
                     },
                   ]}
                 >
-                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                  <ArrowLeft
+                    size={18}
+                    color={isDark ? "#FFFFFF" : "#0F172A"}
+                    strokeWidth={2.4}
+                  />
                 </Pressable>
-                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.subPageTitleText,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Privacy Policy
                 </Text>
               </View>
@@ -1871,77 +2516,164 @@ export default function ProfileScreen() {
                   },
                 ]}
               >
-                <Text style={[styles.legalLastUpdatedText, { color: isDark ? "#94A3B8" : "#94A3B8" }]}>
+                <Text
+                  style={[
+                    styles.legalLastUpdatedText,
+                    { color: isDark ? "#94A3B8" : "#94A3B8" },
+                  ]}
+                >
                   Last updated: February 15, 2026
                 </Text>
 
                 {/* Information We Collect */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Information We Collect
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    We collect information you provide directly, including name, email, phone number, saved addresses, and vehicle or property details. We also collect usage data and device information.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    We collect information you provide directly, including name,
+                    email, phone number, saved addresses, and vehicle or
+                    property details. We also collect usage data and device
+                    information.
                   </Text>
                 </View>
 
                 {/* How We Use Your Information */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     How We Use Your Information
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    We use your information to provide services, process appointments, send notifications, and ensure account security.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    We use your information to provide services, process
+                    appointments, send notifications, and ensure account
+                    security.
                   </Text>
                 </View>
 
                 {/* Data Security */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Data Security
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    We implement AES-256 encryption, secure servers, and regular security audits to protect your information.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    We implement AES-256 encryption, secure servers, and regular
+                    security audits to protect your information.
                   </Text>
                 </View>
 
                 {/* Compliance & Standards */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Compliance & Standards
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    We adhere to strict data protection standards and encryption protocols to safeguard your personal records and transaction details.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    We adhere to strict data protection standards and encryption
+                    protocols to safeguard your personal records and transaction
+                    details.
                   </Text>
                 </View>
 
                 {/* Data Sharing */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Data Sharing
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    We do not sell your personal data. We only share information with assigned cleaning crews and service providers you choose to consult.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    We do not sell your personal data. We only share information
+                    with assigned cleaning crews and service providers you
+                    choose to consult.
                   </Text>
                 </View>
 
                 {/* Your Rights */}
                 <View style={styles.legalSectionGroup}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Your Rights
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    You have the right to access, correct, or delete your personal data. You can opt out of marketing at any time.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    You have the right to access, correct, or delete your
+                    personal data. You can opt out of marketing at any time.
                   </Text>
                 </View>
 
                 {/* Contact Us */}
                 <View style={[styles.legalSectionGroup, { marginBottom: 0 }]}>
-                  <Text style={[styles.legalSectionTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.legalSectionTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Contact Us
                   </Text>
-                  <Text style={[styles.legalSectionBody, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                    For privacy-related inquiries, contact us at support@clean.et.
+                  <Text
+                    style={[
+                      styles.legalSectionBody,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    For privacy-related inquiries, contact us at
+                    support@clean.et.
                   </Text>
                 </View>
               </View>
@@ -1954,8 +2686,13 @@ export default function ProfileScreen() {
                   pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
                 ]}
               >
-                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+                <LogOut
+                  size={18}
+                  color="#EF4444"
+                  strokeWidth={2.2}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.screenshotLogoutText}>{t("log_out")}</Text>
               </Pressable>
             </View>
           ) : settingsSubPage === "about" ? (
@@ -1975,9 +2712,18 @@ export default function ProfileScreen() {
                     },
                   ]}
                 >
-                  <ArrowLeft size={18} color={isDark ? "#FFFFFF" : "#0F172A"} strokeWidth={2.4} />
+                  <ArrowLeft
+                    size={18}
+                    color={isDark ? "#FFFFFF" : "#0F172A"}
+                    strokeWidth={2.4}
+                  />
                 </Pressable>
-                <Text style={[styles.subPageTitleText, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.subPageTitleText,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   About Clean.et
                 </Text>
               </View>
@@ -1992,12 +2738,24 @@ export default function ProfileScreen() {
                   },
                 ]}
               >
-                <Text style={[styles.aboutHeroVersion, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.aboutHeroVersion,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Version 2.5.0
                 </Text>
 
-                <Text style={[styles.aboutHeroDesc, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                  Clean.et is a premium cleaning and hygiene service platform designed to connect clients with verified service professionals seamlessly.
+                <Text
+                  style={[
+                    styles.aboutHeroDesc,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
+                  Clean.et is a premium cleaning and hygiene service platform
+                  designed to connect clients with verified service
+                  professionals seamlessly.
                 </Text>
               </View>
 
@@ -2013,58 +2771,128 @@ export default function ProfileScreen() {
               >
                 {/* Developer */}
                 <View style={styles.aboutSpecRow}>
-                  <Text style={[styles.aboutSpecLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  <Text
+                    style={[
+                      styles.aboutSpecLabel,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
                     Developer
                   </Text>
-                  <Text style={[styles.aboutSpecValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.aboutSpecValue,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Clean.et Team
                   </Text>
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* Email */}
                 <View style={styles.aboutSpecRow}>
-                  <Text style={[styles.aboutSpecLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  <Text
+                    style={[
+                      styles.aboutSpecLabel,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
                     Email
                   </Text>
-                  <Text style={[styles.aboutSpecValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.aboutSpecValue,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     support@clean.et
                   </Text>
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* Framework */}
                 <View style={styles.aboutSpecRow}>
-                  <Text style={[styles.aboutSpecLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  <Text
+                    style={[
+                      styles.aboutSpecLabel,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
                     Framework
                   </Text>
-                  <Text style={[styles.aboutSpecValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.aboutSpecValue,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     React Native + TypeScript
                   </Text>
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* UI Library */}
                 <View style={styles.aboutSpecRow}>
-                  <Text style={[styles.aboutSpecLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  <Text
+                    style={[
+                      styles.aboutSpecLabel,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
                     UI Library
                   </Text>
-                  <Text style={[styles.aboutSpecValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.aboutSpecValue,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Tailwind CSS + shadcn/ui
                   </Text>
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* License */}
                 <View style={styles.aboutSpecRow}>
-                  <Text style={[styles.aboutSpecLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  <Text
+                    style={[
+                      styles.aboutSpecLabel,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
                     License
                   </Text>
-                  <Text style={[styles.aboutSpecValue, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                  <Text
+                    style={[
+                      styles.aboutSpecValue,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
+                    ]}
+                  >
                     Regular / Extended
                   </Text>
                 </View>
@@ -2078,14 +2906,24 @@ export default function ProfileScreen() {
                   pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
                 ]}
               >
-                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+                <LogOut
+                  size={18}
+                  color="#EF4444"
+                  strokeWidth={2.2}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.screenshotLogoutText}>{t("log_out")}</Text>
               </Pressable>
             </View>
           ) : (
             <View style={styles.bodyContent}>
               {/* ── APPEARANCE SECTION ── */}
-              <Text style={[styles.sectionHeading, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+              <Text
+                style={[
+                  styles.sectionHeading,
+                  { color: isDark ? "#94A3B8" : "#64748B" },
+                ]}
+              >
                 APPEARANCE
               </Text>
               <View
@@ -2107,7 +2945,12 @@ export default function ProfileScreen() {
                         <Sun size={18} color="#EF4444" strokeWidth={2.2} />
                       )}
                     </View>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       Dark Mode
                     </Text>
                   </View>
@@ -2122,7 +2965,12 @@ export default function ProfileScreen() {
                   />
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* RTL Layout (Arabic) */}
                 <View style={styles.settingsRowItem}>
@@ -2130,7 +2978,12 @@ export default function ProfileScreen() {
                     <View style={styles.settingsIconCircle}>
                       <Languages size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       RTL Layout (Arabic)
                     </Text>
                   </View>
@@ -2142,7 +2995,12 @@ export default function ProfileScreen() {
                   />
                 </View>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* Language */}
                 <Pressable
@@ -2160,10 +3018,20 @@ export default function ProfileScreen() {
                       <Globe size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
                     <View style={styles.settingsTextCol}>
-                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemLabel,
+                          { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        ]}
+                      >
                         Language
                       </Text>
-                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemSubtitle,
+                          { color: isDark ? "#94A3B8" : "#64748B" },
+                        ]}
+                      >
                         {language || "English"}
                       </Text>
                     </View>
@@ -2173,7 +3041,12 @@ export default function ProfileScreen() {
               </View>
 
               {/* ── ACCOUNT SECTION ── */}
-              <Text style={[styles.sectionHeading, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+              <Text
+                style={[
+                  styles.sectionHeading,
+                  { color: isDark ? "#94A3B8" : "#64748B" },
+                ]}
+              >
                 ACCOUNT
               </Text>
               <View
@@ -2201,18 +3074,35 @@ export default function ProfileScreen() {
                       <Bell size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
                     <View style={styles.settingsTextCol}>
-                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemLabel,
+                          { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        ]}
+                      >
                         Notifications
                       </Text>
-                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
-                        {unreadNotificationsCount > 0 ? `${unreadNotificationsCount} active` : "4 active"}
+                      <Text
+                        style={[
+                          styles.settingsItemSubtitle,
+                          { color: isDark ? "#94A3B8" : "#64748B" },
+                        ]}
+                      >
+                        {unreadNotificationsCount > 0
+                          ? `${unreadNotificationsCount} active`
+                          : "4 active"}
                       </Text>
                     </View>
                   </View>
                   <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
                 </Pressable>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* Change Password */}
                 <Pressable
@@ -2221,7 +3111,9 @@ export default function ProfileScreen() {
                     setPasswordError("");
                     setPasswordSuccessMsg("");
                     try {
-                      const savedPass = await AsyncStorage.getItem("@user_current_password");
+                      const savedPass = await AsyncStorage.getItem(
+                        "@user_current_password",
+                      );
                       if (savedPass) {
                         setCurrentPassword(savedPass);
                       } else if (!currentPassword) {
@@ -2241,14 +3133,24 @@ export default function ProfileScreen() {
                     <View style={styles.settingsIconCircle}>
                       <Lock size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       Change Password
                     </Text>
                   </View>
                   <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
                 </Pressable>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* Payment Methods */}
                 <Pressable
@@ -2265,14 +3167,24 @@ export default function ProfileScreen() {
                     <View style={styles.settingsIconCircle}>
                       <CreditCard size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       Payment Methods
                     </Text>
                   </View>
                   <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
                 </Pressable>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* Privacy & Security */}
                 <Pressable
@@ -2289,7 +3201,12 @@ export default function ProfileScreen() {
                     <View style={styles.settingsIconCircle}>
                       <Shield size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       Privacy & Security
                     </Text>
                   </View>
@@ -2298,7 +3215,12 @@ export default function ProfileScreen() {
               </View>
 
               {/* ── SUPPORT SECTION ── */}
-              <Text style={[styles.sectionHeading, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+              <Text
+                style={[
+                  styles.sectionHeading,
+                  { color: isDark ? "#94A3B8" : "#64748B" },
+                ]}
+              >
                 SUPPORT
               </Text>
               <View
@@ -2325,14 +3247,24 @@ export default function ProfileScreen() {
                     <View style={styles.settingsIconCircle}>
                       <HelpCircle size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       Help Center
                     </Text>
                   </View>
                   <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
                 </Pressable>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* Terms of Service */}
                 <Pressable
@@ -2349,14 +3281,24 @@ export default function ProfileScreen() {
                     <View style={styles.settingsIconCircle}>
                       <FileText size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       Terms of Service
                     </Text>
                   </View>
                   <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
                 </Pressable>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* Privacy Policy */}
                 <Pressable
@@ -2371,16 +3313,30 @@ export default function ProfileScreen() {
                 >
                   <View style={styles.settingsRowLeft}>
                     <View style={styles.settingsIconCircle}>
-                      <ShieldCheck size={18} color="#EF4444" strokeWidth={2.2} />
+                      <ShieldCheck
+                        size={18}
+                        color="#EF4444"
+                        strokeWidth={2.2}
+                      />
                     </View>
-                    <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                    <Text
+                      style={[
+                        styles.settingsItemLabel,
+                        { color: isDark ? "#FFFFFF" : "#0F172A" },
+                      ]}
+                    >
                       Privacy Policy
                     </Text>
                   </View>
                   <ChevronRight size={18} color="#94A3B8" strokeWidth={2} />
                 </Pressable>
 
-                <View style={[styles.settingsDivider, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]} />
+                <View
+                  style={[
+                    styles.settingsDivider,
+                    { backgroundColor: isDark ? "#334155" : "#F1F5F9" },
+                  ]}
+                />
 
                 {/* About Clean.et */}
                 <Pressable
@@ -2398,10 +3354,20 @@ export default function ProfileScreen() {
                       <Info size={18} color="#EF4444" strokeWidth={2.2} />
                     </View>
                     <View style={styles.settingsTextCol}>
-                      <Text style={[styles.settingsItemLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemLabel,
+                          { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        ]}
+                      >
                         About Clean.et
                       </Text>
-                      <Text style={[styles.settingsItemSubtitle, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                      <Text
+                        style={[
+                          styles.settingsItemSubtitle,
+                          { color: isDark ? "#94A3B8" : "#64748B" },
+                        ]}
+                      >
                         Version 2.5.0
                       </Text>
                     </View>
@@ -2418,21 +3384,25 @@ export default function ProfileScreen() {
                   pressed && { opacity: 0.8, transform: [{ scale: 0.99 }] },
                 ]}
               >
-                <LogOut size={18} color="#EF4444" strokeWidth={2.2} style={{ marginRight: 8 }} />
-                <Text style={styles.screenshotLogoutText}>Log Out</Text>
+                <LogOut
+                  size={18}
+                  color="#EF4444"
+                  strokeWidth={2.2}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.screenshotLogoutText}>{t("log_out")}</Text>
               </Pressable>
             </View>
-          )
-        )}
+          ))}
       </ScrollView>
 
       {/* ── Logout ActionModal ── */}
       <ActionModal
         visible={logoutModalVisible}
         type="danger"
-        title="Log Out?"
-        message="Are you sure you want to log out of your account? You will need to sign in again to view your bookings."
-        confirmText="Log Out"
+        title={t("log_out_confirm_title")}
+        message={t("log_out_confirm_msg")}
+        confirmText={t("log_out")}
         onConfirm={confirmLogout}
         onCancel={() => setLogoutModalVisible(false)}
       />
@@ -2445,20 +3415,39 @@ export default function ProfileScreen() {
         onRequestClose={() => !editLoading && setEditModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView
+            intensity={30}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
           <View style={styles.editModalContainer}>
             <View
               style={[
                 styles.editModalContent,
-                { backgroundColor: isDark ? "#1E293B" : "#FFFFFF", borderColor: isDark ? "#334155" : "#E2E8F0" },
+                {
+                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                  borderColor: isDark ? "#334155" : "#E2E8F0",
+                },
               ]}
             >
-              <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+              <Text
+                style={[
+                  styles.editModalTitle,
+                  { color: isDark ? "#FFFFFF" : "#0F172A" },
+                ]}
+              >
                 Edit Profile
               </Text>
 
               <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>Full Name</Text>
+                <Text
+                  style={[
+                    styles.inputLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
+                  Full Name
+                </Text>
                 <TextInput
                   style={[
                     styles.textInput,
@@ -2482,7 +3471,14 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>Phone Number</Text>
+                <Text
+                  style={[
+                    styles.inputLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
+                  Phone Number
+                </Text>
                 <TextInput
                   style={[
                     styles.textInput,
@@ -2507,7 +3503,14 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>Email Address</Text>
+                <Text
+                  style={[
+                    styles.inputLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
+                  Email Address
+                </Text>
                 <TextInput
                   style={[
                     styles.textInput,
@@ -2532,14 +3535,26 @@ export default function ProfileScreen() {
                 />
               </View>
 
-              {editError ? <Text style={styles.editErrorText}>{editError}</Text> : null}
+              {editError ? (
+                <Text style={styles.editErrorText}>{editError}</Text>
+              ) : null}
 
               <View style={styles.modalActionsRow}>
                 <Pressable
-                  style={[styles.modalCancelBtn, editLoading && { opacity: 0.5 }]}
+                  style={[
+                    styles.modalCancelBtn,
+                    editLoading && { opacity: 0.5 },
+                  ]}
                   onPress={() => !editLoading && setEditModalVisible(false)}
                 >
-                  <Text style={[styles.modalCancelBtnText, { color: isDark ? "#94A3B8" : "#64748B" }]}>Cancel</Text>
+                  <Text
+                    style={[
+                      styles.modalCancelBtnText,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
+                    Cancel
+                  </Text>
                 </Pressable>
 
                 <Pressable
@@ -2567,7 +3582,11 @@ export default function ProfileScreen() {
         onRequestClose={() => setAddressModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView
+            intensity={30}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
           <View style={styles.editModalContainer}>
             <View
               style={[
@@ -2578,12 +3597,22 @@ export default function ProfileScreen() {
                 },
               ]}
             >
-              <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+              <Text
+                style={[
+                  styles.editModalTitle,
+                  { color: isDark ? "#FFFFFF" : "#0F172A" },
+                ]}
+              >
                 {selectedAddress ? "Edit Address" : "Add New Address"}
               </Text>
 
               <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.inputLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Address Label
                 </Text>
                 <TextInput
@@ -2608,7 +3637,12 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                <Text
+                  style={[
+                    styles.inputLabel,
+                    { color: isDark ? "#94A3B8" : "#64748B" },
+                  ]}
+                >
                   Street Address
                 </Text>
                 <TextInput
@@ -2638,7 +3672,12 @@ export default function ProfileScreen() {
 
               {/* Set as default switch */}
               <View style={styles.defaultSwitchRow}>
-                <Text style={[styles.defaultSwitchLabel, { color: isDark ? "#FFFFFF" : "#0F172A" }]}>
+                <Text
+                  style={[
+                    styles.defaultSwitchLabel,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
+                >
                   Set as Default Address
                 </Text>
                 <Switch
@@ -2649,7 +3688,9 @@ export default function ProfileScreen() {
                 />
               </View>
 
-              {addressError ? <Text style={styles.editErrorText}>{addressError}</Text> : null}
+              {addressError ? (
+                <Text style={styles.editErrorText}>{addressError}</Text>
+              ) : null}
 
               <View style={styles.modalActionsRow}>
                 {selectedAddress && (
@@ -2665,7 +3706,12 @@ export default function ProfileScreen() {
                   style={styles.modalCancelBtn}
                   onPress={() => setAddressModalVisible(false)}
                 >
-                  <Text style={[styles.modalCancelBtnText, { color: isDark ? "#94A3B8" : "#64748B" }]}>
+                  <Text
+                    style={[
+                      styles.modalCancelBtnText,
+                      { color: isDark ? "#94A3B8" : "#64748B" },
+                    ]}
+                  >
                     Cancel
                   </Text>
                 </Pressable>
@@ -2690,7 +3736,11 @@ export default function ProfileScreen() {
         onRequestClose={() => setLangModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView
+            intensity={30}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
           <View style={styles.editModalContainer}>
             <View
               style={[
@@ -2702,15 +3752,23 @@ export default function ProfileScreen() {
               ]}
             >
               <View style={styles.modalHeaderRow}>
-                <Text style={[styles.editModalTitle, { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 0 }]}>
+                <Text
+                  style={[
+                    styles.editModalTitle,
+                    { color: isDark ? "#FFFFFF" : "#0F172A", marginBottom: 0 },
+                  ]}
+                >
                   Select Language
                 </Text>
-                <Pressable onPress={() => setLangModalVisible(false)} hitSlop={10}>
+                <Pressable
+                  onPress={() => setLangModalVisible(false)}
+                  hitSlop={10}
+                >
                   <X size={20} color={isDark ? "#94A3B8" : "#64748B"} />
                 </Pressable>
               </View>
 
-              {["English", "Amharic", "Oromo", "French", "Spanish"].map((lang) => {
+              {["English", "Amharic"].map((lang) => {
                 const isSelected = (language || "English") === lang;
                 return (
                   <Pressable
@@ -2718,24 +3776,39 @@ export default function ProfileScreen() {
                     style={[
                       styles.langOptionRow,
                       isSelected && {
-                        backgroundColor: isDark ? "rgba(239, 68, 68, 0.15)" : "rgba(239, 68, 68, 0.08)",
+                        backgroundColor: isDark
+                          ? "rgba(239, 68, 68, 0.15)"
+                          : "rgba(239, 68, 68, 0.08)",
                       },
                     ]}
                     onPress={async () => {
                       triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
                       await setLanguage(lang as any);
+                      try {
+                        await updateUser({
+                          language: lang === "Amharic" ? "am" : "en",
+                        });
+                      } catch {}
                       setLangModalVisible(false);
                     }}
                   >
                     <Text
                       style={[
                         styles.langOptionText,
-                        { color: isSelected ? "#EF4444" : isDark ? "#FFFFFF" : "#0F172A" },
+                        {
+                          color: isSelected
+                            ? "#EF4444"
+                            : isDark
+                              ? "#FFFFFF"
+                              : "#0F172A",
+                        },
                       ]}
                     >
                       {lang}
                     </Text>
-                    {isSelected && <Check size={18} color="#EF4444" strokeWidth={2.4} />}
+                    {isSelected && (
+                      <Check size={18} color="#EF4444" strokeWidth={2.4} />
+                    )}
                   </Pressable>
                 );
               })}
@@ -2744,17 +3817,13 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-
-
-
-
-
-
       {/* ── Toast Feedback ── */}
       {showSuccessToast && (
         <View style={styles.successToast}>
           <CheckCircle2 size={18} color="#10B981" />
-          <Text style={styles.successToastText}>Profile updated successfully!</Text>
+          <Text style={styles.successToastText}>
+            Profile updated successfully!
+          </Text>
         </View>
       )}
     </View>
@@ -3334,49 +4403,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "700",
-  },
-
-  // ── Data Management Card Styles (Matches Screenshot) ──
-  dataManagementCardBox: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  dataManagementHeading: {
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 16,
-    letterSpacing: -0.2,
-  },
-  downloadDataBtn: {
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  downloadDataBtnText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  deleteAccountBtn: {
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  deleteAccountBtnText: {
-    color: "#EF4444",
-    fontSize: 14,
-    fontWeight: "600",
   },
 
   // ── Help Center Subpage Styles (Matches Screenshot) ──

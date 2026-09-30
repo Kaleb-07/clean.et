@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import API from "../../src/api/client";
+import { useColors } from "../../hooks/useColors";
+import { useLanguage } from "../../contexts/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
@@ -58,6 +60,9 @@ export default function AdminServices() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const colors = useColors();
+  const { t } = useLanguage();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const isSuperAdmin = user?.role === "super_admin";
 
   const [services, setServices] = useState<Service[]>([]);
@@ -302,7 +307,7 @@ export default function AdminServices() {
           }}
           style={styles.backBtn}
         >
-          <Ionicons name="arrow-back" size={20} color="#FFF" />
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
@@ -328,26 +333,31 @@ export default function AdminServices() {
         {/* Search & Action Bar */}
         <View style={styles.actionBar}>
           <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color="#94A3B8" />
+            <Ionicons name="search" size={18} color={colors.subtext} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search service offerings..."
-              placeholderTextColor="#64748B"
+              placeholderTextColor={colors.subtext}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery ? (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              <TouchableOpacity
+                onPress={() => setSearchQuery("")}
+                style={styles.searchClearBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={18} color={colors.subtext} />
               </TouchableOpacity>
             ) : null}
           </View>
 
           {!isSuperAdmin && (
-            <View style={{ flexDirection: "row", gap: 6 }}>
+            <View style={styles.actionBtnsRow}>
               <TouchableOpacity
                 style={[styles.addBtn, { backgroundColor: "#059669" }]}
                 onPress={() => setCreateCenterModal(true)}
+                activeOpacity={0.8}
               >
                 <Ionicons name="business" size={16} color="#FFF" />
                 <Text style={styles.addBtnText}>+ Center</Text>
@@ -368,6 +378,7 @@ export default function AdminServices() {
                   });
                   setServiceModalVisible(true);
                 }}
+                activeOpacity={0.8}
               >
                 <Ionicons name="add" size={18} color="#FFF" />
                 <Text style={styles.addBtnText}>+ Service</Text>
@@ -393,7 +404,7 @@ export default function AdminServices() {
                 onPress={() => setCreateCenterModal(true)}
                 style={[styles.filterChip, { backgroundColor: "#10B98122", borderColor: "#10B98155" }]}
               >
-                <Text style={[styles.filterChipText, { color: "#34D399" }]}>
+                <Text style={[styles.filterChipText, { color: colors.isDark ? "#34D399" : "#059669" }]}>
                   🏬 + Create Center
                 </Text>
               </TouchableOpacity>
@@ -537,14 +548,18 @@ export default function AdminServices() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <View>
+              <View style={styles.modalTitleWrap}>
                 <Text style={styles.modalTitle}>{inspectService?.name}</Text>
-                <Text style={{ color: "#34D399", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
+                <Text style={{ color: colors.isDark ? "#34D399" : "#059669", fontSize: 12, marginTop: 2, fontWeight: "700" }}>
                   Service ID #{inspectService?.id}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setInspectService(null)}>
-                <Ionicons name="close" size={24} color="#94A3B8" />
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setInspectService(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={colors.subtext} />
               </TouchableOpacity>
             </View>
 
@@ -562,14 +577,14 @@ export default function AdminServices() {
 
               <View style={styles.detailSection}>
                 <Text style={styles.detailLabel}>Estimated Servicing Duration</Text>
-                <Text style={{ color: "#F8FAFC", fontSize: 14, fontWeight: "700" }}>
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: "700" }}>
                   ⏱️ {inspectService?.duration || 45} Minutes
                 </Text>
               </View>
 
               <View style={styles.detailSection}>
                 <Text style={styles.detailLabel}>Service Description</Text>
-                <Text style={{ color: "#CBD5E1", fontSize: 13, lineHeight: 18 }}>
+                <Text style={{ color: colors.text, fontSize: 13, lineHeight: 18 }}>
                   {inspectService?.description || "No description provided."}
                 </Text>
               </View>
@@ -587,14 +602,18 @@ export default function AdminServices() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <View>
+              <View style={styles.modalTitleWrap}>
                 <Text style={styles.modalTitle}>{editingService ? "Edit Service Item" : "Add Service Item"}</Text>
-                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                <Text style={styles.modalSubtitle}>
                   Configure division service center branch, price, duration, and cover photo
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setServiceModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#94A3B8" />
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setServiceModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={colors.subtext} />
               </TouchableOpacity>
             </View>
 
@@ -603,7 +622,7 @@ export default function AdminServices() {
                 <Text style={styles.inputLabel}>Service Item Name *</Text>
                 <TextInput
                   placeholder="e.g. Home-to-Home Mobile Wash / Exterior Facade Clean"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.subtext}
                   value={serviceForm.name}
                   onChangeText={(t) => setServiceForm({ ...serviceForm, name: t })}
                   style={styles.textInput}
@@ -617,8 +636,8 @@ export default function AdminServices() {
                   onPress={() => setCreateCenterModal(true)}
                   style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#10B98122", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "#10B98155" }}
                 >
-                  <Ionicons name="add" size={14} color="#34D399" />
-                  <Text style={{ color: "#34D399", fontSize: 11, fontWeight: "800" }}>+ Add Center</Text>
+                  <Ionicons name="add" size={14} color={colors.isDark ? "#34D399" : "#059669"} />
+                  <Text style={{ color: colors.isDark ? "#34D399" : "#059669", fontSize: 11, fontWeight: "800" }}>+ Add Center</Text>
                 </TouchableOpacity>
               </View>
 
@@ -634,7 +653,7 @@ export default function AdminServices() {
                         isSel && { borderColor: "#10B981", backgroundColor: "#10B98115" },
                       ]}
                     >
-                      <Text style={{ color: "#FFF", fontSize: 13, flex: 1, fontWeight: "700" }}>{sc.name}</Text>
+                      <Text style={{ color: colors.text, fontSize: 13, flex: 1, fontWeight: "700" }}>{sc.name}</Text>
                       <Ionicons
                         name={isSel ? "radio-button-on" : "radio-button-off"}
                         size={20}
@@ -672,13 +691,13 @@ export default function AdminServices() {
               ) : (
                 <TouchableOpacity style={styles.imagePickerButton} onPress={handlePickImage}>
                   <View style={styles.imagePickerIconWrap}>
-                    <Ionicons name="cloud-upload-outline" size={24} color="#34D399" />
+                    <Ionicons name="cloud-upload-outline" size={24} color={colors.isDark ? "#34D399" : "#059669"} />
                   </View>
                   <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={{ color: "#FFF", fontSize: 13, fontWeight: "700" }}>
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: "700" }}>
                       📷 Select Photo from Device Storage
                     </Text>
-                    <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                    <Text style={{ color: colors.subtext, fontSize: 11, marginTop: 2 }}>
                       Pick real-time photo from computer/device gallery
                     </Text>
                   </View>
@@ -690,7 +709,7 @@ export default function AdminServices() {
                   <Text style={styles.inputLabel}>Base Price (ETB) *</Text>
                   <TextInput
                     placeholder="e.g. 450.00"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.subtext}
                     keyboardType="numeric"
                     value={serviceForm.price}
                     onChangeText={(t) => setServiceForm({ ...serviceForm, price: t })}
@@ -702,7 +721,7 @@ export default function AdminServices() {
                   <Text style={styles.inputLabel}>Duration (Minutes)</Text>
                   <TextInput
                     placeholder="e.g. 45"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.subtext}
                     keyboardType="numeric"
                     value={serviceForm.duration}
                     onChangeText={(t) => setServiceForm({ ...serviceForm, duration: t })}
@@ -715,7 +734,7 @@ export default function AdminServices() {
                 <Text style={styles.inputLabel}>Work Scope Description</Text>
                 <TextInput
                   placeholder="Describe service procedures, safety gear, onboard equipment..."
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.subtext}
                   multiline
                   numberOfLines={3}
                   value={serviceForm.description}
@@ -754,10 +773,10 @@ export default function AdminServices() {
           <View style={[styles.modalCard, { borderColor: "#EF4444" }]}>
             <View style={{ alignItems: "center", paddingVertical: 10 }}>
               <Ionicons name="warning-outline" size={36} color="#EF4444" style={{ marginBottom: 8 }} />
-              <Text style={{ fontSize: 18, fontWeight: "800", color: "#FFF", textAlign: "center" }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text, textAlign: "center" }}>
                 Delete Service Item?
               </Text>
-              <Text style={{ color: "#94A3B8", fontSize: 12, textAlign: "center", marginTop: 4 }}>
+              <Text style={{ color: colors.subtext, fontSize: 12, textAlign: "center", marginTop: 4 }}>
                 This will remove the item from company division catalog and mobile app.
               </Text>
             </View>
@@ -780,14 +799,18 @@ export default function AdminServices() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <View>
+              <View style={styles.modalTitleWrap}>
                 <Text style={styles.modalTitle}>➕ Add Dynamic Sub-Center Station</Text>
-                <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 2 }}>
+                <Text style={styles.modalSubtitle}>
                   Create a new station branch (e.g. Bole Station, Kazanchis Facade Hub)
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setCreateCenterModal(false)}>
-                <Ionicons name="close" size={24} color="#94A3B8" />
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setCreateCenterModal(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={colors.subtext} />
               </TouchableOpacity>
             </View>
 
@@ -795,7 +818,7 @@ export default function AdminServices() {
               <Text style={styles.inputLabel}>New Sub-Center Station Name *</Text>
               <TextInput
                 placeholder="e.g. Bole Express Detailing Station"
-                placeholderTextColor="#64748B"
+                placeholderTextColor={colors.subtext}
                 value={newCenterName}
                 onChangeText={setNewCenterName}
                 style={styles.textInput}
@@ -819,66 +842,80 @@ export default function AdminServices() {
 }
 
 /* ================= STYLES ================= */
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F172A" },
+const getStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#334155",
+    borderBottomColor: colors.cardBorder,
     gap: 12,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "#334155",
+    backgroundColor: colors.isDark ? "#334155" : "#E2E8F0",
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#F8FAFC" },
-  headerSubtitle: { fontSize: 11, color: "#94A3B8", marginTop: 1 },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: colors.text },
+  headerSubtitle: { fontSize: 11, color: colors.subtext, marginTop: 1 },
   refreshBtn: { padding: 6 },
   scrollContent: { padding: 16, paddingBottom: 40 },
-  actionBar: { flexDirection: "row", marginBottom: 12, gap: 10 },
+  actionBar: { flexDirection: "column", marginBottom: 14, gap: 10 },
   searchBox: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    overflow: "hidden",
+  },
+  searchInput: { flex: 1, color: colors.text, marginLeft: 8, fontSize: 13, paddingVertical: 0 },
+  searchClearBtn: { padding: 4, justifyContent: "center", alignItems: "center" },
+  actionBtnsRow: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+  },
+  addBtn: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1E293B",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 42,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
-  searchInput: { flex: 1, color: "#F8FAFC", marginLeft: 8, fontSize: 13 },
-  addBtn: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: "#059669",
-    borderRadius: 10,
+    borderRadius: 12,
+    paddingVertical: 11,
     paddingHorizontal: 14,
     justifyContent: "center",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
-  addBtnText: { color: "#FFF", fontWeight: "700", marginLeft: 4, fontSize: 13 },
-  filterChip: { backgroundColor: "#1E293B", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "#334155" },
+  addBtnText: { color: "#FFF", fontWeight: "700", marginLeft: 6, fontSize: 13 },
+  filterChip: { backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.cardBorder },
   filterChipActive: { backgroundColor: "#059669", borderColor: "#10B981" },
-  filterChipText: { color: "#94A3B8", fontSize: 11, fontWeight: "700" },
+  filterChipText: { color: colors.subtext, fontSize: 11, fontWeight: "700" },
   filterChipTextActive: { color: "#FFF" },
   card: {
-    backgroundColor: "#1E293B",
+    backgroundColor: colors.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: colors.cardBorder,
   },
   cardHeader: { flexDirection: "row", alignItems: "center" },
-  serviceImageThumbnail: { width: 48, height: 48, borderRadius: 10, marginRight: 12, borderWidth: 1, borderColor: "#334155" },
+  serviceImageThumbnail: { width: 48, height: 48, borderRadius: 10, marginRight: 12, borderWidth: 1, borderColor: colors.cardBorder },
   avatarBox: {
     width: 44,
     height: 44,
@@ -888,18 +925,18 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderWidth: 1,
   },
-  serviceName: { color: "#FFF", fontWeight: "800", fontSize: 15 },
+  serviceName: { color: colors.text, fontWeight: "800", fontSize: 15 },
   subCenterBadge: { backgroundColor: "#10B98122", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 2, borderWidth: 1, borderColor: "#10B98155" },
-  subCenterBadgeText: { color: "#34D399", fontSize: 10, fontWeight: "700" },
-  serviceDesc: { color: "#CBD5E1", fontSize: 12, marginTop: 4, lineHeight: 16 },
-  servicePrice: { fontSize: 15, fontWeight: "800", color: "#34D399" },
-  serviceDuration: { fontSize: 11, color: "#94A3B8", marginTop: 2 },
+  subCenterBadgeText: { color: colors.isDark ? "#34D399" : "#059669", fontSize: 10, fontWeight: "700" },
+  serviceDesc: { color: colors.subtext, fontSize: 12, marginTop: 4, lineHeight: 16 },
+  servicePrice: { fontSize: 15, fontWeight: "800", color: colors.isDark ? "#34D399" : "#059669" },
+  serviceDuration: { fontSize: 11, color: colors.subtext, marginTop: 2 },
   cardActions: {
     flexDirection: "row",
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "#334155",
+    borderTopColor: colors.cardBorder,
     gap: 8,
   },
   miniActionBtn: {
@@ -912,28 +949,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   emptyState: { alignItems: "center", paddingVertical: 50 },
-  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#F8FAFC", marginTop: 10 },
-  emptySub: { fontSize: 12, color: "#94A3B8", marginTop: 4 },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: colors.text, marginTop: 10 },
+  emptySub: { fontSize: 12, color: colors.subtext, marginTop: 4 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.8)", justifyContent: "center", padding: 16 },
-  modalCard: { backgroundColor: "#1E293B", borderRadius: 20, padding: 20, maxHeight: "90%", borderWidth: 1, borderColor: "#334155" },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: "#F8FAFC" },
-  detailSection: { backgroundColor: "#0F172A", padding: 12, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: "#334155" },
-  detailLabel: { fontSize: 11, color: "#94A3B8", fontWeight: "700", textTransform: "uppercase" },
-  detailAmount: { fontSize: 18, fontWeight: "800", color: "#34D399", marginTop: 2 },
+  modalCard: { backgroundColor: colors.card, borderRadius: 20, padding: 20, maxHeight: "90%", borderWidth: 1, borderColor: colors.cardBorder },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 10 },
+  modalTitleWrap: { flex: 1, paddingRight: 6 },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: colors.text },
+  modalSubtitle: { color: colors.subtext, fontSize: 11, marginTop: 2, lineHeight: 16 },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.isDark ? "#334155" : "#E2E8F0",
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  detailSection: { backgroundColor: colors.background, padding: 12, borderRadius: 10, marginBottom: 10, borderWidth: 1, borderColor: colors.cardBorder },
+  detailLabel: { fontSize: 11, color: colors.subtext, fontWeight: "700", textTransform: "uppercase" },
+  detailAmount: { fontSize: 18, fontWeight: "800", color: colors.isDark ? "#34D399" : "#059669", marginTop: 2 },
   inputGroup: { marginBottom: 12 },
-  inputLabel: { fontSize: 12, fontWeight: "700", color: "#CBD5E1", marginBottom: 6 },
-  textInput: { backgroundColor: "#0F172A", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: "#F8FAFC", borderWidth: 1, borderColor: "#334155" },
-  subCenterOption: { flexDirection: "row", alignItems: "center", backgroundColor: "#0F172A", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#334155" },
-  imagePickerButton: { flexDirection: "row", alignItems: "center", backgroundColor: "#0F172A", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#334155", marginBottom: 14 },
+  inputLabel: { fontSize: 12, fontWeight: "700", color: colors.subtext, marginBottom: 6 },
+  textInput: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, borderWidth: 1, borderColor: colors.cardBorder },
+  subCenterOption: { flexDirection: "row", alignItems: "center", backgroundColor: colors.background, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.cardBorder },
+  imagePickerButton: { flexDirection: "row", alignItems: "center", backgroundColor: colors.background, borderRadius: 10, padding: 12, borderWidth: 1, borderColor: colors.cardBorder, marginBottom: 14 },
   imagePickerIconWrap: { width: 38, height: 38, borderRadius: 10, backgroundColor: "#10B98122", alignItems: "center", justifyContent: "center" },
-  imagePickerPreviewBox: { marginBottom: 14, borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: "#334155" },
+  imagePickerPreviewBox: { marginBottom: 14, borderRadius: 10, overflow: "hidden", borderWidth: 1, borderColor: colors.cardBorder },
   imagePickerPreview: { width: "100%", height: 140 },
-  imagePickerOverlayRow: { flexDirection: "row", backgroundColor: "#0F172A", padding: 8, justifyContent: "space-between" },
+  imagePickerOverlayRow: { flexDirection: "row", backgroundColor: colors.background, padding: 8, justifyContent: "space-between" },
   changeImageBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#2563EB", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
   removeImageBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#EF444422", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: "#EF444455" },
-  closeBtn: { flex: 1, backgroundColor: "#334155", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
-  closeBtnText: { color: "#FFF", fontWeight: "700" },
+  closeBtn: { flex: 1, backgroundColor: colors.isDark ? "#334155" : "#E2E8F0", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  closeBtnText: { color: colors.isDark ? "#FFF" : colors.text, fontWeight: "700" },
   submitBtn: { flex: 1, backgroundColor: "#059669", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
   deleteModalBtn: { flex: 1, backgroundColor: "#EF4444", borderRadius: 10, paddingVertical: 12, alignItems: "center", justifyContent: "center" },
   serviceImagePreview: { width: "100%", height: 160, borderRadius: 10, marginBottom: 12 },
