@@ -24,6 +24,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useColors } from "../../hooks/useColors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "NOT SET";
+
 // ─── Role-based route resolver ───────────────────────────────────────────────
 function getHomeRoute(role: string): string {
   switch (role) {
@@ -117,10 +119,14 @@ export default function LoginScreen() {
     } catch (err: any) {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
         const errors = err.response?.data?.errors;
+        console.log("Login error:", status, JSON.stringify(err.response?.data));
         if (errors) {
           const firstError = (Object.values(errors)[0] as string[])?.[0];
           setError(firstError || "Invalid credentials");
+        } else if (!err.response) {
+          setError(`Cannot reach server at ${API_URL}`);
         } else {
           setError(err.response?.data?.message || "Invalid phone/email or password");
         }
@@ -516,6 +522,11 @@ export default function LoginScreen() {
                   </Pressable>
                 </Link>
               </View>
+
+              {/* DEBUG: Server URL indicator */}
+              <Text style={{ textAlign: "center", fontSize: 10, color: colors.subtext, marginTop: 8, opacity: 0.5 }}>
+                {API_URL}
+              </Text>
             </BlurView>
           </Animated.View>
         </ScrollView>

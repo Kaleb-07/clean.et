@@ -64,6 +64,10 @@ interface Booking {
     user?: { name?: string; phone?: string; email?: string };
   };
   staff?: { id: number; role_title: string; user?: { id?: string | number; name: string } };
+  /** Set by the backend when a completed/paid payment already exists for this booking */
+  payment_status?: string | null;
+  /** e.g. "chapa", "cash" — provider used for the existing payment */
+  payment_provider?: string | null;
 }
 
 /* ─── STATUS CONFIG ──────────────────────────────────────────────────────── */
@@ -340,14 +344,32 @@ export default function StaffDashboard() {
 
   /* ─────────────────────────────────────────────────────────────────────────
      OPEN PAYMENT MODAL
+     If the booking was already paid online (Chapa / card), skip the cash
+     collection modal entirely and mark the job complete right away.
      ───────────────────────────────────────────────────────────────────────── */
   const openPaymentModal = useCallback((booking: Booking) => {
+    // Already paid online — no need to collect cash
+    if (booking.payment_status === "completed" || booking.payment_status === "paid") {
+      Alert.alert(
+        "Payment Already Received",
+        `This job was already paid online via ${booking.payment_provider ?? "Chapa"}. Marking as completed.`,
+        [
+          {
+            text: "OK",
+            onPress: () => completeBooking(booking),
+          },
+        ]
+      );
+      setInspecting(null);
+      return;
+    }
+
     setPaymentBooking(booking);
     setPaymentMethod("cash");
     setCashAmount(String(Number(booking.price || 0).toFixed(2)));
     setInspecting(null);
     setPaymentModal(true);
-  }, []);
+  }, [completeBooking]);
 
   /* ─────────────────────────────────────────────────────────────────────────
      CHAPA DIRECT CHARGE — INITIATE

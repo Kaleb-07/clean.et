@@ -85,6 +85,15 @@ class BookingResource extends JsonResource
 
             'invoice_id'          => $this->invoice?->id,
 
+            // Payment info — lets the staff app know if the customer already paid online.
+            // Uses the eager-loaded payments collection (no extra queries).
+            'payment_status'   => $this->invoice?->payments
+                ?->firstWhere(fn ($p) => in_array($p->status, ['completed', 'paid']))
+                ?->status ?? null,
+            'payment_provider' => $this->invoice?->payments
+                ?->firstWhere(fn ($p) => in_array($p->status, ['completed', 'paid']))
+                ?->provider ?? null,
+
             'completion_proofs'   => $this->whenLoaded('completionProofs', fn () =>
                 $this->completionProofs->map(fn ($proof) => [
                     'id'             => $proof->id,

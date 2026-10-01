@@ -408,51 +408,13 @@ export default function AdminBookings() {
                     </View>
                   </View>
 
-                  {/* ── SCHEDULE & DISPATCH METADATA (FULL WIDTH) ── */}
+                  {/* ── SCHEDULE METADATA ── */}
                   <View style={styles.metaRow}>
                     <View style={styles.metaBadge}>
                       <Ionicons name="calendar-outline" size={13} color="#60A5FA" />
                       <Text style={styles.metaDateText} numberOfLines={1}>
                         {formatBookingDate(b.booking_date)}{b.booking_time ? ` at ${b.booking_time}` : ""}
                       </Text>
-                    </View>
-
-                    <View style={{ flexDirection: "row", gap: 6 }}>
-                      <TouchableOpacity
-                        style={[styles.miniBtn, { backgroundColor: "#3B82F622", borderColor: "#3B82F655" }]}
-                        onPress={() => setInspectBooking(b)}
-                      >
-                        <Ionicons name="eye-outline" size={14} color="#60A5FA" />
-                        <Text style={[styles.miniBtnText, { color: "#60A5FA" }]}>Inspect</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[styles.miniBtn, !isSuperAdmin && { backgroundColor: "#059669" }]}
-                        onPress={() => openAssignModal(b)}
-                      >
-                        <Ionicons name="flash" size={14} color="#FFF" />
-                        <Text style={styles.miniBtnText}>Dispatch</Text>
-                      </TouchableOpacity>
-
-                      {(() => {
-                        const stepAction = getNextStepAction(b.status || "pending", t);
-                        if (!stepAction) return null;
-                        return (
-                          <TouchableOpacity
-                            style={[styles.miniBtn, { backgroundColor: stepAction.color }]}
-                            onPress={() => {
-                              if (stepAction.next === "driver_assigned") {
-                                openAssignModal(b);
-                              } else {
-                                handleUpdateStatus(b.id, stepAction.next);
-                              }
-                            }}
-                          >
-                            <Ionicons name={stepAction.icon as any} size={14} color="#FFF" />
-                            <Text style={styles.miniBtnText}>{stepAction.label}</Text>
-                          </TouchableOpacity>
-                        );
-                      })()}
                     </View>
                   </View>
 

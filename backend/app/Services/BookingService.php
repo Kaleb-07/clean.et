@@ -20,7 +20,7 @@ class BookingService
 
     public function getAll(User $user): \Illuminate\Database\Eloquent\Collection
     {
-        $query = Booking::with(['tenant', 'sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service', 'invoice']);
+        $query = Booking::with(['tenant', 'sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service', 'invoice.payments']);
 
         if ($user->isCustomer()) {
             // Customer sees only their own bookings
@@ -53,7 +53,7 @@ class BookingService
 
     public function getById(int $id, User $user): Booking
     {
-        $booking = Booking::with(['tenant', 'sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service', 'invoice'])
+        $booking = Booking::with(['tenant', 'sector.category', 'customer.user', 'staff.user', 'vehicle', 'building', 'service', 'invoice.payments'])
             ->findOrFail($id);
 
         $this->authorizeView($booking, $user);
