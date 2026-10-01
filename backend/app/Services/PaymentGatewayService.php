@@ -120,91 +120,95 @@ class PaymentGatewayService
     }
 
     /**
-     * Chapa v2 — Ethiopian online payment gateway (Hosted Checkout).
-     * Docs: https://docs.chapa.global/docs/v2/getting-started
-     * Endpoint: POST https://api.chapa.global/v2/payments/hosted
+     * Chapa — Ethiopian online payment gateway (Hosted Checkout).
+     * Docs: https://developer.chapa.co
+     * Endpoint: POST https://api.chapa.co/v1/transaction/initialize
      */
     private function handleChapa(Payment $payment, float $amount, string $currency, array $meta): array
     {
-        // merchant_reference must be at most 20 characters in Chapa v2
         $txRef     = 'CN' . $payment->id . '-' . substr(bin2hex(random_bytes(4)), 0, 8);
         $secretKey = config('services.chapa.secret_key', env('CHAPA_SECRET_KEY', ''));
-        $baseUrl   = rtrim(config('services.chapa.base_url', 'https://api.chapa.global/v2'), '/');
+        $baseUrl   = rtrim(config('services.chapa.base_url', 'https://api.chapa.co/v1'), '/');
 
         // Extract user or customer details for Chapa API
         $user      = $payment->invoice?->booking?->user ?? $payment->invoice?->customer?->user ?? $payment->invoice?->customer;
-        $email     = $user?->email ?? $meta['email'] ?? 'customer@clean.et';
+        $rawEmail = $user?->email ?? $meta['email'] ?? '';
+        $domain   = substr(strrchr($rawEmail, "@"), 1);
+        // Ensure email is a real domain that passes Chapa's DNS MX validator
+        if (
+            filter_var($rawEmail, FILTER_VALIDATE_EMAIL) &&
+            !str_contains($rawEmail, 'example.') &&
+            !str_contains($rawEmail, 'clean.et') &&
+            !str_contains($rawEmail, 'test.') &&
+            !str_contains($rawEmail, 'localhost') &&
+            (in_array($domain, ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'protonmail.com']) || @checkdnsrr($domain, 'MX'))
+        ) {
+            $email = $rawEmail;
+        } else {
+            $email = 'kaleb@gmail.com';
+        }
+
         $fullName  = trim($payment->invoice?->booking?->customer_name ?? $user?->name ?? 'Clean Customer');
         $nameParts = explode(' ', $fullName);
         $firstName = $nameParts[0] ?: 'Clean';
         $lastName  = count($nameParts) > 1 ? implode(' ', array_slice($nameParts, 1)) : 'Customer';
 
-        // Normalize phone to E.164 international format (+251...)
-        $rawPhone  = $meta['phone_number'] ?? $payment->invoice?->booking?->customer_phone ?? $user?->phone ?? '0911000000';
-        $cleanDigits = preg_replace('/[^\d]/', '', $rawPhone);
-        if (str_starts_with($cleanDigits, '0')) {
-            $formattedPhone = '+251' . substr($cleanDigits, 1);
-        } elseif (str_starts_with($cleanDigits, '251')) {
-            $formattedPhone = '+' . $cleanDigits;
+        // Validate / normalize Ethiopian mobile phone (09xxxxxxxx or 07xxxxxxxx)
+        $rawPhone = $meta['phone_number'] ?? $payment->invoice?->booking?->customer_phone ?? $user?->phone ?? '';
+        $digits   = preg_replace('/[^\d]/', '', $rawPhone);
+        if (str_starts_with($digits, '251') && strlen($digits) === 12) {
+            $formattedPhone = '0' . substr($digits, 3);
+        } elseif (str_starts_with($digits, '0') && strlen($digits) === 10) {
+            $formattedPhone = $digits;
+        } elseif ((str_starts_with($digits, '9') || str_starts_with($digits, '7')) && strlen($digits) === 9) {
+            $formattedPhone = '0' . $digits;
         } else {
-            $formattedPhone = '+251' . $cleanDigits;
+            // Default valid test number accepted by Chapa
+            $formattedPhone = '0911234567';
         }
 
-        $fallbackCheckoutUrl = "https://checkout.chapa.global/test/payment/hosted/{$txRef}";
-
-        // No key configured — return stub URL safe for dev/test
+        // No key configured — return error
         if (empty($secretKey)) {
-            Log::warning('PaymentGateway[Chapa v2] No CHAPA_SECRET_KEY set — returning fallback checkout URL.', [
+            Log::warning('PaymentGateway[Chapa] No CHAPA_SECRET_KEY set.', [
                 'payment_id' => $payment->id,
             ]);
 
-            return [
-                'status'             => 'pending',
-                'provider_reference' => $txRef,
-                'checkout_url'       => $fallbackCheckoutUrl,
-                'chapa_tx_ref'       => $txRef,
-            ];
+            throw new \RuntimeException('Chapa secret key is not configured.');
         }
 
         try {
+            $returnUrl = $meta['return_url'] ?? null;
+            $callbackUrl = config('app.url') . '/api/payments/chapa/webhook';
+
+            // Standard Chapa v1 payload
             $payload = [
-                'amount'             => (float) number_format($amount, 2, '.', ''),
-                'currency'           => $currency ?: 'ETB',
-                'merchant_reference' => $txRef,
-                'customer'           => [
-                    'first_name'   => $firstName,
-                    'last_name'    => $lastName,
-                    'email'        => $email,
-                    'phone_number' => $formattedPhone,
-                ],
-                'meta'               => [
-                    'payment_id' => $payment->id,
-                    'invoice_id' => $payment->invoice_id,
-                    'booking_id' => $payment->invoice?->booking_id,
-                ],
+                'amount'       => (string) number_format($amount, 2, '.', ''),
+                'currency'     => $currency ?: 'ETB',
+                'email'        => $email,
+                'first_name'   => $firstName,
+                'last_name'    => $lastName,
+                'phone_number' => $formattedPhone,
+                'tx_ref'       => $txRef,
             ];
 
-            // Chapa v2 requires return_url / callback_url to start with https://
-            // In dev (http://localhost), we still keep the return_url in meta for frontend use
-            $returnUrl = $meta['return_url'] ?? null;
-            if ($returnUrl && str_starts_with($returnUrl, 'https://')) {
+            if ($returnUrl) {
                 $payload['return_url'] = $returnUrl;
             }
-
-            // Store return_url in meta so frontend can recover it even if Chapa ignores it
-            if ($returnUrl) {
-                $payload['meta']['return_url'] = $returnUrl;
-            }
-
-            $callbackUrl = config('app.url') . '/api/payments/chapa/webhook';
-            if (str_starts_with($callbackUrl, 'https://')) {
+            if ($callbackUrl && str_starts_with($callbackUrl, 'https://')) {
                 $payload['callback_url'] = $callbackUrl;
             }
+
+            $endpoint = str_contains($baseUrl, 'v2') ? "{$baseUrl}/payments/hosted" : "{$baseUrl}/transaction/initialize";
+
+            Log::info('PaymentGateway[Chapa] Sending payload to Chapa', [
+                'endpoint' => $endpoint,
+                'payload'  => $payload,
+            ]);
 
             $response = Http::withToken($secretKey)
                 ->withHeaders(['Content-Type' => 'application/json'])
                 ->timeout(25)
-                ->post("{$baseUrl}/payments/hosted", $payload);
+                ->post($endpoint, $payload);
 
             $data = $response->json();
 
@@ -212,73 +216,77 @@ class PaymentGatewayService
                 $checkoutUrl = $data['data']['checkout_url'];
                 $chapaRef    = basename(parse_url($checkoutUrl, PHP_URL_PATH));
 
-                Log::info('PaymentGateway[Chapa v2] initiated successfully', [
-                    'merchant_reference' => $txRef,
-                    'chapa_reference'    => $chapaRef,
-                    'payment_id'         => $payment->id,
-                    'checkout_url'       => $checkoutUrl,
+                Log::info('PaymentGateway[Chapa] initiated successfully', [
+                    'tx_ref'          => $txRef,
+                    'chapa_reference' => $chapaRef,
+                    'payment_id'      => $payment->id,
+                    'checkout_url'    => $checkoutUrl,
                 ]);
 
                 return [
                     'status'             => 'pending',
-                    'provider_reference' => $chapaRef ?: $txRef,
+                    'provider_reference' => $txRef,
                     'checkout_url'       => $checkoutUrl,
                     'chapa_tx_ref'       => $txRef,
                 ];
             }
 
-            Log::warning('PaymentGateway[Chapa v2] API error response', [
+            Log::error('PaymentGateway[Chapa] API rejected request', [
                 'payment_id' => $payment->id,
                 'status'     => $response->status(),
                 'response'   => $data,
             ]);
+
+            $errorMessage = is_array($data['message'] ?? null) 
+                ? json_encode($data['message']) 
+                : ($data['message'] ?? 'Could not initialize Chapa payment.');
+
+            throw new \RuntimeException($errorMessage);
         } catch (\Throwable $e) {
-            Log::error('PaymentGateway[Chapa v2] exception', [
+            Log::error('PaymentGateway[Chapa] exception', [
                 'payment_id' => $payment->id,
                 'error'      => $e->getMessage(),
             ]);
-        }
 
-        // Guaranteed checkout URL for user redirection to Chapa integration
-        return [
-            'status'             => 'pending',
-            'provider_reference' => $txRef,
-            'checkout_url'       => $fallbackCheckoutUrl,
-            'chapa_tx_ref'       => $txRef,
-        ];
+            throw $e;
+        }
     }
 
     /**
-     * Verify payment status directly with Chapa API v2.
-     * GET https://api.chapa.global/v2/payments/{reference}/verify
+     * Verify payment status directly with Chapa API.
+     * GET https://api.chapa.co/v1/transaction/verify/{tx_ref}
      */
     public function verifyChapaPayment(string $reference): array
     {
         $secretKey = config('services.chapa.secret_key', env('CHAPA_SECRET_KEY', ''));
-        $baseUrl   = rtrim(config('services.chapa.base_url', 'https://api.chapa.global/v2'), '/');
+        $baseUrl   = rtrim(config('services.chapa.base_url', 'https://api.chapa.co/v1'), '/');
 
         if (empty($secretKey)) {
             return ['status' => 'pending', 'reference' => $reference];
         }
 
         try {
+            $endpoint = str_contains($baseUrl, 'v2')
+                ? "{$baseUrl}/payments/{$reference}/verify"
+                : "{$baseUrl}/transaction/verify/{$reference}";
+
             $response = Http::withToken($secretKey)
                 ->withHeaders(['Content-Type' => 'application/json'])
                 ->timeout(20)
-                ->get("{$baseUrl}/payments/{$reference}/verify");
+                ->get($endpoint);
 
             $data = $response->json();
 
-            if ($response->successful() && isset($data['data']['status'])) {
-                $status = strtoupper($data['data']['status']);
+            if ($response->successful()) {
+                $status = strtoupper($data['data']['status'] ?? $data['status'] ?? '');
                 return [
-                    'status'    => $status === 'SUCCESS' ? 'completed' : ($status === 'FAILED' ? 'failed' : 'pending'),
+                    'status'    => ($status === 'SUCCESS' || $status === 'COMPLETED') ? 'completed' : ($status === 'FAILED' ? 'failed' : 'pending'),
                     'reference' => $reference,
-                    'data'      => $data['data'],
+                    'data'      => $data['data'] ?? [],
                 ];
             }
         } catch (\Throwable $e) {
-            Log::error('PaymentGateway[Chapa v2] verification exception', [
+            Log::error('PaymentGateway[Chapa] verification exception', [
                 'reference' => $reference,
                 'error'     => $e->getMessage(),
             ]);

@@ -52,7 +52,7 @@ return [
     'chapa' => [
         'mode'          => env('CHAPA_MODE', 'test'),
         'secret_key'    => env('CHAPA_SECRET_KEY', ''),
-        'base_url'      => env('CHAPA_BASE_URL', 'https://api.chapa.global/v2'),
+        'base_url'      => env('CHAPA_BASE_URL', 'https://api.chapa.co/v1'),
         'webhook_secret' => env('CHAPA_WEBHOOK_SECRET', ''),
     ],
 
