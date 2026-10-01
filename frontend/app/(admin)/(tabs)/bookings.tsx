@@ -435,7 +435,7 @@ export default function AdminBookings() {
                       </TouchableOpacity>
 
                       {(() => {
-                        const stepAction = getNextStepAction(b.status || "pending");
+                        const stepAction = getNextStepAction(b.status || "pending", t);
                         if (!stepAction) return null;
                         return (
                           <TouchableOpacity
