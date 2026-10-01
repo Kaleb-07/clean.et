@@ -53,13 +53,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const syncPushToken = async () => {
     try {
+      // Lazy import — avoids loading expo-notifications in Expo Go
       const { registerForPushNotificationsAsync } = require("../src/utils/notifications");
       const token = await registerForPushNotificationsAsync();
       if (token) {
         await API.put("/me", { push_token: token });
       }
-    } catch (e) {
-      console.log("Could not register push token:", e);
+    } catch {
+      // Non-critical — push tokens are optional
     }
   };
 

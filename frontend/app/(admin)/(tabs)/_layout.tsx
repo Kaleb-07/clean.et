@@ -14,7 +14,6 @@ import { useAuth } from "../../../contexts/AuthContext";
 export default function TabLayout() {
   const { user, isLoading } = useAuth();
 
-  // ✅ Loading state
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", backgroundColor: "#0F172A" }}>

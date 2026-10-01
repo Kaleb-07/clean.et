@@ -91,7 +91,16 @@ function RootNavigator() {
         <Stack.Screen name="invoices/[id]" />
         <Stack.Screen name="vehicles/index" />
         <Stack.Screen name="building-profiles/index" />
-        <Stack.Screen name="profile/index" />
+
+        {/* Profile Sub-screens */}
+        <Stack.Screen name="profile/personal-info" />
+        <Stack.Screen name="profile/subscription" />
+        <Stack.Screen name="profile/notifications" />
+        <Stack.Screen name="profile/fleet" />
+        <Stack.Screen name="profile/settings" />
+        <Stack.Screen name="profile/privacy" />
+        <Stack.Screen name="profile/help" />
+        <Stack.Screen name="profile/payments" />
 
         {/* Admin Panel */}
         <Stack.Screen name="(admin)" />
