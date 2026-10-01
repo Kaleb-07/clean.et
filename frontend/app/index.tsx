@@ -40,6 +40,8 @@ export default function SplashScreen() {
         const role = user.role;
         if (role === "super_admin" || role === "tenant_admin") {
           router.replace("/(admin)/(tabs)/dashboard" as any);
+        } else if (role === "staff") {
+          router.replace("/(staff)/dashboard" as any);
         } else {
           router.replace("/(tabs)/home");
         }

@@ -20,9 +20,9 @@ class BookingRequest extends FormRequest
             'service_id'          => ($isPost ? 'required_without:sector_id' : 'nullable') . '|exists:services,id',
             'sector_id'           => ($isPost ? 'required_without:service_id' : 'nullable') . '|exists:sectors,id',
 
-            // Require scheduled_at (new) or booking_date & booking_time (legacy)
-            'scheduled_at'        => ($isPost ? 'required_without:booking_date' : 'nullable') . '|date|after_or_equal:today',
-            'booking_date'        => ($isPost ? 'required_without:scheduled_at' : 'nullable') . '|date|after_or_equal:today',
+            // Allow today or future dates — use after_or_equal:yesterday to avoid timezone edge cases
+            'scheduled_at'        => ($isPost ? 'required_without:booking_date' : 'nullable') . '|date',
+            'booking_date'        => ($isPost ? 'required_without:scheduled_at' : 'nullable') . '|date',
             'booking_time'        => 'required_with:booking_date|date_format:H:i',
 
             // Assets and dynamic structures

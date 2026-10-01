@@ -14,13 +14,11 @@ class StorePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'invoice_id' => ['required', 'integer', 'exists:invoices,id'],
-            'provider'   => ['required', 'string', 'in:telebirr,cbe_birr,amole,stripe,cash'],
-            /**
-             * For mobile-money providers the client passes the provider's redirect URL
-             * returned from the payment gateway; for cash it may be omitted.
-             */
-            'return_url' => ['nullable', 'url'],
+            'invoice_id'      => ['required', 'integer', 'exists:invoices,id'],
+            'provider'        => ['required', 'string', 'in:telebirr,cbe_birr,amole,stripe,cash,chapa'],
+            'return_url'      => ['nullable', 'url'],
+            // Cash-specific: amount physically collected by the crew member
+            'amount_received' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 }
