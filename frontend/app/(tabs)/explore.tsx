@@ -279,18 +279,14 @@ export default function ExploreScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    if (item.isLiveService && item.serviceId) {
-      router.push(`/booking/service/${item.serviceId}` as any);
-    } else {
-      router.push({
-        pathname: "/booking/[sectorId]",
-        params: {
-          sectorId: String(item.sectorId),
-          categoryName: item.categoryName,
-          sectorName: item.sectorName,
-        },
-      } as any);
-    }
+    router.push({
+      pathname: "/booking/[sectorId]",
+      params: {
+        sectorId: String(item.sectorId || 1),
+        categoryName: item.categoryName,
+        sectorName: item.sectorName,
+      },
+    } as any);
   };
 
   return (
