@@ -65,6 +65,7 @@ class BookingService
     {
         // Resolve sector — either direct sector_id or from legacy service_id
         $sector = null;
+        $service = null;
         if (!empty($data['sector_id'])) {
             $sector = Sector::with('category')->findOrFail($data['sector_id']);
         } elseif (!empty($data['service_id'])) {
@@ -72,14 +73,20 @@ class BookingService
             $sector  = $service->sector()->with('category')->first();
         }
 
-        // Validate dynamic requirements if sector found
+        // Validate dynamic requirements if sector found and not direct service booking
         $requirementData = $data['requirement_data'] ?? [];
-        if ($sector) {
+        if ($sector && empty($data['service_id'])) {
             $this->schemaValidator->validate($sector, $requirementData);
         }
 
-        // Compute price
-        $price = ($sector) ? $this->pricing->calculate($sector, $requirementData) : 0.0;
+        // Compute price: honor service price for service bookings, or calculate for sector bookings
+        if ($service && (float)$service->price > 0) {
+            $price = (float)$service->price;
+        } elseif ($sector) {
+            $price = $this->pricing->calculate($sector, $requirementData);
+        } else {
+            $price = 0.0;
+        }
 
         // Resolve customer profile
         $customer = $user->customerProfile;
@@ -134,8 +141,8 @@ class BookingService
 
         // ── Notify customer immediately ──────────────────────────────────────
         if ($booking->user) {
-            $sectorName = $sector?->name ?? '';
-            $this->notifications->notifyBookingCreated($booking->user, $booking->id, $sectorName);
+            $serviceTitle = $sector?->name ?? ($service?->name ?? 'Cleaning Service');
+            $this->notifications->notifyBookingCreated($booking->user, $booking->id, $serviceTitle);
         }
 
         return $booking->load(['sector.category', 'customer.user', 'vehicle', 'building', 'service']);

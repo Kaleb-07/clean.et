@@ -1,11 +1,16 @@
 export interface Service {
-  id: string;
+  id: string | number;
   name: string;
   description: string;
   price: number;
-  duration: number;
-  imageKey: string;
+  duration?: number;
+  imageKey?: string;
+  image?: string | null;
   sub_center?: string;
+  category?: string;
+  sector_id?: number | null;
+  tenant_id?: number | null;
+  tenant_name?: string | null;
 }
 
 export const getServiceImage = (key: string) => {

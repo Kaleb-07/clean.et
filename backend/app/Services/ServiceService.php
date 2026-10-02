@@ -6,9 +6,21 @@ use App\Models\Service;
 
 class ServiceService
 {
-    public function getAll()
+    public function getAll(array $filters = [])
     {
-        return Service::latest()->get();
+        $query = Service::with(['sector', 'tenant'])->latest();
+
+        if (!empty($filters['category']) && $filters['category'] !== 'all') {
+            $query->where('category', $filters['category']);
+        }
+        if (!empty($filters['sector_id'])) {
+            $query->where('sector_id', $filters['sector_id']);
+        }
+        if (!empty($filters['sub_center'])) {
+            $query->where('sub_center', $filters['sub_center']);
+        }
+
+        return $query->get();
     }
 
     public function getById($id)

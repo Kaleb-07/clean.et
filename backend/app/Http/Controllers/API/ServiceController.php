@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ServiceRequest;
 use App\Http\Resources\ServiceResource;
 use App\Services\ServiceService;
+use Illuminate\Http\Request;
 
 class ServiceController extends Controller
 {
@@ -17,9 +18,9 @@ class ServiceController extends Controller
     }
 
     // GET /services
-    public function index()
+    public function index(Request $request)
     {
-        $services = $this->serviceService->getAll();
+        $services = $this->serviceService->getAll($request->all());
         return ServiceResource::collection($services);
     }
 

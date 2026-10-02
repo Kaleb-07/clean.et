@@ -261,6 +261,13 @@ export default function HomeScreen() {
     router.push(`/booking/${id}`);
   };
 
+  const handleBookLiveService = (serviceId: number | string) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    router.push(`/booking/service/${serviceId}` as any);
+  };
+
   // Find active booking for client
   const activeBooking = useMemo(() => {
     return bookings.find(
@@ -271,6 +278,26 @@ export default function HomeScreen() {
         b.status === "pending",
     );
   }, [bookings]);
+
+  const activeCategorySlug = useMemo(() => {
+    if (activeCategoryId === "all") return "all";
+    const found = categories.find((c) => c.id === activeCategoryId);
+    return found ? found.slug : "all";
+  }, [categories, activeCategoryId]);
+
+  const filteredLiveServices = useMemo(() => {
+    return liveServices.filter((s: any) => {
+      const matchesCategory =
+        activeCategorySlug === "all" ||
+        s.category === activeCategorySlug;
+      const matchesSearch =
+        !search.trim() ||
+        s.name?.toLowerCase().includes(search.toLowerCase()) ||
+        (s.description && s.description.toLowerCase().includes(search.toLowerCase())) ||
+        (s.sub_center && s.sub_center.toLowerCase().includes(search.toLowerCase()));
+      return matchesCategory && matchesSearch;
+    });
+  }, [liveServices, activeCategorySlug, search]);
 
   // Compute sectors based on selection (All vs Specific Category)
   const sectors = useMemo(() => {
@@ -685,6 +712,156 @@ export default function HomeScreen() {
 
         {/* ── 5. UNIFIED SECTOR DIVISION SERVICES LIST ── */}
         <View style={styles.servicesList}>
+          {/* Dynamic Live Services Posted by Sector/Division Admin */}
+          {filteredLiveServices.length > 0 && (
+            <View style={{ marginBottom: 12, marginTop: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 18 }]}>
+                  ⚡ Live Division Offerings ({filteredLiveServices.length})
+                </Text>
+                <View style={{ backgroundColor: "#10B98122", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: "#10B98155" }}>
+                  <Text style={{ color: colors.isDark ? "#34D399" : "#059669", fontSize: 10, fontWeight: "800" }}>SECTOR POSTED</Text>
+                </View>
+              </View>
+              <Text style={[styles.sectionSubtitle, { color: colors.subtext, marginTop: 2 }]}>
+                Real-time services posted directly by division service centers
+              </Text>
+            </View>
+          )}
+
+          {filteredLiveServices.map((service: any, index: number) => {
+            const hasCustomImage = service.image && typeof service.image === "string" && service.image.length > 10;
+            const imageSource = hasCustomImage
+              ? { uri: service.image }
+              : require("../../assets/myimage/wash-premium.png");
+
+            const formattedSubCenter = service.sub_center
+              ? service.sub_center.replace(/-/g, " ").toUpperCase()
+              : "DIVISION OFFERING";
+
+            return (
+              <Animated.View
+                key={`live-svc-${service.id}`}
+                entering={FadeInUp.delay(index * 50)}
+              >
+                <BlurView
+                  intensity={25}
+                  tint={colors.isDark ? "dark" : "light"}
+                  style={[
+                    styles.card,
+                    {
+                      borderColor: "#10B98155",
+                      backgroundColor: colors.card,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={imageSource}
+                    style={styles.cardImage}
+                    resizeMode="cover"
+                  />
+
+                  <View style={styles.cardContent}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: "#10B98122",
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 6,
+                          borderWidth: 1,
+                          borderColor: "#10B98166",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: colors.isDark ? "#34D399" : "#059669",
+                            fontSize: 11,
+                            fontWeight: "800",
+                          }}
+                        >
+                          {service.tenant_name ? `${service.tenant_name.toUpperCase()} • ` : ""}{formattedSubCenter}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.cardHeader}>
+                      <Text style={[styles.cardTitle, { color: colors.text }]}>
+                        {service.name}
+                      </Text>
+                      <Text
+                        style={[styles.cardPrice, { color: colors.secondary }]}
+                      >
+                        ETB {Number(service.price).toLocaleString("en-ET", { minimumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={[
+                        styles.cardDescription,
+                        { color: colors.subtext },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {service.description || "Professional division cleaning service tailored to your standards."}
+                    </Text>
+
+                    <View style={styles.cardMeta}>
+                      <View style={styles.metaItem}>
+                        <Clock size={14} color={colors.subtext} />
+                        <Text
+                          style={[styles.metaText, { color: colors.subtext }]}
+                        >
+                          {service.duration || 45} mins
+                        </Text>
+                      </View>
+                      <View style={styles.metaItem}>
+                        <ShieldCheck size={14} color={colors.secondary} />
+                        <Text
+                          style={[styles.metaText, { color: colors.secondary }]}
+                        >
+                          {service.tenant_name || "Verified Division"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.bookButton,
+                        { backgroundColor: colors.primary },
+                        pressed && styles.bookButtonPressed,
+                      ]}
+                      onPress={() => handleBookLiveService(service.id)}
+                    >
+                      <Text style={styles.bookButtonText}>
+                        Book Service
+                      </Text>
+                      <ChevronRight size={16} color="#FFFFFF" />
+                    </Pressable>
+                  </View>
+                </BlurView>
+              </Animated.View>
+            );
+          })}
+
+          {filteredLiveServices.length > 0 && filteredSectors.length > 0 && (
+            <View style={{ marginTop: 16, marginBottom: 8 }}>
+              <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 16 }]}>
+                Standard Sector Packages
+              </Text>
+              <Text style={[styles.sectionSubtitle, { color: colors.subtext, marginTop: 2 }]}>
+                Core station & dispatch workflows
+              </Text>
+            </View>
+          )}
+
           {filteredSectors.map((item: any, index) => {
             const meta = SECTOR_METADATA[item.slug] || {
               description:

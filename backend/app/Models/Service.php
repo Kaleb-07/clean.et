@@ -45,6 +45,11 @@ class Service extends Model
         return $this->belongsTo(Tenant::class);
     }
 
+    public function sector()
+    {
+        return $this->belongsTo(Sector::class);
+    }
+
     public function bookings()
     {
         return $this->hasMany(Booking::class);

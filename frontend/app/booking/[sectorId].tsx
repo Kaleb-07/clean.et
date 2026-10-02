@@ -114,7 +114,7 @@ export default function DynamicBookingScreen() {
           if (field.type === "boolean") {
             defaults[field.key] = false;
           } else if (field.type === "select" && field.options && field.options.length > 0) {
-            const firstOpt = field.options[0];
+            const firstOpt: any = field.options[0];
             defaults[field.key] = typeof firstOpt === "object" && firstOpt !== null ? firstOpt.value ?? firstOpt.label : firstOpt;
           } else {
             defaults[field.key] = "";

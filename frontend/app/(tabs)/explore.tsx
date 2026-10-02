@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
   RefreshControl,
   Dimensions,
+  Image,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,6 +29,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
+import API from "../../src/api/client";
 import { useColors } from "../../hooks/useColors";
 import { useCategories } from "../../hooks/useCategories";
 
@@ -35,8 +37,10 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface ExploreServiceItem {
   id: string;
+  isLiveService?: boolean;
+  serviceId?: number | string;
   sectorId: number;
-  categorySlug: "car-washing" | "building-cleaning";
+  categorySlug: string;
   categoryName: string;
   sectorName: string;
   title: string;
@@ -50,6 +54,7 @@ interface ExploreServiceItem {
   badge?: string;
   popular?: boolean;
   features: string[];
+  image?: string | null;
 }
 
 const EXPLORE_SERVICES: ExploreServiceItem[] = [
@@ -190,19 +195,65 @@ export default function ExploreScreen() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<"popular" | "price_asc" | "rating">("popular");
+  const [liveServices, setLiveServices] = useState<any[]>([]);
 
-  const onRefresh = useCallback(() => {
+  const loadLiveServices = async () => {
+    try {
+      const res = await API.get("/services");
+      setLiveServices(res.data.data ?? []);
+    } catch (e) {
+      console.log("Explore live services error:", e);
+    }
+  };
+
+  useEffect(() => {
+    loadLiveServices();
+  }, []);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 700);
+    await loadLiveServices();
+    setRefreshing(false);
   }, []);
 
+  const mappedLiveServices: ExploreServiceItem[] = useMemo(() => {
+    return liveServices.map((s) => ({
+      id: `live-${s.id}`,
+      isLiveService: true,
+      serviceId: s.id,
+      sectorId: s.sector_id || 1,
+      categorySlug: s.category || "car-washing",
+      categoryName: s.category === "building-cleaning" ? "Building Cleaning" : "Car Wash",
+      sectorName: s.sub_center ? s.sub_center.replace(/-/g, " ").toUpperCase() : "DIVISION CENTER",
+      title: s.name,
+      subtitle: s.description || "Real-time division service item",
+      description: s.description || "Professional service provided by verified clean.et division crew.",
+      price: `${Number(s.price).toLocaleString()} ETB`,
+      priceNum: Number(s.price),
+      duration: `${s.duration || 45} min`,
+      rating: 5.0,
+      reviewCount: 24,
+      badge: s.tenant_name ? s.tenant_name.toUpperCase() : "Live Division",
+      popular: true,
+      features: [
+        `Duration: ${s.duration || 45} mins`,
+        s.sub_center ? `Station: ${s.sub_center.replace(/-/g, " ").toUpperCase()}` : "Certified equipment",
+        "Direct Division Dispatch",
+        "Verified Crew",
+      ],
+      image: s.image,
+    }));
+  }, [liveServices]);
+
+  const allExploreServices = useMemo(() => {
+    return [...mappedLiveServices, ...EXPLORE_SERVICES];
+  }, [mappedLiveServices]);
+
   const filteredServices = useMemo(() => {
-    return EXPLORE_SERVICES.filter((item) => {
+    return allExploreServices.filter((item) => {
       // Category filter
       if (selectedCategory !== "all" && item.categorySlug !== selectedCategory) {
         return false;
@@ -222,20 +273,24 @@ export default function ExploreScreen() {
       if (sortBy === "rating") return b.rating - a.rating;
       return (b.popular ? 1 : 0) - (a.popular ? 1 : 0);
     });
-  }, [selectedCategory, searchQuery, sortBy]);
+  }, [allExploreServices, selectedCategory, searchQuery, sortBy]);
 
   const handleBookService = (item: ExploreServiceItem) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    router.push({
-      pathname: "/booking/[sectorId]",
-      params: {
-        sectorId: String(item.sectorId),
-        categoryName: item.categoryName,
-        sectorName: item.sectorName,
-      },
-    } as any);
+    if (item.isLiveService && item.serviceId) {
+      router.push(`/booking/service/${item.serviceId}` as any);
+    } else {
+      router.push({
+        pathname: "/booking/[sectorId]",
+        params: {
+          sectorId: String(item.sectorId),
+          categoryName: item.categoryName,
+          sectorName: item.sectorName,
+        },
+      } as any);
+    }
   };
 
   return (
@@ -465,6 +520,14 @@ export default function ExploreScreen() {
                 },
               ]}
             >
+              {service.image && typeof service.image === "string" && service.image.length > 10 ? (
+                <Image
+                  source={{ uri: service.image }}
+                  style={{ width: "100%", height: 140, borderRadius: 12, marginBottom: 12 }}
+                  resizeMode="cover"
+                />
+              ) : null}
+
               {/* Badge & Category */}
               <View style={styles.cardTopRow}>
                 <View style={[styles.categoryTag, { backgroundColor: colors.primaryLight }]}>

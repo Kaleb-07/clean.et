@@ -98,11 +98,23 @@ export default function AdminServices() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [categoriesWithSectors, setCategoriesWithSectors] = useState<any[]>([]);
+
   useEffect(() => {
     loadServices();
     loadSettingsSectors();
     loadCustomCenters();
+    loadCategories();
   }, [user?.tenant_id]);
+
+  const loadCategories = async () => {
+    try {
+      const res = await API.get("/categories");
+      setCategoriesWithSectors(res.data ?? []);
+    } catch (e) {
+      console.log("Categories load error:", e);
+    }
+  };
 
   const loadCustomCenters = async () => {
     try {
@@ -163,7 +175,7 @@ export default function AdminServices() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadServices(), loadSettingsSectors()]);
+    await Promise.all([loadServices(), loadSettingsSectors(), loadCategories()]);
     setRefreshing(false);
   };
 
@@ -219,15 +231,40 @@ export default function AdminServices() {
 
     setIsSubmitting(true);
     try {
-      const payload = {
+      const targetCatSlug = serviceForm.category || availableSectors[0]?.id || "car-washing";
+
+      // Match sub_center to sector
+      let matchedSectorId: number | null = null;
+      const currentCat = categoriesWithSectors.find(
+        (c: any) => c.slug === targetCatSlug || String(c.id) === String(targetCatSlug)
+      );
+      if (currentCat && currentCat.sectors && currentCat.sectors.length > 0) {
+        const subCenterSlugMap: Record<string, string> = {
+          "corporate-fleet": "corporate-fleet",
+          "mobile-doorstep": "home-to-home",
+          "valet-pickup": "pickup-drop-off",
+          "bay-wash": "standard-bay-wash",
+          "exterior-facade": "exterior-cleaning",
+          "interior-deep": "interior-cleaning",
+        };
+        const targetSlug = subCenterSlugMap[serviceForm.sub_center] || serviceForm.sub_center;
+        const found = currentCat.sectors.find((s: any) => s.slug === targetSlug);
+        matchedSectorId = found ? found.id : currentCat.sectors[0]?.id ?? null;
+      }
+
+      const payload: any = {
         name: serviceForm.name.trim(),
-        category: serviceForm.category || availableSectors[0]?.id || "car-washing",
+        category: targetCatSlug,
         sub_center: serviceForm.sub_center || "corporate-fleet",
         description: serviceForm.description ? serviceForm.description.trim() : "",
         price: parsedPrice,
         duration: parseInt(serviceForm.duration, 10) || 45,
         image: serviceForm.image || null,
       };
+
+      if (matchedSectorId) {
+        payload.sector_id = matchedSectorId;
+      }
 
       if (editingService) {
         await API.put(`/services/${editingService.id}`, payload);

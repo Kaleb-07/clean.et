@@ -17,7 +17,14 @@ class ServiceResource extends JsonResource
             'duration'    => $this->duration ?? 45,
             'category'    => $this->category ?? 'car-washing',
             'sub_center'  => $this->sub_center ?? null,
+            'sector_id'   => $this->sector_id ?? null,
+            'sector'      => $this->sector ? [
+                'id'   => $this->sector->id,
+                'name' => $this->sector->name,
+                'slug' => $this->sector->slug,
+            ] : null,
             'tenant_id'   => $this->tenant_id ?? null,
+            'tenant_name' => $this->tenant?->business_name ?? null,
             'created_at'  => $this->created_at,
         ];
     }
